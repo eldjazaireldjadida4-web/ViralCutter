@@ -8,7 +8,7 @@ Turn long YouTube videos into viral shorts optimized for TikTok, Instagram Reels
 [![Forks](https://img.shields.io/github/forks/eldjazaireldjadida4-web/ViralCutter?style=social)](https://github.com/eldjazaireldjadida4-web/ViralCutter/network/members)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UZKzeqjIeEyvq9nPx7s_4mU6xlkZQn_R?usp=sharing)
 
-[English](README_en.md) • [Português](README.md)
+[English](README_en.md) • [Português](README.md) • [العربية](README_ar.md)
 
 ## Why is ViralCutter a "Game Changer"?
 

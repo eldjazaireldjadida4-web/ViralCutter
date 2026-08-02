@@ -56,6 +56,7 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 # Global variables
 current_process = None
 
+from pipeline import build_command
 from utils import (
     PROGRESS_STAGES,
     empty_progress_state,
@@ -133,13 +134,9 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         emit_log(i18n("Preparing run..."))
         yield "", gr.update(value=i18n("Running..."), interactive=False), gr.update(visible=True, interactive=True), None, render_progress_html(progress_state), render_tasks_html(progress_state), render_error_html(error_items)
 
-        cmd = [sys.executable, MAIN_SCRIPT_PATH]
         input_source = input_source or "YouTube URL"
-        workflow = workflow or "Full"
-        ai_backend = ai_backend or "manual"
-        face_mode = face_mode or "auto"
-        no_face_mode = no_face_mode or "padding"
 
+        source_args = []
         if input_source == "Existing Project":
             if not project_name:
                 yield fail(i18n("Error: No project selected."))
@@ -148,7 +145,7 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             if not os.path.exists(full_project_path):
                 yield fail(i18n("Error: Project path not found."))
                 return
-            cmd.extend(["--project-path", full_project_path])
+            source_args = ["--project-path", full_project_path]
         elif input_source == "Upload Video":
             if not video_file:
                 yield fail(i18n("Error: No video file uploaded."))
@@ -162,72 +159,19 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             os.makedirs(project_path, exist_ok=True)
             target_path = os.path.join(project_path, "input.mp4")
             shutil.copy2(video_file, target_path)
-            cmd.extend(["--project-path", project_path, "--skip-youtube-subs"])
+            source_args = ["--project-path", project_path, "--skip-youtube-subs"]
             emit_log(f"Copied upload to {target_path}")
         else:
-            if url:
-                cmd.extend(["--url", url])
-            else:
+            if not url:
                 yield fail(i18n("Error: No URL provided."))
                 return
+            source_args = ["--url", url]
             if video_quality:
-                cmd.extend(["--video-quality", video_quality])
+                source_args.extend(["--video-quality", video_quality])
             if not use_youtube_subs:
-                cmd.append("--skip-youtube-subs")
+                source_args.append("--skip-youtube-subs")
 
-        if translate_target and translate_target != "None":
-            cmd.extend(["--translate-target", translate_target])
-
-        cmd.extend(["--segments", str(_safe_int(segments, 3))])
-        if viral:
-            cmd.append("--viral")
-        if themes:
-            cmd.extend(["--themes", themes])
-        cmd.extend(["--min-duration", str(_safe_int(min_duration, 15))])
-        cmd.extend(["--max-duration", str(_safe_int(max_duration, 90))])
-        cmd.extend(["--model", model or "large-v3-turbo"])
-        cmd.extend(["--ai-backend", ai_backend])
-        if api_key:
-            cmd.extend(["--api-key", api_key])
-        if ai_model_name:
-            cmd.extend(["--ai-model-name", str(ai_model_name)])
-        if chunk_size not in (None, ""):
-            cmd.extend(["--chunk-size", str(_safe_int(chunk_size, 70000))])
-
-        workflow_map = {"Full": "1", "Cut Only": "2", "Subtitles Only": "3"}
-        cmd.extend(["--workflow", workflow_map.get(workflow, "1")])
-        cmd.extend(["--face-model", face_model])
-        cmd.extend(["--face-mode", face_mode])
-        if face_detect_interval:
-            cmd.extend(["--face-detect-interval", str(face_detect_interval)])
-        if no_face_mode:
-            cmd.extend(["--no-face-mode", no_face_mode])
-
-        if face_filter_thresh is not None:
-            cmd.extend(["--face-filter-threshold", str(face_filter_thresh)])
-        if face_two_thresh is not None:
-            cmd.extend(["--face-two-threshold", str(face_two_thresh)])
-        if face_conf_thresh is not None:
-            cmd.extend(["--face-confidence-threshold", str(face_conf_thresh)])
-        if face_dead_zone is not None:
-            cmd.extend(["--face-dead-zone", str(face_dead_zone)])
-
-        cmd.append("--skip-prompts")
-        if focus_active_speaker:
-            cmd.append("--focus-active-speaker")
-            if active_speaker_mar is not None:
-                cmd.extend(["--active-speaker-mar", str(active_speaker_mar)])
-            if active_speaker_score_diff is not None:
-                cmd.extend(["--active-speaker-score-diff", str(active_speaker_score_diff)])
-            if include_motion:
-                cmd.append("--include-motion")
-            if active_speaker_motion_threshold is not None:
-                cmd.extend(["--active-speaker-motion-threshold", str(active_speaker_motion_threshold)])
-            if active_speaker_motion_sensitivity is not None:
-                cmd.extend(["--active-speaker-motion-sensitivity", str(active_speaker_motion_sensitivity)])
-            if active_speaker_decay is not None:
-                cmd.extend(["--active-speaker-decay", str(active_speaker_decay)])
-
+        subtitle_config_path = None
         if use_custom_subs:
             subtitle_config = _build_subtitle_config(
                 font_name, font_size, font_color, highlight_color, outline_color,
@@ -238,7 +182,26 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
             with open(subtitle_config_path, "w", encoding="utf-8") as f:
                 json.dump(subtitle_config, f, indent=4)
-            cmd.extend(["--subtitle-config", subtitle_config_path])
+
+        cmd = build_command(
+            MAIN_SCRIPT_PATH, source_args,
+            segments=segments, viral=viral, themes=themes,
+            min_duration=min_duration, max_duration=max_duration, model=model,
+            ai_backend=ai_backend, api_key=api_key, ai_model_name=ai_model_name,
+            chunk_size=chunk_size, workflow=workflow, face_model=face_model,
+            face_mode=face_mode, face_detect_interval=face_detect_interval,
+            no_face_mode=no_face_mode, face_filter_thresh=face_filter_thresh,
+            face_two_thresh=face_two_thresh, face_conf_thresh=face_conf_thresh,
+            face_dead_zone=face_dead_zone, focus_active_speaker=focus_active_speaker,
+            active_speaker_mar=active_speaker_mar,
+            active_speaker_score_diff=active_speaker_score_diff,
+            include_motion=include_motion,
+            active_speaker_motion_threshold=active_speaker_motion_threshold,
+            active_speaker_motion_sensitivity=active_speaker_motion_sensitivity,
+            active_speaker_decay=active_speaker_decay,
+            translate_target=translate_target,
+            subtitle_config_path=subtitle_config_path,
+        )
 
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"

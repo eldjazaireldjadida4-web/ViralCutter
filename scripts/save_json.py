@@ -1,5 +1,11 @@
 import os
 import json
+import sys
+
+from i18n.i18n import I18nAuto
+
+i18n = I18nAuto()
+
 
 def save_viral_segments(segments_data=None, project_folder="tmp"):
     output_txt_file = os.path.join(project_folder, "viral_segments.txt")
@@ -7,9 +13,14 @@ def save_viral_segments(segments_data=None, project_folder="tmp"):
     # Verifica se o arquivo já existe
     if not os.path.exists(output_txt_file):
         if segments_data is None:
+            # Never block automation: without an interactive terminal there
+            # is nobody to answer the prompt, so skip instead of hanging.
+            if not sys.stdin.isatty():
+                print(i18n("No segments data provided and no interactive input available. Skipping save."))
+                return
             # Solicita ao usuário que insira o JSON caso o arquivo não exista e os segmentos não estejam definidos
             while True:
-                user_input = input("\nPor favor, insira o JSON no formato desejado:\n")
+                user_input = input(i18n("\nPlease enter the JSON in the desired format:\n"))
                 try:
                     # Tenta carregar o JSON inserido
                     segments_data = json.loads(user_input)
@@ -19,17 +30,17 @@ def save_viral_segments(segments_data=None, project_folder="tmp"):
                         # Salva os dados em um arquivo JSON
                         with open(output_txt_file, 'w', encoding='utf-8') as file:
                             json.dump(segments_data, file, ensure_ascii=False, indent=4)
-                        print(f"Segmentos virais salvos em {output_txt_file}")
+                        print(i18n("Viral segments saved to {}").format(output_txt_file))
                         break
                     else:
-                        print("Formato inválido. Certifique-se de que a estrutura está correta.")
+                        print(i18n("Invalid format. Make sure the structure is correct."))
                 except json.JSONDecodeError:
-                    print("Erro ao decifrar o JSON. Por favor, verifique a formatação.")
-                print("Por favor, tente novamente.")
+                    print(i18n("Error decoding JSON. Please check the formatting."))
+                print(i18n("Please try again."))
         else:
             # Caso os segmentos tenham sido gerados, salva automaticamente
             with open(output_txt_file, 'w', encoding='utf-8') as file:
                 json.dump(segments_data, file, ensure_ascii=False, indent=4)
-            print(f"Segmentos virais salvos em {output_txt_file}\n")
+            print(i18n("Viral segments saved to {}").format(output_txt_file) + "\n")
     else:
-        print(f"O arquivo {output_txt_file} já existe. Nenhuma entrada adicional é necessária.")
+        print(i18n("The file {} already exists. No additional input needed.").format(output_txt_file))

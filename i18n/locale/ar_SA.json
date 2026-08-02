@@ -454,5 +454,12 @@
     "\\n[ERROR] Subtitle processing failed: {}": "\\n[خطأ] فشلت معالجة الترجمة: {}",
     "\\n[ERROR] Unexpected error during subtitle processing: {}": "\\n[خطأ] خطأ غير متوقع أثناء معالجة الترجمة: {}",
     "e.g. clean-shorts": "مثال: clean-shorts",
-    "No files found in final folder for subtitle burning.": "لا توجد ملفات في مجلد final لحرق الترجمة."
+    "No files found in final folder for subtitle burning.": "لا توجد ملفات في مجلد final لحرق الترجمة.",
+    "\nPlease enter the JSON in the desired format:\n": "\nمن فضلك أدخل JSON بالصيغة المطلوبة:\n",
+    "Invalid format. Make sure the structure is correct.": "صيغة غير صالحة. تأكد من صحة البنية.",
+    "Error decoding JSON. Please check the formatting.": "خطأ في فك ترميز JSON. تحقق من التنسيق.",
+    "Please try again.": "حاول مرة أخرى.",
+    "Viral segments saved to {}": "تم حفظ المقاطع الفيروسية في {}",
+    "The file {} already exists. No additional input needed.": "الملف {} موجود بالفعل. لا حاجة لإدخال إضافي.",
+    "No segments data provided and no interactive input available. Skipping save.": "لا توجد بيانات مقاطع ولا إدخال تفاعلي متاح. تم تخطي الحفظ."
 }

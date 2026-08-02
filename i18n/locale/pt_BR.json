@@ -351,5 +351,12 @@
     "\\n[CRITICAL ERROR] Connection Failure: Could not access YouTube.": "\\n[CRITICAL ERROR] Connection Failure: Could not access YouTube.",
     "\\n[ERROR] Subtitle processing failed: {}": "\\n[ERROR] Subtitle processing failed: {}",
     "\\n[ERROR] Unexpected error during subtitle processing: {}": "\\n[ERROR] Unexpected error during subtitle processing: {}",
-    "e.g. clean-shorts": "e.g. clean-shorts"
+    "e.g. clean-shorts": "e.g. clean-shorts",
+    "\nPlease enter the JSON in the desired format:\n": "\nPlease enter the JSON in the desired format:\n",
+    "Invalid format. Make sure the structure is correct.": "Invalid format. Make sure the structure is correct.",
+    "Error decoding JSON. Please check the formatting.": "Error decoding JSON. Please check the formatting.",
+    "Please try again.": "Please try again.",
+    "Viral segments saved to {}": "Viral segments saved to {}",
+    "The file {} already exists. No additional input needed.": "The file {} already exists. No additional input needed.",
+    "No segments data provided and no interactive input available. Skipping save.": "No segments data provided and no interactive input available. Skipping save."
 }
