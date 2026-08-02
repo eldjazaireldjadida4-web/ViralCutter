@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Environments & secrets
+.env
+.env.*
+api_config.local.json
+
+# Builds
+dist/
+build/
+
+# Models & large binaries
+models/*.onnx
+models/*.bin
+models/*.gguf
+models/*.pth
+*.mp4
+*.mkv
+*.webm
+*.srt
+
+# Output / temp
+tmp/
+output/
+*.log
