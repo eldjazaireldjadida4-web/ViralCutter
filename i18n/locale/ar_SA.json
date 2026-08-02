@@ -461,5 +461,16 @@
     "Please try again.": "حاول مرة أخرى.",
     "Viral segments saved to {}": "تم حفظ المقاطع الفيروسية في {}",
     "The file {} already exists. No additional input needed.": "الملف {} موجود بالفعل. لا حاجة لإدخال إضافي.",
-    "No segments data provided and no interactive input available. Skipping save.": "لا توجد بيانات مقاطع ولا إدخال تفاعلي متاح. تم تخطي الحفظ."
+    "No segments data provided and no interactive input available. Skipping save.": "لا توجد بيانات مقاطع ولا إدخال تفاعلي متاح. تم تخطي الحفظ.",
+    "Review Segments": "مراجعة المقاطع",
+    "Load Segments": "تحميل المقاطع",
+    "Apply Selection": "تطبيق الاختيار",
+    "Restore All": "استعادة الكل",
+    "Render Selected Segments": "عرض المقاطع المختارة",
+    "No viral segments found in this project.": "لا توجد مقاطع فيروسية في هذا المشروع.",
+    "Applied: {} of {} segments selected.": "تم التطبيق: اخترت {} من {} مقطع.",
+    "Stale cuts cleared — they will be re-cut on render.": "تم مسح القصات القديمة — ستُعاد عند العرض.",
+    "Selection restored from backup.": "تمت الاستعادة من النسخة الاحتياطية.",
+    "No backup found for this project.": "لا توجد نسخة احتياطية لهذا المشروع.",
+    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "راجع المقاطع المقترحة من الذكاء الاصطناعي، ألغِ تحديد غير المناسب، ثم اعرض المختارة فقط."
 }

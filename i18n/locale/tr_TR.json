@@ -358,5 +358,16 @@
     "Please try again.": "Please try again.",
     "Viral segments saved to {}": "Viral segments saved to {}",
     "The file {} already exists. No additional input needed.": "The file {} already exists. No additional input needed.",
-    "No segments data provided and no interactive input available. Skipping save.": "No segments data provided and no interactive input available. Skipping save."
+    "No segments data provided and no interactive input available. Skipping save.": "No segments data provided and no interactive input available. Skipping save.",
+    "Review Segments": "Review Segments",
+    "Load Segments": "Load Segments",
+    "Apply Selection": "Apply Selection",
+    "Restore All": "Restore All",
+    "Render Selected Segments": "Render Selected Segments",
+    "No viral segments found in this project.": "No viral segments found in this project.",
+    "Applied: {} of {} segments selected.": "Applied: {} of {} segments selected.",
+    "Stale cuts cleared — they will be re-cut on render.": "Stale cuts cleared — they will be re-cut on render.",
+    "Selection restored from backup.": "Selection restored from backup.",
+    "No backup found for this project.": "No backup found for this project.",
+    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones."
 }

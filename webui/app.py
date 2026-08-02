@@ -16,6 +16,7 @@ import re
 import library # Module for Library Logic
 import subtitle_handler as subs # Module for Subtitles
 import subtitle_editor as editor # Module for Editor Logic
+import segments_review # Module for Segments Review Logic
 
 # Path to the main script
 MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main_improved.py")
@@ -658,6 +659,82 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                     underline_input, strikeout_input, border_style_input, remove_punc_input,
                     video_quality_input, use_youtube_subs_input, translate_input
                 ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
+        with gr.Tab(i18n("Review Segments")):
+            gr.Markdown(f"### {i18n('Review Segments')}")
+            gr.Markdown(i18n("Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones."))
+            with gr.Row():
+                review_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label=tr("Select Project"), value=None)
+                review_refresh_btn = gr.Button(tr("Refresh"), size="sm")
+                review_load_btn = gr.Button(i18n("Load Segments"), variant="primary")
+
+            review_df = gr.Dataframe(
+                headers=segments_review.HEADERS,
+                datatype=["bool", "str", "number", "str", "str", "str", "str"],
+                interactive=True,
+                label=i18n("Segments"),
+            )
+
+            with gr.Row():
+                review_apply_btn = gr.Button(i18n("Apply Selection"))
+                review_restore_btn = gr.Button(i18n("Restore All"))
+                review_render_btn = gr.Button(i18n("Render Selected Segments"), variant="primary")
+            review_status = gr.Markdown()
+
+            def load_review_segments(project_name):
+                if not project_name:
+                    return None, i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                segments = segments_review.load_segments(project_path)
+                if not segments:
+                    return None, i18n("No viral segments found in this project.")
+                return segments_review.rows_from_segments(segments), f"**{len(segments)}** ✔"
+
+            def apply_review_selection(project_name, df):
+                if not project_name:
+                    return i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                kept, total, cuts_cleared = segments_review.apply_selection(project_path, df)
+                msg = i18n("Applied: {} of {} segments selected.").format(kept, total)
+                if cuts_cleared:
+                    msg += " " + i18n("Stale cuts cleared — they will be re-cut on render.")
+                return msg
+
+            def restore_review_segments(project_name):
+                if not project_name:
+                    return None, i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                if not segments_review.restore_all(project_path):
+                    return None, i18n("No backup found for this project.")
+                segments = segments_review.load_segments(project_path)
+                return segments_review.rows_from_segments(segments), i18n("Selection restored from backup.")
+
+            def run_review_render(project_name, df, *rest):
+                if project_name and df is not None:
+                    project_path = os.path.join(VIRALS_DIR, project_name)
+                    try:
+                        segments_review.apply_selection(project_path, df)
+                    except Exception:
+                        pass
+                yield from run_viral_cutter("Existing Project", project_name, *rest)
+
+            review_refresh_btn.click(library.refresh_projects, outputs=review_project_dropdown)
+            review_load_btn.click(load_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
+            review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
+            review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
+            review_render_btn.click(run_review_render, inputs=[
+                review_project_dropdown, review_df, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
+                model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
+                workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
+                face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
+                active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
+                use_custom_subs,
+                font_name_input, font_size_input, font_color_input, highlight_color_input,
+                outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
+                bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
+                highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
+                underline_input, strikeout_input, border_style_input, remove_punc_input,
+                video_quality_input, use_youtube_subs_input, translate_input
+            ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
             with gr.Group():

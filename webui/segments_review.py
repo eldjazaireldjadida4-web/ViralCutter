@@ -1,0 +1,133 @@
+"""Review & select AI-suggested viral segments before rendering.
+
+Pure logic (no gradio imports) so it stays unit-testable:
+- load segments from a project's viral_segments.txt
+- convert to table rows for the UI
+- apply a selection: keep only chosen segments, back up the original file,
+  and invalidate stale cuts so the next render reflects the new selection.
+"""
+import json
+import os
+import shutil
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
+
+i18n = I18nAuto(DEFAULT_LANGUAGE)
+
+SEGMENTS_FILENAME = "viral_segments.txt"
+BACKUP_FILENAME = "viral_segments.full_backup.json"
+
+# Table columns: checkbox, title, score, start, end, duration, reason
+HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟"]
+
+
+def segments_file_path(project_path):
+    return os.path.join(project_path, SEGMENTS_FILENAME)
+
+
+def backup_file_path(project_path):
+    return os.path.join(project_path, BACKUP_FILENAME)
+
+
+def load_segments(project_path):
+    """Return the segments list from a project, or [] if none/invalid."""
+    path = segments_file_path(project_path)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        segments = data.get("segments", [])
+        return segments if isinstance(segments, list) else []
+    except Exception:
+        return []
+
+
+def _fmt_time(seconds):
+    try:
+        seconds = float(seconds)
+    except Exception:
+        return str(seconds)
+    m, s = divmod(int(round(seconds)), 60)
+    return f"{m:02d}:{s:02d}"
+
+
+def rows_from_segments(segments):
+    """Build Dataframe rows: [selected, title, score, start, end, duration, reason]."""
+    rows = []
+    for seg in segments:
+        start = seg.get("start_time", seg.get("start", 0))
+        end = seg.get("end_time", seg.get("end", 0))
+        try:
+            duration = round(float(end) - float(start), 1)
+        except Exception:
+            duration = seg.get("duration", "")
+        rows.append([
+            True,
+            seg.get("title", seg.get("hook", "")),
+            seg.get("score", 0),
+            _fmt_time(start),
+            _fmt_time(end),
+            duration,
+            seg.get("reasoning", ""),
+        ])
+    return rows
+
+
+def _rows_to_bool_list(rows):
+    """Normalize a Gradio Dataframe value (pandas or list) to a bool list."""
+    if rows is None:
+        return []
+    # pandas DataFrame (gradio default) — avoid importing pandas
+    if hasattr(rows, "iloc"):
+        return [bool(x) for x in rows.iloc[:, 0].tolist()]
+    return [bool(r[0]) for r in rows]
+
+
+def apply_selection(project_path, rows):
+    """Keep only selected segments. Returns (kept, total, cuts_invalidated)."""
+    segments = load_segments(project_path)
+    if not segments:
+        return 0, 0, False
+
+    selected = _rows_to_bool_list(rows)
+    # If the table has fewer rows than segments, default the rest to selected
+    if len(selected) < len(segments):
+        selected += [True] * (len(segments) - len(selected))
+
+    kept_segments = [s for s, keep in zip(segments, selected) if keep]
+    if not kept_segments:
+        kept_segments = segments  # never write an empty selection
+        selected = [True] * len(segments)
+
+    changed = len(kept_segments) != len(segments)
+
+    seg_path = segments_file_path(project_path)
+    bak_path = backup_file_path(project_path)
+    if changed and not os.path.exists(bak_path):
+        shutil.copy2(seg_path, bak_path)
+
+    with open(seg_path, "w", encoding="utf-8") as f:
+        json.dump({"segments": kept_segments}, f, ensure_ascii=False, indent=4)
+
+    # Invalidate stale cuts so the next render respects the new selection
+    cuts_invalidated = False
+    if changed:
+        cuts_dir = os.path.join(project_path, "cuts")
+        if os.path.isdir(cuts_dir):
+            shutil.rmtree(cuts_dir, ignore_errors=True)
+            cuts_invalidated = True
+
+    return len(kept_segments), len(segments), cuts_invalidated
+
+
+def restore_all(project_path):
+    """Restore the original full segments file from backup."""
+    bak_path = backup_file_path(project_path)
+    seg_path = segments_file_path(project_path)
+    if not os.path.exists(bak_path):
+        return False
+    shutil.copy2(bak_path, seg_path)
+    return True
