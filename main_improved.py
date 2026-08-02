@@ -27,10 +27,10 @@ from scripts import (
     organize_output,
     translate_json,
 )
-from i18n.i18n import I18nAuto
+from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
-# Inicializa sistema de tradução
-i18n = I18nAuto("ar_SA")
+# Inicializa sistema de tradução (default: Arabic; override with VIRALCUTTER_LANG)
+i18n = I18nAuto(DEFAULT_LANGUAGE)
 
 BASE_VERBOSE = os.getenv("VIRALCUTTER_VERBOSE", "").strip().lower() in {"1", "true", "yes", "on"}
 RUNTIME_VERBOSE = BASE_VERBOSE

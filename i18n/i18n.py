@@ -4,6 +4,10 @@ import os
 
 _LOCALE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locale")
 
+# Default UI language. Override with the VIRALCUTTER_LANG environment
+# variable (e.g. VIRALCUTTER_LANG=en_US) to run in another language.
+DEFAULT_LANGUAGE = os.getenv("VIRALCUTTER_LANG", "ar_SA")
+
 
 def load_language_list(language):
     with open(

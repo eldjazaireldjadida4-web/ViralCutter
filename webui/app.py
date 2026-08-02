@@ -22,80 +22,13 @@ MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 WORKING_DIR = os.path.dirname(MAIN_SCRIPT_PATH)
 sys.path.append(WORKING_DIR)
 
-from i18n.i18n import I18nAuto
-i18n = I18nAuto("ar_SA")
+from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
+i18n = I18nAuto(DEFAULT_LANGUAGE)
 
 def tr(key):
-    return AR_LABELS.get(key, i18n(key))
+    return i18n(key)
 
-AR_LABELS = {
-    "Start Processing": "بدء المعالجة",
-    "Stop": "إيقاف",
-    "Logs": "السجل",
-    "Results": "النتائج",
-    "Library": "المكتبة",
-    "Create New": "إنشاء جديد",
-    "Input Source": "مصدر الإدخال",
-    "YouTube URL": "رابط يوتيوب",
-    "Existing Project": "مشروع موجود",
-    "Upload Video": "رفع فيديو",
-    "Select Project": "اختر مشروعًا",
-    "Segments": "عدد المقاطع",
-    "Viral Mode": "وضع الفيروسية",
-    "Themes": "المواضيع",
-    "Min Duration (s)": "أقل مدة (ث)",
-    "Max Duration (s)": "أقصى مدة (ث)",
-    "AI Backend": "محرك الذكاء الاصطناعي",
-    "AI Model": "نموذج الذكاء الاصطناعي",
-    "Chunk Size": "حجم الجزء",
-    "Whisper Model": "نموذج Whisper",
-    "Workflow": "طريقة العمل",
-    "Face Model": "نموذج الوجه",
-    "Face Mode": "وضع الوجه",
-    "Face Det. Interval": "فاصل كشف الوجه",
-    "Subtitle Settings (alpha)": "إعدادات الترجمة (تجريبي)",
-    "Quick Presets": "إعدادات سريعة",
-    "Enable Subtitle Customization (Includes Preset)": "تفعيل تخصيص الترجمة (يشمل الإعداد المسبق)",
-    "Animated Preview": "معاينة متحركة",
-    "Advanced Settings": "إعدادات متقدمة",
-    "Appearance": "المظهر",
-    "Font Name": "اسم الخط",
-    "Font Size (Base)": "حجم الخط (الأساسي)",
-    "Highlight Size": "حجم التمييز",
-    "Base Color": "اللون الأساسي",
-    "Highlight Color": "لون التمييز",
-    "Outline Color": "لون الإطار",
-    "Shadow Color": "لون الظل",
-    "Styling & Effects": "التنسيق والمؤثرات",
-    "Outline Thickness": "سماكة الإطار",
-    "Shadow Size": "حجم الظل",
-    "Border Style": "نمط الإطار",
-    "Bold": "عريض",
-    "Italic": "مائل",
-    "Uppercase": "أحرف كبيرة",
-    "Underline": "تحته خط",
-    "Strikeout": "مشطوب",
-    "Positioning & Layout": "الموضع والتخطيط",
-    "Alignment": "المحاذاة",
-    "Gap Limit": "حد الفجوة",
-    "Mode": "الوضع",
-    "Words per Block": "كلمات بكل كتلة",
-    "Results": "النتائج",
-    "Task Progress": "تقدم المهام",
-    "Error Report": "تقرير الأخطاء",
-    "Loading...": "جارٍ التحميل...",
-    "Completed": "اكتمل",
-    "Running...": "جارٍ التشغيل...",
-    "Process terminated.": "تم إيقاف العملية.",
-    "Process stopped by user.": "أوقفها المستخدم.",
-    "No process running.": "لا توجد عملية قيد التشغيل.",
-    "Templates store subtitle styling plus face mode/model.": "تخزن القوالب تنسيق الترجمة مع وضع الوجه ونموذجه.",
-    "No files found in final folder for subtitle burning.": "لا توجد ملفات في مجلد final لحرق الترجمة.",
-}
 
-def empty_progress_state(current=None):
-    current = current or tr("Loading...")
-    return {k: {"percent": 0, "message": tr("Loading...")} for k in ["download", "transcribe", "ai", "cut", "edit", "subtitles", "done"]} | {"overall": 0, "current": current}
 
 # --- PRESETS DEFINITIONS ---
 FACE_PRESETS = {
@@ -123,27 +56,20 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 # Global variables
 current_process = None
 
-PROGRESS_ORDER = ["download", "transcribe", "ai", "cut", "edit", "subtitles", "done"]
-
-# Helpers
-def convert_color_to_ass(hex_color, alpha="00"):
-    try:
-        if not hex_color:
-            return f"&H{alpha}FFFFFF&"
-        hex_clean = hex_color.lstrip('#').strip()
-        if hex_clean.lower().startswith("rgb"):
-            nums = re.findall(r"[\d\.]+", hex_clean)
-            if len(nums) >= 3:
-                r, g, b = [max(0, min(255, int(float(n)))) for n in nums[:3]]
-                return f"&H{alpha}{b:02X}{g:02X}{r:02X}&".upper()
-        if len(hex_clean) == 3:
-            hex_clean = ''.join(c*2 for c in hex_clean)
-        if len(hex_clean) == 6:
-            r, g, b = hex_clean[0:2], hex_clean[2:4], hex_clean[4:6]
-            return f"&H{alpha}{b}{g}{r}&".upper()
-    except Exception:
-        pass
-    return f"&H{alpha}FFFFFF&"
+from utils import (
+    PROGRESS_STAGES,
+    empty_progress_state,
+    convert_color_to_ass,
+    build_subtitle_config,
+    normalize_path,
+    safe_int,
+    safe_float,
+)
+PROGRESS_ORDER = PROGRESS_STAGES
+_safe_int = safe_int
+_safe_float = safe_float
+_normalize_path = normalize_path
+_build_subtitle_config = build_subtitle_config
 
 def kill_process():
     global current_process
@@ -168,47 +94,7 @@ def kill_process():
     state = empty_progress_state(tr("No process running."))
     return (tr("No process running."), gr.update(), gr.update(interactive=False), render_progress_html(state), render_tasks_html(state), render_error_html([]))
 
-def _safe_int(value, default):
-    try:
-        return int(value)
-    except Exception:
-        return default
 
-def _safe_float(value, default):
-    try:
-        return float(value)
-    except Exception:
-        return default
-
-def _normalize_path(path):
-    if not path:
-        return path
-    return os.path.normpath(str(path))
-
-def _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc):
-    return {
-        "font": font_name,
-        "base_size": _safe_int(font_size, 12),
-        "base_color": convert_color_to_ass(font_color),
-        "highlight_color": convert_color_to_ass(highlight_color),
-        "outline_color": convert_color_to_ass(outline_color),
-        "outline_thickness": _safe_float(outline_thickness, 1.5),
-        "shadow_color": convert_color_to_ass(shadow_color),
-        "shadow_size": _safe_float(shadow_size, 2),
-        "vertical_position": _safe_int(vertical_pos, 210),
-        "alignment": _safe_int(alignment, 2),
-        "bold": 1 if is_bold else 0,
-        "italic": 1 if is_italic else 0,
-        "underline": 1 if under else 0,
-        "strikeout": 1 if strike else 0,
-        "border_style": _safe_int(border_s, 1),
-        "words_per_block": _safe_int(w_block, 3),
-        "gap_limit": _safe_float(gap, 0.5),
-        "mode": mode,
-        "highlight_size": _safe_int(h_size, 14),
-        "uppercase": 1 if is_uppercase else 0,
-        "remove_punctuation": bool(remove_punc),
-    }
 
 def run_viral_cutter(input_source, project_name, url, video_file, segments, viral, themes, min_duration, max_duration, model, ai_backend, api_key, ai_model_name, chunk_size, workflow, face_model, face_mode, face_detect_interval, no_face_mode, 
                      face_filter_thresh, face_two_thresh, face_conf_thresh, face_dead_zone, focus_active_speaker, active_speaker_mar, active_speaker_score_diff, include_motion, active_speaker_motion_threshold, active_speaker_motion_sensitivity, active_speaker_decay,
@@ -505,6 +391,18 @@ footer {visibility: hidden}
     max-width: 98% !important;
     width: 98% !important;
     margin: 0 auto !important;
+}
+
+/* --- RTL layout for the Arabic UI ---
+   Text fields keep per-content direction (URLs stay LTR) via plaintext bidi. */
+body, .gradio-container {
+    direction: rtl !important;
+    font-family: "Cairo", "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif !important;
+}
+
+.gradio-container input,
+.gradio-container textarea {
+    unicode-bidi: plaintext !important;
 }
 """
 
