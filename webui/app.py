@@ -17,6 +17,7 @@ import library # Module for Library Logic
 import subtitle_handler as subs # Module for Subtitles
 import subtitle_editor as editor # Module for Editor Logic
 import segments_review # Module for Segments Review Logic
+import batch_queue # Module for Batch Queue Logic
 
 # Path to the main script
 MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main_improved.py")
@@ -748,6 +749,68 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
                 video_quality_input, use_youtube_subs_input, translate_input
             ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
+        with gr.Tab(i18n("Batch Queue")):
+            gr.Markdown(f"### {i18n('Batch Queue')}")
+            gr.Markdown(i18n("One YouTube URL per line. The queue processes them one by one with the current settings."))
+            batch_urls_input = gr.Textbox(
+                label=i18n("YouTube URLs"), lines=6,
+                placeholder="https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...",
+            )
+            batch_df = gr.Dataframe(
+                headers=batch_queue.HEADERS,
+                datatype=["number", "str", "str"],
+                interactive=False,
+                label=i18n("Queue Status"),
+            )
+            batch_run_btn = gr.Button(i18n("Run Queue"), variant="primary")
+            batch_summary = gr.Markdown()
+
+            def run_batch(urls_text, *rest):
+                urls = batch_queue.parse_queue_text(urls_text)
+                if not urls:
+                    yield ([], i18n("Queue is empty."), "", gr.update(), gr.update(),
+                           None, gr.update(), gr.update(), gr.update())
+                    return
+
+                items = batch_queue.make_items(urls)
+                progress_state = empty_progress_state(i18n("Starting"))
+                yield (batch_queue.rows_from_items(items), "",
+                       "", gr.update(value=i18n("Running..."), interactive=False),
+                       gr.update(visible=True, interactive=True), None,
+                       render_progress_html(progress_state),
+                       render_tasks_html(progress_state),
+                       render_error_html([]))
+
+                for i, item in enumerate(items):
+                    batch_queue.mark(items, i, "running")
+                    rows = batch_queue.rows_from_items(items)
+                    final_logs = ""
+                    for update in run_viral_cutter("YouTube URL", None, item["url"], *rest):
+                        final_logs = update[0]
+                        yield (rows, "", *update)
+                    batch_queue.mark(items, i, "done" if batch_queue.looks_completed(final_logs) else "failed")
+
+                ok, failed = batch_queue.summary_counts(items)
+                yield (batch_queue.rows_from_items(items),
+                       i18n("Finished: {} succeeded, {} failed.").format(ok, failed),
+                       "", gr.update(value=i18n("Start Processing"), interactive=True),
+                       gr.update(visible=True, interactive=False), None,
+                       gr.update(), gr.update(), gr.update())
+
+            batch_run_btn.click(run_batch, inputs=[
+                batch_urls_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
+                model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
+                workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
+                face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
+                active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
+                use_custom_subs,
+                font_name_input, font_size_input, font_color_input, highlight_color_input,
+                outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
+                bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
+                highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
+                underline_input, strikeout_input, border_style_input, remove_punc_input,
+                video_quality_input, use_youtube_subs_input, translate_input
+            ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
             with gr.Group():

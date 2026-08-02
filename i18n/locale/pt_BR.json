@@ -371,5 +371,16 @@
     "No backup found for this project.": "No backup found for this project.",
     "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.",
     "Export Publish Metadata": "Export Publish Metadata",
-    "Publish Metadata": "Publish Metadata"
+    "Publish Metadata": "Publish Metadata",
+    "Batch Queue": "Batch Queue",
+    "Run Queue": "Run Queue",
+    "YouTube URLs": "YouTube URLs",
+    "Queue Status": "Queue Status",
+    "One YouTube URL per line. The queue processes them one by one with the current settings.": "One YouTube URL per line. The queue processes them one by one with the current settings.",
+    "Queue is empty.": "Queue is empty.",
+    "Status Pending": "Status Pending",
+    "Status Running": "Status Running",
+    "Status Done": "Status Done",
+    "Status Failed": "Status Failed",
+    "Finished: {} succeeded, {} failed.": "Finished: {} succeeded, {} failed."
 }

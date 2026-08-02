@@ -474,5 +474,16 @@
     "No backup found for this project.": "لا توجد نسخة احتياطية لهذا المشروع.",
     "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "راجع المقاطع المقترحة من الذكاء الاصطناعي، ألغِ تحديد غير المناسب، ثم اعرض المختارة فقط.",
     "Export Publish Metadata": "تصدير بيانات النشر",
-    "Publish Metadata": "بيانات النشر"
+    "Publish Metadata": "بيانات النشر",
+    "Batch Queue": "طابور المعالجة",
+    "Run Queue": "تشغيل الطابور",
+    "YouTube URLs": "روابط يوتيوب",
+    "Queue Status": "حالة الطابور",
+    "One YouTube URL per line. The queue processes them one by one with the current settings.": "رابط يوتيوب واحد في كل سطر. الطابور يعالجها واحداً تلو الآخر بالإعدادات الحالية.",
+    "Queue is empty.": "الطابور فارغ.",
+    "Status Pending": "في الانتظار",
+    "Status Running": "يعمل",
+    "Status Done": "تم بنجاح",
+    "Status Failed": "فشل",
+    "Finished: {} succeeded, {} failed.": "انتهى: {} نجح، {} فشل."
 }
