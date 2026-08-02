@@ -4,8 +4,8 @@
 **Alternativa open-source 100% gratuita, local e ilimitada ao Opus Clip**  
 Transforme vídeos longos do YouTube em shorts virais otimizados para TikTok, Instagram Reels e YouTube Shorts – com IA de ponta, legendas dinâmicas, *face tracking* preciso e tradução automática. Tudo rodando na sua máquina.
 
-[![Stars](https://img.shields.io/github/stars/RafaelGodoyEbert/ViralCutter?style=social)](https://github.com/RafaelGodoyEbert/ViralCutter/stargazers)
-[![Forks](https://img.shields.io/github/forks/RafaelGodoyEbert/ViralCutter?style=social)](https://github.com/RafaelGodoyEbert/ViralCutter/network/members)
+[![Stars](https://img.shields.io/github/stars/eldjazaireldjadida4-web/ViralCutter?style=social)](https://github.com/eldjazaireldjadida4-web/ViralCutter/stargazers)
+[![Forks](https://img.shields.io/github/forks/eldjazaireldjadida4-web/ViralCutter?style=social)](https://github.com/eldjazaireldjadida4-web/ViralCutter/network/members)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UZKzeqjIeEyvq9nPx7s_4mU6xlkZQn_R?usp=sharing)
 
 [English](README_en.md) • [Português](README.md)
