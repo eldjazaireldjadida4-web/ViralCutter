@@ -669,7 +669,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
 
             review_df = gr.Dataframe(
                 headers=segments_review.HEADERS,
-                datatype=["bool", "str", "number", "str", "str", "str", "str"],
+                datatype=["bool", "str", "number", "str", "str", "str", "str", "str"],
                 interactive=True,
                 label=i18n("Segments"),
             )
@@ -679,6 +679,9 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 review_restore_btn = gr.Button(i18n("Restore All"))
                 review_render_btn = gr.Button(i18n("Render Selected Segments"), variant="primary")
             review_status = gr.Markdown()
+            with gr.Row():
+                review_export_btn = gr.Button(i18n("Export Publish Metadata"))
+            review_export_out = gr.Textbox(label=i18n("Publish Metadata"), lines=8, interactive=False)
 
             def load_review_segments(project_name):
                 if not project_name:
@@ -717,10 +720,20 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         pass
                 yield from run_viral_cutter("Existing Project", project_name, *rest)
 
+            def export_review_metadata(project_name):
+                if not project_name:
+                    return i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                path, text = segments_review.export_publish_metadata(project_path)
+                if not path:
+                    return i18n("No viral segments found in this project.")
+                return text
+
             review_refresh_btn.click(library.refresh_projects, outputs=review_project_dropdown)
             review_load_btn.click(load_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
             review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
             review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
+            review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
             review_render_btn.click(run_review_render, inputs=[
                 review_project_dropdown, review_df, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
                 model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,

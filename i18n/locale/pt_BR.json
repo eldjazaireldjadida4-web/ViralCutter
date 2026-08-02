@@ -369,5 +369,7 @@
     "Stale cuts cleared — they will be re-cut on render.": "Stale cuts cleared — they will be re-cut on render.",
     "Selection restored from backup.": "Selection restored from backup.",
     "No backup found for this project.": "No backup found for this project.",
-    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones."
+    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.",
+    "Export Publish Metadata": "Export Publish Metadata",
+    "Publish Metadata": "Publish Metadata"
 }

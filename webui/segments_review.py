@@ -19,8 +19,8 @@ i18n = I18nAuto(DEFAULT_LANGUAGE)
 SEGMENTS_FILENAME = "viral_segments.txt"
 BACKUP_FILENAME = "viral_segments.full_backup.json"
 
-# Table columns: checkbox, title, score, start, end, duration, reason
-HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟"]
+# Table columns: checkbox, title, score, start, end, duration, reason, caption
+HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟", "كابشن النشر"]
 
 
 def segments_file_path(project_path):
@@ -72,6 +72,7 @@ def rows_from_segments(segments):
             _fmt_time(end),
             duration,
             seg.get("reasoning", ""),
+            seg.get("caption", ""),
         ])
     return rows
 
@@ -131,3 +132,35 @@ def restore_all(project_path):
         return False
     shutil.copy2(bak_path, seg_path)
     return True
+
+
+def export_publish_metadata(project_path):
+    """Write publish_metadata.txt: per segment title + caption + hashtags.
+
+    Returns (path, text) or (None, "") when there are no segments.
+    """
+    segments = load_segments(project_path)
+    if not segments:
+        return None, ""
+
+    lines = []
+    for i, seg in enumerate(segments, 1):
+        title = seg.get("title", "") or f"Segment {i}"
+        caption = seg.get("caption", "")
+        hashtags = seg.get("hashtags", []) or []
+        if isinstance(hashtags, str):
+            hashtags = [hashtags]
+        tags = " ".join("#" + str(h).lstrip("#") for h in hashtags if str(h).strip())
+
+        lines.append(f"━━━ {i}. {title} ━━━")
+        if caption:
+            lines.append(caption)
+        if tags:
+            lines.append(tags)
+        lines.append("")
+
+    text = "\n".join(lines).strip() + "\n"
+    path = os.path.join(project_path, "publish_metadata.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path, text

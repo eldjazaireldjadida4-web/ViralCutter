@@ -441,6 +441,9 @@ def process_segments(raw_segments, transcript_segments, min_duration, max_durati
                 duration = tempo_maximo
 
             # Construct Final Segment
+            hashtags = seg.get('hashtags', [])
+            if isinstance(hashtags, str):
+                hashtags = [h.strip().lstrip('#') for h in re.split(r'[,\s]+', hashtags) if h.strip()]
             processed_segments.append({
                 "title": seg.get('title', 'Viral Segment'),
                 "start_time": final_start_time,
@@ -448,7 +451,9 @@ def process_segments(raw_segments, transcript_segments, min_duration, max_durati
                 "hook": seg.get('title', ''), 
                 "reasoning": seg.get('reasoning', ''),
                 "score": seg.get('score', 0),
-                "duration": duration
+                "duration": duration,
+                "caption": seg.get('caption', ''),
+                "hashtags": hashtags
             })
 
         except Exception as e:
@@ -583,7 +588,9 @@ OUTPUT JSON ONLY:
                         "start_time_ref": "Value of closest (XXs) tag",
                         "title": "Viral Hook Title (Same Language as Transcript)",
                         "reasoning": "Why this is viral? Hook? Value? (Same Language as Transcript)",
-                        "score": 95
+                        "score": 95,
+                        "caption": "Publish-ready caption for this clip, 1-2 catchy sentences (Same Language as Transcript)",
+                        "hashtags": ["3-5 relevant hashtags without the # symbol"]
                     }
                 ]
             }

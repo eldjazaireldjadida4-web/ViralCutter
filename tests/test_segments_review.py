@@ -12,8 +12,10 @@ from webui import segments_review
 
 SAMPLE = {
     "segments": [
-        {"title": "Hook A", "start_time": 10.0, "end_time": 40.0, "reasoning": "strong hook", "score": 95},
-        {"title": "Story B", "start_time": 65.5, "end_time": 120.0, "reasoning": "emotional", "score": 80},
+        {"title": "Hook A", "start_time": 10.0, "end_time": 40.0, "reasoning": "strong hook", "score": 95,
+         "caption": "لن تصدق ما حدث!", "hashtags": ["viral", "story"]},
+        {"title": "Story B", "start_time": 65.5, "end_time": 120.0, "reasoning": "emotional", "score": 80,
+         "caption": "قصة حقيقية ملهمة", "hashtags": "motivation,daily"},
         {"title": "Tip C", "start_time": 200.0, "end_time": 230.0, "reasoning": "actionable", "score": 70},
     ]
 }
@@ -141,3 +143,27 @@ def test_restore_all(project):
 
 def test_restore_all_without_backup(tmp_path):
     assert segments_review.restore_all(str(tmp_path)) is False
+
+
+def test_rows_include_caption():
+    rows = segments_review.rows_from_segments(SAMPLE["segments"])
+    assert rows[0][7] == "لن تصدق ما حدث!"
+    assert rows[2][7] == ""  # missing caption -> empty
+
+
+def test_export_publish_metadata(project):
+    path, text = segments_review.export_publish_metadata(project)
+    assert path is not None
+    assert os.path.exists(path)
+    assert "Hook A" in text
+    assert "لن تصدق ما حدث!" in text
+    assert "#viral" in text and "#story" in text
+    assert "#motivation" in text  # string hashtags handled
+    # file content matches returned text
+    assert open(path, encoding="utf-8").read() == text
+
+
+def test_export_publish_metadata_empty(tmp_path):
+    path, text = segments_review.export_publish_metadata(str(tmp_path))
+    assert path is None
+    assert text == ""

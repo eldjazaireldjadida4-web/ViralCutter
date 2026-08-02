@@ -472,5 +472,7 @@
     "Stale cuts cleared — they will be re-cut on render.": "تم مسح القصات القديمة — ستُعاد عند العرض.",
     "Selection restored from backup.": "تمت الاستعادة من النسخة الاحتياطية.",
     "No backup found for this project.": "لا توجد نسخة احتياطية لهذا المشروع.",
-    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "راجع المقاطع المقترحة من الذكاء الاصطناعي، ألغِ تحديد غير المناسب، ثم اعرض المختارة فقط."
+    "Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones.": "راجع المقاطع المقترحة من الذكاء الاصطناعي، ألغِ تحديد غير المناسب، ثم اعرض المختارة فقط.",
+    "Export Publish Metadata": "تصدير بيانات النشر",
+    "Publish Metadata": "بيانات النشر"
 }
