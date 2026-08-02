@@ -5,17 +5,22 @@ import os
 RTL_LANGS = {"ar", "he", "fa", "ur"}
 
 def is_rtl_language(lang):
-    return (lang or "").split("-")[0].lower() in RTL_LANGS
+    if not lang:
+        return False
+    # Handles both "ar-SA" and "ar_SA" locale forms
+    return re.split(r"[-_]", lang)[0].lower() in RTL_LANGS
 
 
 def rtl_ass_prefix(lang):
     return "{\\rtl}" if is_rtl_language(lang) else ""
 
 def format_time_ass(time_seconds):
-    hours = int(time_seconds // 3600)
-    minutes = int((time_seconds % 3600) // 60)
-    seconds = int(time_seconds % 60)
-    centiseconds = int((time_seconds % 1) * 100)
+    # Work in whole centiseconds to avoid float truncation artifacts
+    total_cs = int(round(float(time_seconds) * 100))
+    hours = total_cs // 360000
+    minutes = (total_cs % 360000) // 6000
+    seconds = (total_cs % 6000) // 100
+    centiseconds = total_cs % 100
     return f"{hours:01}:{minutes:02}:{seconds:02}.{centiseconds:02}"
 
 def generate_ass_from_file(input_path, output_path, project_folder, 
