@@ -1,5 +1,15 @@
 # Changelog
 
+## 🔄 Auto-Updating Hate-Speech Word List
+
+### Novidades
+- **Lista de bloqueio com auto-atualização** (`scripts/safety_updater.py`): a lista oficial versionada (`safety_blocklist.json` no repositório) é baixada **automaticamente 1x por dia** durante o processamento (e por botão na WebUI). Novas palavras chegam ao usuário sem atualizar o programa.
+- **Offline-safe**: falha de rede → usa o cache anterior (ou a lista embutida) e o pipeline continua.
+- Merge automático das palavras remotas no filtro e no modo Bleep; `allow_terms` continua funcionando sobre elas.
+- Flag `--safety-autoupdate on|off` (padrão: on). Cache local é git-ignored.
+- Script de manutenção `scripts/export_blocklist_pack.py --version N` para publicar novas palavras a todos os usuários.
+- **16 testes novos** (test_safety_updater.py, incluindo throttle diário e fallback offline). Total: 183 testes.
+
 ## 🔇 Bleep Mode + AI Policy Review (Safety Filter v2)
 
 ### Novidades

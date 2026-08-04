@@ -414,5 +414,15 @@
     "[censor] No policy-violating words found — nothing to mute ✔": "[sansür] Politika ihlali kelime bulunamadı — sessize alınacak bir şey yok ✔",
     "[censor] Cut video not found for segment {} — audio not muted.": "[sansür] {} segmenti için kesilmiş video bulunamadı — ses sessize alınmadı.",
     "[censor] ffmpeg failed for {}: {}": "[sansür] ffmpeg şunun için başarısız oldu {}: {}",
-    "[censor] ffmpeg produced no output for {}": "[sansür] ffmpeg şunun için çıktı üretmedi: {}"
+    "[censor] ffmpeg produced no output for {}": "[sansür] ffmpeg şunun için çıktı üretmedi: {}",
+    "🔄 Update safety word list": "🔄 Güvenlik kelime listesini güncelle",
+    "Loading…": "Yükleniyor…",
+    "Safety word list: v{} ({} terms)": "Güvenlik kelime listesi: v{} ({} terim)",
+    "Safety word list: built-in (no updates downloaded yet)": "Güvenlik kelime listesi: yerleşik (henüz güncelleme indirilmedi)",
+    "Safety list updated: {}": "Güvenlik listesi güncellendi: {}",
+    "Safety list is current (v{})": "Güvenlik listesi güncel (v{})",
+    "Safety list update failed (offline). Using local list.": "Güvenlik listesi güncellenemedi (çevrimdışı). Yerel liste kullanılıyor.",
+    "Safety list update failed. Using local list.": "Güvenlik listesi güncellenemedi. Yerel liste kullanılıyor.",
+    "Safety list update failed: {}": "Güvenlik listesi güncellenemedi: {}",
+    "[safety-updater] {}": "[güvenlik-güncelleyici] {}"
 }

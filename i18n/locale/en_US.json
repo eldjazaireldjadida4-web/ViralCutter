@@ -414,5 +414,15 @@
     "[censor] No policy-violating words found — nothing to mute ✔": "[censor] No policy-violating words found — nothing to mute ✔",
     "[censor] Cut video not found for segment {} — audio not muted.": "[censor] Cut video not found for segment {} — audio not muted.",
     "[censor] ffmpeg failed for {}: {}": "[censor] ffmpeg failed for {}: {}",
-    "[censor] ffmpeg produced no output for {}": "[censor] ffmpeg produced no output for {}"
+    "[censor] ffmpeg produced no output for {}": "[censor] ffmpeg produced no output for {}",
+    "🔄 Update safety word list": "🔄 Update safety word list",
+    "Loading…": "Loading…",
+    "Safety word list: v{} ({} terms)": "Safety word list: v{} ({} terms)",
+    "Safety word list: built-in (no updates downloaded yet)": "Safety word list: built-in (no updates downloaded yet)",
+    "Safety list updated: {}": "Safety list updated: {}",
+    "Safety list is current (v{})": "Safety list is current (v{})",
+    "Safety list update failed (offline). Using local list.": "Safety list update failed (offline). Using local list.",
+    "Safety list update failed. Using local list.": "Safety list update failed. Using local list.",
+    "Safety list update failed: {}": "Safety list update failed: {}",
+    "[safety-updater] {}": "[safety-updater] {}"
 }

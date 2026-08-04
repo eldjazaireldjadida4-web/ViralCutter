@@ -50,6 +50,11 @@ import re
 import unicodedata
 from datetime import datetime
 
+# File downloaded by scripts/safety_updater.py from the repo's canonical
+# pack — merged into the index on top of the built-in BLOCKLIST so that
+# hate-speech terms pushed to GitHub reach every installation automatically.
+REMOTE_CACHE_FILENAME = "safety_blocklist_cache.json"
+
 # ---------------------------------------------------------------------------
 # Blocklist
 # ---------------------------------------------------------------------------
@@ -450,6 +455,27 @@ def _approx_match_times(segment, transcript_segments, matches):
 # Custom terms
 # ---------------------------------------------------------------------------
 
+def load_remote_terms(base_dir=None):
+    """Read the auto-updated blocklist cache (downloaded from GitHub).
+
+    Returns a list of term dicts [{term, lang, severity, category}] — [] if
+    the cache is missing/corrupt (the built-in list still protects).
+    """
+    base_dir = base_dir or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(base_dir, REMOTE_CACHE_FILENAME)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            pack = json.load(f)
+        terms = pack.get("terms", [])
+        if not isinstance(terms, list):
+            return []
+        return [t for t in terms if isinstance(t, dict) and t.get("term")]
+    except Exception:
+        return []
+
+
 def load_custom_terms(project_folder=None, extra_path=None):
     """Load user-provided terms from safety_terms.json (repo root, project
     folder, or an explicit path). Never raises.
@@ -513,7 +539,7 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
     transcript_segments = transcript_segments or []
 
     custom = load_custom_terms(project_folder, extra_terms_path)
-    index = _build_index(custom.get("extra_terms", []))
+    index = _build_index(custom.get("extra_terms", []) + load_remote_terms())
     allow_terms = custom.get("allow_terms", [])
     block_threshold = SEVERITY_ORDER.get(min_severity, 2)
 

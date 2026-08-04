@@ -414,5 +414,15 @@
     "[censor] No policy-violating words found — nothing to mute ✔": "[censura] Nenhuma palavra violadora encontrada — nada a silenciar ✔",
     "[censor] Cut video not found for segment {} — audio not muted.": "[censura] Vídeo cortado não encontrado para o segmento {} — áudio não silenciado.",
     "[censor] ffmpeg failed for {}: {}": "[censura] ffmpeg falhou para {}: {}",
-    "[censor] ffmpeg produced no output for {}": "[censura] ffmpeg não produziu saída para {}"
+    "[censor] ffmpeg produced no output for {}": "[censura] ffmpeg não produziu saída para {}",
+    "🔄 Update safety word list": "🔄 Atualizar lista de palavras de segurança",
+    "Loading…": "Carregando…",
+    "Safety word list: v{} ({} terms)": "Lista de palavras de segurança: v{} ({} termos)",
+    "Safety word list: built-in (no updates downloaded yet)": "Lista de palavras de segurança: embutida (nenhuma atualização baixada ainda)",
+    "Safety list updated: {}": "Lista de segurança atualizada: {}",
+    "Safety list is current (v{})": "A lista de segurança já está atualizada (v{})",
+    "Safety list update failed (offline). Using local list.": "Falha ao atualizar a lista de segurança (offline). Usando a lista local.",
+    "Safety list update failed. Using local list.": "Falha ao atualizar a lista de segurança. Usando a lista local.",
+    "Safety list update failed: {}": "Falha ao atualizar a lista de segurança: {}",
+    "[safety-updater] {}": "[atualizador-segurança] {}"
 }

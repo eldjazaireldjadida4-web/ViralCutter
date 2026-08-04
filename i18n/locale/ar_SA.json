@@ -517,5 +517,15 @@
     "[censor] No policy-violating words found — nothing to mute ✔": "[كتم] لم يتم العثور على كلمات مخالفة — لا شيء للكتم ✔",
     "[censor] Cut video not found for segment {} — audio not muted.": "[كتم] فيديو القص غير موجود للمقطع {} — لم يتم كتم الصوت.",
     "[censor] ffmpeg failed for {}: {}": "[كتم] فشل ffmpeg للملف {}: {}",
-    "[censor] ffmpeg produced no output for {}": "[كتم] لم ينتج ffmpeg أي مخرجات للملف {}"
+    "[censor] ffmpeg produced no output for {}": "[كتم] لم ينتج ffmpeg أي مخرجات للملف {}",
+    "🔄 Update safety word list": "🔄 تحديث قائمة كلمات الأمان",
+    "Loading…": "جارٍ التحميل…",
+    "Safety word list: v{} ({} terms)": "قائمة كلمات الأمان: الإصدار {} ({} كلمة)",
+    "Safety word list: built-in (no updates downloaded yet)": "قائمة كلمات الأمان: المدمجة (لم يتم تنزيل تحديثات بعد)",
+    "Safety list updated: {}": "تم تحديث قائمة الأمان: {}",
+    "Safety list is current (v{})": "قائمة الأمان محدّثة بالفعل (الإصدار {})",
+    "Safety list update failed (offline). Using local list.": "فشل تحديث قائمة الأمان (بدون إنترنت). يتم استخدام القائمة المحلية.",
+    "Safety list update failed. Using local list.": "فشل تحديث قائمة الأمان. يتم استخدام القائمة المحلية.",
+    "Safety list update failed: {}": "فشل تحديث قائمة الأمان: {}",
+    "[safety-updater] {}": "[محدّث-الأمان] {}"
 }

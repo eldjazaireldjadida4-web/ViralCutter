@@ -30,3 +30,7 @@ models/*.pth
 tmp/
 output/
 *.log
+
+# Auto-updated safety blocklist cache (downloaded from GitHub)
+safety_blocklist_cache.json
+.safety_update_stamp

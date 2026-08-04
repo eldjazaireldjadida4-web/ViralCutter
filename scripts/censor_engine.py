@@ -34,6 +34,7 @@ from scripts.safety_filter import (
     _build_index,
     SEVERITY_ORDER,
     load_custom_terms,
+    load_remote_terms,
     normalize_text,
 )
 
@@ -280,7 +281,7 @@ def censor_project(project_folder, viral_segments, min_severity="medium",
         return {"segments": {}, "error": "no_word_transcript"}
 
     custom = load_custom_terms(project_folder, extra_terms_path)
-    index = _build_index(custom.get("extra_terms", []))
+    index = _build_index(custom.get("extra_terms", []) + load_remote_terms())
     allow_terms = custom.get("allow_terms", [])
 
     cuts_folder = os.path.join(project_folder, "cuts")

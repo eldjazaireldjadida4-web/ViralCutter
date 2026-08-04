@@ -474,6 +474,40 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         info=i18n("Sends surviving clips to the AI for a second policy check (Gemini/G4F only)."),
                     )
                     with gr.Row():
+                        safety_update_btn = gr.Button(i18n("🔄 Update safety word list"), size="sm")
+                        safety_update_status = gr.Markdown(i18n("Loading…"), elem_id="safety_update_status")
+
+                    def safety_list_status_text():
+                        try:
+                            from scripts.safety_updater import load_cached_pack
+                            pack = load_cached_pack()
+                            if pack:
+                                return i18n("Safety word list: v{} ({} terms)").format(
+                                    pack.get("version", "?"), len(pack.get("terms", [])))
+                            return i18n("Safety word list: built-in (no updates downloaded yet)")
+                        except Exception:
+                            return i18n("Safety word list: built-in")
+
+                    def run_safety_update():
+                        try:
+                            from scripts.safety_updater import check_and_update
+                            result = check_and_update(force=True)
+                            status = result.get("status")
+                            if status == "updated":
+                                msg = i18n("Safety list updated: {}").format(result.get("message", ""))
+                            elif status == "up-to-date":
+                                msg = i18n("Safety list is current (v{})").format(result.get("version", "?"))
+                            elif status == "offline":
+                                msg = i18n("Safety list update failed (offline). Using local list.")
+                            else:
+                                msg = i18n("Safety list update failed. Using local list.")
+                            return msg + "\n\n" + safety_list_status_text()
+                        except Exception as e:
+                            return i18n("Safety list update failed: {}").format(e)
+
+                    demo.load(lambda: safety_list_status_text(), outputs=safety_update_status)
+                    safety_update_btn.click(run_safety_update, outputs=safety_update_status)
+                    with gr.Row():
                         face_mode_input = gr.Dropdown(choices=[(i18n("Auto"), "auto"), ("1", "1"), ("2", "2")], label="وضع الوجه", value="auto")
                         face_detect_interval_input = gr.Textbox(label="فاصل كشف الوجه", value="0.17,1.0")
                         no_face_mode_input = gr.Dropdown(choices=[(i18n("Padding (9:16)"), "padding"), (i18n("Zoom (Center)"), "zoom")], label=i18n("No Face Fallback"), value="zoom")

@@ -204,6 +204,8 @@ def main():
     parser.add_argument("--safety-extra-terms", help="Path to a safety_terms.json file with extra blocked terms")
     parser.add_argument("--safety-ai", choices=["on", "off"], default="on",
                         help="Second-pass AI policy review of surviving segments (context-level violations keywords can't catch). Only used with gemini/g4f backends. Default: on")
+    parser.add_argument("--safety-autoupdate", choices=["on", "off"], default="on",
+                        help="Auto-update the hate-speech word list from GitHub once a day (offline-safe). Default: on")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -579,6 +581,18 @@ def main():
         # 3.7. Safety Filter (YouTube hate-speech / violence policy shield)
         if workflow_choice != "3" and viral_segments and "segments" in viral_segments:
             if args.safety_mode != "off":
+                # Auto-update the word list from GitHub (daily throttle, offline-safe)
+                if args.safety_autoupdate == "on":
+                    try:
+                        from scripts import safety_updater
+                        upd = safety_updater.check_and_update()
+                        if upd.get("status") == "updated":
+                            print(i18n("[safety-updater] {}").format(upd["message"]))
+                        elif upd.get("status") == "offline":
+                            debug("Safety list update skipped (offline) — using local list.")
+                    except Exception as e:
+                        debug(f"Safety list auto-update failed: {e}")
+
                 print(i18n("Running safety filter (mode: {})...").format(args.safety_mode))
                 emit_progress("ai", 58, "فحص الأمان")
                 try:
