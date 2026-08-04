@@ -312,10 +312,15 @@ def _build_index(extra_terms=None):
 # Matching
 # ---------------------------------------------------------------------------
 
-def find_matches(text, index=None, min_severity="low"):
-    """Return all blocklist matches found in *text* (already raw text)."""
+def find_matches(text, index=None, min_severity="low", allow_terms=None):
+    """Return all blocklist matches found in *text* (already raw text).
+
+    ``allow_terms`` excludes specific blocklist terms (false-positive
+    control) — matching is done on the normalized form.
+    """
     if index is None:
         index = _build_index()
+    allow_norms = {normalize_text(t) for t in (allow_terms or [])}
     norm = normalize_text(text)
     if not norm:
         return []
@@ -325,6 +330,8 @@ def find_matches(text, index=None, min_severity="low"):
     min_rank = SEVERITY_ORDER.get(min_severity, 1)
     for entry in index:
         if SEVERITY_ORDER.get(entry["severity"], 3) < min_rank:
+            continue
+        if entry["norm"] in allow_norms:
             continue
         phrase = " " + entry["norm"] + " "
         if phrase in joined:
@@ -444,8 +451,14 @@ def _approx_match_times(segment, transcript_segments, matches):
 # ---------------------------------------------------------------------------
 
 def load_custom_terms(project_folder=None, extra_path=None):
-    """Load user-provided extra terms from safety_terms.json (repo root,
-    project folder, or an explicit path). Never raises."""
+    """Load user-provided terms from safety_terms.json (repo root, project
+    folder, or an explicit path). Never raises.
+
+    Returns ``{"extra_terms": [...], "allow_terms": [...]}``:
+      * ``extra_terms`` — additional terms to BLOCK
+      * ``allow_terms`` — terms to EXCLUDE from the built-in blocklist
+        (false-positive control, e.g. a history channel saying "منغولي")
+    """
     candidates = []
     if extra_path:
         candidates.append(extra_path)
@@ -454,7 +467,7 @@ def load_custom_terms(project_folder=None, extra_path=None):
     if project_folder:
         candidates.append(os.path.join(project_folder, "safety_terms.json"))
 
-    terms = []
+    result = {"extra_terms": [], "allow_terms": []}
     for path in candidates:
         if not path or not os.path.exists(path):
             continue
@@ -462,12 +475,13 @@ def load_custom_terms(project_folder=None, extra_path=None):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, list):
-                terms.extend(data)
+                result["extra_terms"].extend(data)
             elif isinstance(data, dict):
-                terms.extend(data.get("extra_terms", []))
+                result["extra_terms"].extend(data.get("extra_terms", []))
+                result["allow_terms"].extend(data.get("allow_terms", []))
         except Exception as e:
             print(f"[safety] Could not read custom terms from {path}: {e}")
-    return terms
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -481,11 +495,14 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
     Analyze a list of viral segments.
 
     Returns ``(result_segments, report)``:
-      * ``block`` mode → result_segments excludes blocked segments
-      * ``flag``  mode → result_segments is the full list, each segment gets a
-                         ``safety`` annotation field
-      * ``off``   mode → returns input untouched (still produces a report if
-                         called directly)
+      * ``block``  mode → result_segments excludes blocked segments
+      * ``flag``   mode → result_segments is the full list, each segment gets a
+                          ``safety`` annotation field
+      * ``censor`` mode → like ``flag`` (keeps everything, annotated) — the
+                          actual muting happens after cutting via
+                          scripts/censor_engine.py
+      * ``off``    mode → returns input untouched (still produces a report if
+                          called directly)
     """
     segments = list(segments or [])
     if transcript_segments is None and project_folder:
@@ -495,7 +512,9 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
             transcript_segments = []
     transcript_segments = transcript_segments or []
 
-    index = _build_index(load_custom_terms(project_folder, extra_terms_path))
+    custom = load_custom_terms(project_folder, extra_terms_path)
+    index = _build_index(custom.get("extra_terms", []))
+    allow_terms = custom.get("allow_terms", [])
     block_threshold = SEVERITY_ORDER.get(min_severity, 2)
 
     report_entries = []
@@ -504,7 +523,8 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
 
     for seg in segments:
         text = segment_text(seg, transcript_segments)
-        matches = find_matches(text, index=index, min_severity="low")
+        matches = find_matches(text, index=index, min_severity="low",
+                               allow_terms=allow_terms)
         blocking = [m for m in matches
                     if SEVERITY_ORDER.get(m["severity"], 3) >= block_threshold]
 
@@ -519,12 +539,14 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
         if blocking and mode == "block":
             entry["status"] = "blocked"
             blocked_count += 1
-        elif blocking:
-            entry["status"] = "flagged"
+        elif blocking and mode in ("flag", "censor"):
+            entry["status"] = "flagged" if mode == "flag" else "censor"
             seg = dict(seg)
             seg["safety"] = {
                 "flagged": True,
+                "action": mode,
                 "reasons": sorted({m["category"] for m in blocking}),
+                "terms": sorted({m["term"] for m in blocking}),
             }
             kept.append(seg)
         else:
@@ -540,6 +562,7 @@ def analyze_segments(segments, transcript_segments=None, project_folder=None,
         "kept": len(kept),
         "blocked": blocked_count,
         "flagged": sum(1 for e in report_entries if e["status"] == "flagged"),
+        "censored": sum(1 for e in report_entries if e["status"] == "censor"),
         "segments": report_entries,
     }
     return kept, report
@@ -588,6 +611,11 @@ def apply_safety_filter(viral_segments, project_folder, mode="block",
                     entry["title"], entry["status"], terms))
     elif mode == "flag" and report["flagged"]:
         print(i18n("[safety] {} segment(s) flagged for review (kept).").format(report["flagged"]))
+    elif mode == "censor":
+        if report["censored"]:
+            print(i18n("[safety] {} segment(s) contain policy-violating words — they will be BLEEPED (muted) after cutting.").format(report["censored"]))
+        else:
+            print(i18n("[safety] All {} segments passed the policy check ✔").format(report["total_segments"]))
     else:
         print(i18n("[safety] All {} segments passed the policy check ✔").format(report["total_segments"]))
 

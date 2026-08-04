@@ -27,6 +27,8 @@ from scripts import (
     organize_output,
     translate_json,
     safety_filter,
+    safety_ai,
+    censor_engine,
 )
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
@@ -195,11 +197,13 @@ def main():
     parser.add_argument("--workers", type=int, help="Number of parallel workers for segment cutting")
     parser.add_argument("--prefer-hardware-acceleration", action="store_true", default=None, help="Prefer hardware video encoding when available")
     parser.add_argument("--verbose", action="store_true", help="Print extra debug information")
-    parser.add_argument("--safety-mode", choices=["block", "flag", "off"], default="block",
-                        help="Policy safety filter (hate speech / violence): 'block' removes violating segments before cutting (default), 'flag' only annotates them, 'off' disables the filter")
+    parser.add_argument("--safety-mode", choices=["block", "flag", "censor", "off"], default="block",
+                        help="Policy safety filter (hate speech / violence): 'block' removes violating segments before cutting (default), 'flag' only annotates them, 'censor' keeps segments but BLEEPs the violating words (mute audio + mask subtitles), 'off' disables the filter")
     parser.add_argument("--safety-min-severity", choices=["low", "medium", "high"], default="medium",
                         help="Minimum severity that blocks a segment in 'block' mode (default: medium)")
     parser.add_argument("--safety-extra-terms", help="Path to a safety_terms.json file with extra blocked terms")
+    parser.add_argument("--safety-ai", choices=["on", "off"], default="on",
+                        help="Second-pass AI policy review of surviving segments (context-level violations keywords can't catch). Only used with gemini/g4f backends. Default: on")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -592,7 +596,48 @@ def main():
                 except Exception as e:
                     print(i18n("Safety filter failed (continuing without it): {}").format(e))
 
-                if args.safety_mode == "block" and not viral_segments.get("segments"):
+                # 3.8. Second-pass AI policy review (context-level violations)
+                if safety_ai.should_run_ai_review(ai_backend, args.safety_ai) and viral_segments.get("segments"):
+                    print(i18n("Running AI safety review..."))
+                    try:
+                        kept_segments = viral_segments.get("segments", [])
+                        transcript_for_review = safety_filter.load_transcript(project_folder)
+                        clips = [{
+                            "index": pos,
+                            "title": seg.get("title", ""),
+                            "text": safety_filter.segment_text(seg, transcript_for_review),
+                        } for pos, seg in enumerate(kept_segments)]
+                        verdicts = safety_ai.review_segments(
+                            clips, ai_backend,
+                            api_key=api_key, model_name=args.ai_model_name)
+                        if verdicts:
+                            kept_after, ai_report = safety_ai.apply_ai_review(
+                                kept_segments, clips, verdicts, mode=args.safety_mode)
+                            flagged_n = len(ai_report)
+                            if flagged_n:
+                                print(i18n("AI review: {} segment(s) flagged by AI policy review.").format(flagged_n))
+                                for entry in ai_report:
+                                    print(i18n("[safety-ai]   ✗ '{}' — {}").format(entry["title"], entry["reason"]))
+                                viral_segments = dict(viral_segments)
+                                viral_segments["segments"] = kept_after
+                                save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
+                                # merge AI verdicts into the safety report
+                                try:
+                                    report_path = os.path.join(project_folder, "safety_report.json")
+                                    report_data = load_json_file(report_path, default={})
+                                    report_data["ai_review"] = ai_report
+                                    with open(report_path, "w", encoding="utf-8") as rf:
+                                        json.dump(report_data, rf, ensure_ascii=False, indent=2)
+                                except Exception as e:
+                                    debug(f"Could not merge AI review into report: {e}")
+                            else:
+                                print(i18n("AI review: all surviving segments look clean ✔"))
+                    except Exception as e:
+                        print(i18n("AI safety review failed (continuing): {}").format(e))
+                elif args.safety_ai == "on" and args.safety_mode != "off":
+                    debug(f"AI safety review skipped for backend '{ai_backend}' (needs gemini/g4f).")
+
+                if args.safety_mode in ("block", "censor") and not viral_segments.get("segments"):
                     print(i18n("Error: All segments were blocked by the safety filter (hate speech / policy violations)."))
                     print(i18n("Check safety_report.json in the project folder for details. Nothing was cut."))
                     sys.exit(1)
@@ -626,6 +671,20 @@ def main():
 
             cut_segments.cut(viral_segments, project_folder=project_folder, skip_video=skip_cutting, workers=args.workers)
             emit_progress("cut", 80, "Cutting segments")
+
+            # 4.5. Bleep censoring (mute violating words in audio + subtitles)
+            if args.safety_mode == "censor":
+                print(i18n("Censoring violating words (bleep mode)..."))
+                try:
+                    censor_engine.censor_project(
+                        project_folder,
+                        viral_segments,
+                        min_severity=args.safety_min_severity,
+                        extra_terms_path=args.safety_extra_terms,
+                        i18n=i18n,
+                    )
+                except Exception as e:
+                    print(i18n("Censoring failed (continuing without it): {}").format(e))
         
         # 5. Workflow Check
         if workflow_choice == "2":

@@ -1,5 +1,15 @@
 # Changelog
 
+## 🔇 Bleep Mode + AI Policy Review (Safety Filter v2)
+
+### Novidades
+- **Modo `censor` (Bleep)**: em vez de remover o segmento inteiro, o ViralCutter agora **silencia apenas as palavras que violam políticas** (`volume=0` via ffmpeg na janela exata da palavra) e as mascara como `████` nas legendas — o clipe viral sobrevive. Mapa completo em `censor_map.json`.
+- **Revisão contextual por IA (`--safety-ai`, padrão: on)**: os segmentos sobreviventes são enviados ao Gemini/G4F para uma segunda verificação de política do YouTube — captura discurso de ódio contextual sem palavras proibidas (ex.: "essa gente não merece existir"). Nunca quebra o pipeline: falha na API → filtro de palavras permanece.
+- **Allowlist**: `safety_terms.json` agora aceita `allow_terms` para excluir falsos positivos da lista embutida (ex.: canal de história dizendo "منغولي").
+- **Aba Review mostra segurança**: nova coluna "الأمان" (✅ / ⚠️ / 🔇 / 🤖⚠️) com o status de cada segmento.
+- **WebUI**: seletor do modo Bleep + checkbox da revisão por IA.
+- **29 testes novos** (`test_censor_engine.py`, `test_safety_ai.py`) incluindo teste real de muting com ffmpeg. Total: 167 testes.
+
 ## 🛡️ Safety Filter — YouTube Hate-Speech Shield
 
 ### Novidades

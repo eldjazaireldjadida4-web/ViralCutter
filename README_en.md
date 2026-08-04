@@ -29,7 +29,7 @@ Forget expensive subscriptions and minute limits. ViralCutter offers unlimited p
 ## Key Features 🚀
 
 -   🤖 **AI Viral Cut**: Automatically identifies hooks and engaging moments using **Gemini**, **GPT-4**, or **Local LLMs (Llama 3, DeepSeek, etc)**.
--   🛡️ **Anti-Strike Safety Filter (New!)**: Blocks clips containing **hate speech / incitement to violence** before cutting — the #1 cause of YouTube strikes. 100% local, multilingual (Arabic + dialects, EN, PT, FR, ES, TR), with a per-project `safety_report.json`.
+-   🛡️ **Anti-Strike Safety Filter (New!)**: Blocks clips containing **hate speech / incitement to violence** before cutting — or just **bleeps the violating words** (mute audio + mask subtitles) keeping the clip. Extra contextual AI review (Gemini/G4F). 100% local, multilingual (Arabic + dialects, EN, PT, FR, ES, TR), with a per-project `safety_report.json`.
 -   🗣️ **Ultra-Precise Transcription**: Powered by **WhisperX** with GPU acceleration for perfect subtitles.
 -   🎨 **Dynamic Captions**: "Hormozi" style with word-by-word highlights, vibrant colors, emojis, and full customization.
 -   🎥 **Auto Camera Direction**:

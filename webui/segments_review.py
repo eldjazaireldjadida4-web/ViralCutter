@@ -18,9 +18,10 @@ i18n = I18nAuto(DEFAULT_LANGUAGE)
 
 SEGMENTS_FILENAME = "viral_segments.txt"
 BACKUP_FILENAME = "viral_segments.full_backup.json"
+SAFETY_REPORT_FILENAME = "safety_report.json"
 
-# Table columns: checkbox, title, score, start, end, duration, reason, caption
-HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟", "كابشن النشر"]
+# Table columns: checkbox, title, score, start, end, duration, reason, caption, safety
+HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟", "كابشن النشر", "الأمان"]
 
 
 def segments_file_path(project_path):
@@ -54,8 +55,47 @@ def _fmt_time(seconds):
     return f"{m:02d}:{s:02d}"
 
 
-def rows_from_segments(segments):
-    """Build Dataframe rows: [selected, title, score, start, end, duration, reason]."""
+def load_safety_map(project_path):
+    """Read safety_report.json → {(title, start_time): status} for the table."""
+    path = os.path.join(project_path, SAFETY_REPORT_FILENAME)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        result = {}
+        for entry in data.get("segments", []):
+            key = (entry.get("title", ""), entry.get("start_time"))
+            result[key] = entry.get("status", "safe")
+        for entry in data.get("ai_review", []):
+            key = (entry.get("title", ""), entry.get("start_time"))
+            result[key] = entry.get("status", "ai_flagged")
+        return result
+    except Exception:
+        return {}
+
+
+def _safety_badge(seg, safety_map):
+    status = None
+    annotation = seg.get("safety") or {}
+    if annotation.get("ai_flagged"):
+        status = "ai_flagged"
+    elif annotation.get("flagged"):
+        status = annotation.get("action", "flagged")
+    if not status and safety_map:
+        status = safety_map.get((seg.get("title", ""), seg.get("start_time")))
+    return {
+        "safe": "✅",
+        "flagged": "⚠️",
+        "blocked": "⛔",
+        "censor": "🔇 مكتوم",
+        "ai_flagged": "🤖⚠️",
+        "ai_blocked": "🤖⛔",
+    }.get(status or "safe", "✅")
+
+
+def rows_from_segments(segments, safety_map=None):
+    """Build Dataframe rows: [selected, title, score, start, end, duration, reason, caption, safety]."""
     rows = []
     for seg in segments:
         start = seg.get("start_time", seg.get("start", 0))
@@ -73,6 +113,7 @@ def rows_from_segments(segments):
             duration,
             seg.get("reasoning", ""),
             seg.get("caption", ""),
+            _safety_badge(seg, safety_map or {}),
         ])
     return rows
 
