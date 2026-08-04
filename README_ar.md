@@ -188,6 +188,8 @@ python scripts/safety_filter.py --project tmp/MyProject --mode block --in-place
 
 ## المساهمة
 
+> 📋 **للمطوّرين**: اقرأ [تقرير تسليم المطور](docs/DEVELOPER_HANDOVER.md) أولاً — يشرح ما بُني، كيف يعمل، وما المتبقي للعمل عليه.
+
 - **GitHub**: ضع ⭐ إذا أفادك المشروع!
 - المشروع في هذا المستودع تطوير مستمر — الملاحظات والمشاكل عبر Issues.
 
