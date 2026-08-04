@@ -29,6 +29,7 @@ from scripts import (
     safety_filter,
     safety_ai,
     censor_engine,
+    risk_scorecard,
 )
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
@@ -206,6 +207,10 @@ def main():
                         help="Second-pass AI policy review of surviving segments (context-level violations keywords can't catch). Only used with gemini/g4f backends. Default: on")
     parser.add_argument("--safety-autoupdate", choices=["on", "off"], default="on",
                         help="Auto-update the hate-speech word list from GitHub once a day (offline-safe). Default: on")
+    parser.add_argument("--risk-scorecard", choices=["on", "off"], default="on",
+                        help="Per-clip YouTube risk scorecard (reused-content / monetization / visual warnings) after rendering. Default: on")
+    parser.add_argument("--risk-gate", choices=["off", "warn", "block"], default="warn",
+                        help="What to do when a clip fails the compliance gate: 'warn' prints warnings and writes publish_blocklist.json (default), 'block' stops the run, 'off' does nothing")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -814,6 +819,25 @@ def main():
                 raise e
         else:
             print(i18n("Subtitle burning skipped."))
+
+        # 6.5. Risk Scorecard — per-clip compliance report (reused content /
+        #      monetization / visual) + optional publish gate
+        if args.risk_scorecard == "on" and viral_segments and "segments" in viral_segments:
+            try:
+                print(i18n("Running risk scorecard (per-clip compliance report)..."))
+                report = risk_scorecard.analyze_project(
+                    project_folder,
+                    viral_segments=viral_segments,
+                    i18n=i18n,
+                )
+                blocked = report.get("blocked", [])
+                if blocked:
+                    print(i18n("[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json").format(len(blocked)))
+                    if args.risk_gate == "block":
+                        print(i18n("[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.").format(len(blocked)))
+                        sys.exit(1)
+            except Exception as e:
+                print(i18n("Risk scorecard failed (skipped): {}").format(e))
 
         # Organização Final (Opcional, pois agora já está tudo em project_folder)
         # organize_output.organize(project_folder=project_folder)

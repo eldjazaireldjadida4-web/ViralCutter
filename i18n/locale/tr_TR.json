@@ -424,5 +424,14 @@
     "Safety list update failed (offline). Using local list.": "Güvenlik listesi güncellenemedi (çevrimdışı). Yerel liste kullanılıyor.",
     "Safety list update failed. Using local list.": "Güvenlik listesi güncellenemedi. Yerel liste kullanılıyor.",
     "Safety list update failed: {}": "Güvenlik listesi güncellenemedi: {}",
-    "[safety-updater] {}": "[güvenlik-güncelleyici] {}"
+    "[safety-updater] {}": "[güvenlik-güncelleyici] {}",
+    "[risk] Scorecard: {} total — {} low / {} medium / {} high / {} danger — {} blocked for publish": "[risk] Skor kartı: {} toplam — {} düşük / {} orta / {} yüksek / {} tehlike — {} yayın için engellendi",
+    "[risk]   {} '{}': overall={} reuse={} first7s={}": "[risk]   {} '{}': genel={} yeniden={} ilk7sn={}",
+    "[risk]       → DO NOT PUBLISH: {}": "[risk]       → YAYINLAMA: {}",
+    "clip is still ~{:.0f}% identical to the source (reused content risk)": "klip kaynağa hâlâ ~%{:.0f} oranında birebir benziyor (yeniden kullanılan içerik riski)",
+    "high overall risk": "yüksek genel risk",
+    "Running risk scorecard (per-clip compliance report)...": "Risk skor kartı çalıştırılıyor (klip başına uyum raporu)...",
+    "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[risk] ⛔ YAYIN İÇİN ENGELLENDİ: {} klip — yüklemeden önce kaldırın veya yeniden düzenleyin. Ayrıntılar risk_scorecard.json / publish_blocklist.json içinde",
+    "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[risk] 'block' modu — uyum kapısından {} klip geçemediği için durduruluyor.",
+    "Risk scorecard failed (skipped): {}": "Risk skor kartı başarısız oldu (atlandı): {}"
 }

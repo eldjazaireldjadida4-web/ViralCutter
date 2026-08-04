@@ -1,5 +1,13 @@
 # Changelog
 
+## 📊 Risk Scorecard + Reused-Content Protection (v4)
+
+### Novidades
+- **Per-clip YouTube Risk Scorecard** (`scripts/risk_scorecard.py`): after every render, each clip gets a compliance report — `risk_scorecard.json` with axes: **reuse** (how identical the final clip still is to the raw source window, via dHash frame comparison — >70% = "reused content" risk), **first7s** (profanity inside the first 7 seconds = limited ads), **visual** (letterbox detection + local ONNX model hook), **overall** (low/medium/high/danger).
+- **Publish gate**: `--risk-gate warn` (default) writes `publish_blocklist.json` listing clips that must NOT be uploaded; `--risk-gate block` stops the run. Standalone: `python scripts/risk_scorecard.py --project X --exit-on-blocked`.
+- **Reused-content guide** in README_ar.md: practical rules to keep clips "transformative" (commentary, cropping, shortening, source choice).
+- **13 testes novos** (test_risk_scorecard.py, incl. real ffmpeg dHash similarity and pillarbox detection). Total: 196 testes.
+
 ## 🔄 Auto-Updating Hate-Speech Word List
 
 ### Novidades

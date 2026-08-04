@@ -527,5 +527,14 @@
     "Safety list update failed (offline). Using local list.": "فشل تحديث قائمة الأمان (بدون إنترنت). يتم استخدام القائمة المحلية.",
     "Safety list update failed. Using local list.": "فشل تحديث قائمة الأمان. يتم استخدام القائمة المحلية.",
     "Safety list update failed: {}": "فشل تحديث قائمة الأمان: {}",
-    "[safety-updater] {}": "[محدّث-الأمان] {}"
+    "[safety-updater] {}": "[محدّث-الأمان] {}",
+    "[risk] Scorecard: {} total — {} low / {} medium / {} high / {} danger — {} blocked for publish": "[مخاطر] بطاقة التقييم: {} مقطع — {} منخفض / {} متوسط / {} مرتفع / {} خطير — {} محظور للنشر",
+    "[risk]   {} '{}': overall={} reuse={} first7s={}": "[مخاطر]   {} '{}': الإجمالي={} إعادة-استخدام={} أول7ث={}",
+    "[risk]       → DO NOT PUBLISH: {}": "[مخاطر]       → لا تنشر هذا المقطع: {}",
+    "clip is still ~{:.0f}% identical to the source (reused content risk)": "المقطع ما زال مطابقاً للمصدر بنسبة ~{:.0f}% (خطر محتوى مُعاد استخدامه)",
+    "high overall risk": "مخاطر إجمالية مرتفعة",
+    "Running risk scorecard (per-clip compliance report)...": "تشغيل بطاقة المخاطر (تقرير الامتثال لكل مقطع)...",
+    "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[مخاطر] ⛔ محظور من النشر: {} مقطع — احذفها أو أعد تحريرها قبل الرفع. التفاصيل في risk_scorecard.json / publish_blocklist.json",
+    "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[مخاطر] وضع البوابة 'block' — إيقاف المعالجة لأن {} مقطع فشل في بوابة الامتثال.",
+    "Risk scorecard failed (skipped): {}": "فشلت بطاقة المخاطر (تم التخطي): {}"
 }

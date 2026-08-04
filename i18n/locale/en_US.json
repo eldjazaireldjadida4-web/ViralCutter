@@ -424,5 +424,14 @@
     "Safety list update failed (offline). Using local list.": "Safety list update failed (offline). Using local list.",
     "Safety list update failed. Using local list.": "Safety list update failed. Using local list.",
     "Safety list update failed: {}": "Safety list update failed: {}",
-    "[safety-updater] {}": "[safety-updater] {}"
+    "[safety-updater] {}": "[safety-updater] {}",
+    "[risk] Scorecard: {} total — {} low / {} medium / {} high / {} danger — {} blocked for publish": "[risk] Scorecard: {} total — {} low / {} medium / {} high / {} danger — {} blocked for publish",
+    "[risk]   {} '{}': overall={} reuse={} first7s={}": "[risk]   {} '{}': overall={} reuse={} first7s={}",
+    "[risk]       → DO NOT PUBLISH: {}": "[risk]       → DO NOT PUBLISH: {}",
+    "clip is still ~{:.0f}% identical to the source (reused content risk)": "clip is still ~{:.0f}% identical to the source (reused content risk)",
+    "high overall risk": "high overall risk",
+    "Running risk scorecard (per-clip compliance report)...": "Running risk scorecard (per-clip compliance report)...",
+    "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json",
+    "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.",
+    "Risk scorecard failed (skipped): {}": "Risk scorecard failed (skipped): {}"
 }

@@ -424,5 +424,14 @@
     "Safety list update failed (offline). Using local list.": "Falha ao atualizar a lista de segurança (offline). Usando a lista local.",
     "Safety list update failed. Using local list.": "Falha ao atualizar a lista de segurança. Usando a lista local.",
     "Safety list update failed: {}": "Falha ao atualizar a lista de segurança: {}",
-    "[safety-updater] {}": "[atualizador-segurança] {}"
+    "[safety-updater] {}": "[atualizador-segurança] {}",
+    "[risk] Scorecard: {} total — {} low / {} medium / {} high / {} danger — {} blocked for publish": "[risco] Scorecard: {} total — {} baixo / {} médio / {} alto / {} perigo — {} bloqueados para publicação",
+    "[risk]   {} '{}': overall={} reuse={} first7s={}": "[risco]   {} '{}': geral={} reuso={} primeiros7s={}",
+    "[risk]       → DO NOT PUBLISH: {}": "[risco]       → NÃO PUBLIQUE: {}",
+    "clip is still ~{:.0f}% identical to the source (reused content risk)": "clipe ainda ~{:.0f}% idêntico à fonte (risco de conteúdo reutilizado)",
+    "high overall risk": "risco geral alto",
+    "Running risk scorecard (per-clip compliance report)...": "Executando scorecard de risco (relatório de conformidade por clipe)...",
+    "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[risco] ⛔ BLOQUEADOS PARA PUBLICAÇÃO: {} clipe(s) — remova ou re-edite antes de enviar. Detalhes em risk_scorecard.json / publish_blocklist.json",
+    "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[risco] modo 'block' — parando porque {} clipe(s) falharam no portão de conformidade.",
+    "Risk scorecard failed (skipped): {}": "O scorecard de risco falhou (ignorado): {}"
 }
