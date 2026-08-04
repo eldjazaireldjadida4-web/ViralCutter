@@ -382,5 +382,19 @@
     "Status Running": "Status Running",
     "Status Done": "Status Done",
     "Status Failed": "Status Failed",
-    "Finished: {} succeeded, {} failed.": "Finished: {} succeeded, {} failed."
+    "Finished: {} succeeded, {} failed.": "Finished: {} succeeded, {} failed.",
+    "Running safety filter (mode: {})...": "Running safety filter (mode: {})...",
+    "Safety filter failed (continuing without it): {}": "Safety filter failed (continuing without it): {}",
+    "Error: All segments were blocked by the safety filter (hate speech / policy violations).": "Error: All segments were blocked by the safety filter (hate speech / policy violations).",
+    "Check safety_report.json in the project folder for details. Nothing was cut.": "Check safety_report.json in the project folder for details. Nothing was cut.",
+    "[safety] Report saved to {}": "[safety] Report saved to {}",
+    "[safety] {} segment(s) BLOCKED for policy-violating content (hate speech / violence).": "[safety] {} segment(s) BLOCKED for policy-violating content (hate speech / violence).",
+    "[safety]   ✗ '{}' ({}): {}": "[safety]   ✗ '{}' ({}): {}",
+    "[safety] {} segment(s) flagged for review (kept).": "[safety] {} segment(s) flagged for review (kept).",
+    "[safety] All {} segments passed the policy check ✔": "[safety] All {} segments passed the policy check ✔",
+    "Block violating segments (recommended)": "Block violating segments (recommended)",
+    "Flag only (keep segments)": "Flag only (keep segments)",
+    "🛡️ Safety filter (hate speech)": "🛡️ Safety filter (hate speech)",
+    "Blocks clips containing hate speech / incitement to violence before cutting — protects your channel from YouTube strikes.": "Blocks clips containing hate speech / incitement to violence before cutting — protects your channel from YouTube strikes.",
+    "Off": "Off"
 }

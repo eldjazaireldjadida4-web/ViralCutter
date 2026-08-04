@@ -1,5 +1,17 @@
 # Changelog
 
+## 🛡️ Safety Filter — YouTube Hate-Speech Shield
+
+### Novidades
+- **Filtro de segurança anti-strike (`scripts/safety_filter.py`)**: novo módulo que analisa o texto transcrito de cada segmento viral e **bloqueia antes do corte** os clipes com discurso de ódio, incitação à violência, xingamentos e assédio — a principal causa de strikes do YouTube ("الكلام الذي يحضّ على الكراهية").
+- **100% local e multilíngue**: lista de termos em árabe (fusha + dialetos, incl. magrebino/argelino), inglês, português, francês, espanhol e turco. Normalização robusta contra evasões: diacríticos/tatweel árabe, dobra de alef/yá/taa-marbuta, remoção do artigo "ال" colado, leetspeak (@→a, 3→ع) e letras repetidas.
+- **3 modos** (`--safety-mode`): `block` (padrão — remove o segmento), `flag` (mantém e anota para revisão), `off`. Severidade mínima configurável (`--safety-min-severity`).
+- **Relatório detalhado** `safety_report.json` por projeto: veredito por segmento, termos encontrados, categoria, severidade e timestamp aproximado.
+- **Termos personalizados**: arquivo `safety_terms.json` (raiz ou pasta do projeto) para estender a lista — ver `safety_terms.example.json`.
+- **Prompt anti-violação**: `prompt.txt` agora instrui o LLM a nunca selecionar segmentos com discurso de ódio/violência (prevenção na fonte).
+- **WebUI**: novo seletor "🛡️ Safety filter (hate speech)" com os 3 modos; CLI standalone: `python scripts/safety_filter.py --project <pasta> --mode block --in-place`.
+- **i18n**: 14 novas chaves traduzidas (ar/en/pt/tr) + 25 testes novos (`tests/test_safety_filter.py`).
+
 ## Fixes for Manual/Raw JSON Input
 
 ### Core Functionality

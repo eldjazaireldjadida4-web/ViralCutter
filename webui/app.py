@@ -102,7 +102,7 @@ def kill_process():
 def run_viral_cutter(input_source, project_name, url, video_file, segments, viral, themes, min_duration, max_duration, model, ai_backend, api_key, ai_model_name, chunk_size, workflow, face_model, face_mode, face_detect_interval, no_face_mode, 
                      face_filter_thresh, face_two_thresh, face_conf_thresh, face_dead_zone, focus_active_speaker, active_speaker_mar, active_speaker_score_diff, include_motion, active_speaker_motion_threshold, active_speaker_motion_sensitivity, active_speaker_decay,
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
-                     h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target):
+                     h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block"):
     
     global current_process
     progress_state = empty_progress_state(i18n("Starting"))
@@ -203,6 +203,7 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             active_speaker_decay=active_speaker_decay,
             translate_target=translate_target,
             subtitle_config_path=subtitle_config_path,
+            safety_mode=safety_mode,
         )
 
         env = os.environ.copy()
@@ -460,6 +461,12 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                     with gr.Row():
                         workflow_input = gr.Dropdown(choices=[(i18n("Full"), "Full"), (i18n("Cut Only"), "Cut Only"), (i18n("Subtitles Only"), "Subtitles Only")], label="طريقة العمل", value="Full")
                         face_model_input = gr.Dropdown(["insightface", "mediapipe"], label="نموذج الوجه", value="insightface")
+                    safety_mode_input = gr.Dropdown(
+                        choices=[(i18n("Block violating segments (recommended)"), "block"), (i18n("Flag only (keep segments)"), "flag"), (i18n("Off"), "off")],
+                        label=i18n("🛡️ Safety filter (hate speech)"),
+                        value="block",
+                        info=i18n("Blocks clips containing hate speech / incitement to violence before cutting — protects your channel from YouTube strikes."),
+                    )
                     with gr.Row():
                         face_mode_input = gr.Dropdown(choices=[(i18n("Auto"), "auto"), ("1", "1"), ("2", "2")], label="وضع الوجه", value="auto")
                         face_detect_interval_input = gr.Textbox(label="فاصل كشف الوجه", value="0.17,1.0")
@@ -658,7 +665,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                     bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                     underline_input, strikeout_input, border_style_input, remove_punc_input,
-                    video_quality_input, use_youtube_subs_input, translate_input
+                    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input
                 ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Review Segments")):
             gr.Markdown(f"### {i18n('Review Segments')}")
@@ -747,7 +754,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input
+                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input
             ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
@@ -809,7 +816,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input
+                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input
             ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")

@@ -7,8 +7,15 @@ from i18n.i18n import I18nAuto
 i18n = I18nAuto()
 
 
-def save_viral_segments(segments_data=None, project_folder="tmp"):
+def save_viral_segments(segments_data=None, project_folder="tmp", overwrite=False):
     output_txt_file = os.path.join(project_folder, "viral_segments.txt")
+
+    # Sobrescrita explícita (usado pelo filtro de segurança)
+    if overwrite and segments_data is not None:
+        with open(output_txt_file, 'w', encoding='utf-8') as file:
+            json.dump(segments_data, file, ensure_ascii=False, indent=4)
+        print(i18n("Viral segments saved to {}").format(output_txt_file) + "\n")
+        return
 
     # Verifica se o arquivo já existe
     if not os.path.exists(output_txt_file):

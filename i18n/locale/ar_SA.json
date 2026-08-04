@@ -485,5 +485,19 @@
     "Status Running": "يعمل",
     "Status Done": "تم بنجاح",
     "Status Failed": "فشل",
-    "Finished: {} succeeded, {} failed.": "انتهى: {} نجح، {} فشل."
+    "Finished: {} succeeded, {} failed.": "انتهى: {} نجح، {} فشل.",
+    "Running safety filter (mode: {})...": "تشغيل فلتر الأمان (الوضع: {})...",
+    "Safety filter failed (continuing without it): {}": "فشل فلتر الأمان (سيتم المتابعة بدونه): {}",
+    "Error: All segments were blocked by the safety filter (hate speech / policy violations).": "خطأ: جميع المقاطع حُظرت بواسطة فلتر الأمان (كلام يحض على الكراهية / مخالفات للسياسة).",
+    "Check safety_report.json in the project folder for details. Nothing was cut.": "راجع safety_report.json في مجلد المشروع للتفاصيل. لم يتم قص أي شيء.",
+    "[safety] Report saved to {}": "[أمان] تم حفظ التقرير في {}",
+    "[safety] {} segment(s) BLOCKED for policy-violating content (hate speech / violence).": "[أمان] تم حظر {} مقطعًا بسبب محتوى يخالف السياسة (كلام يحض على الكراهية / عنف).",
+    "[safety]   ✗ '{}' ({}): {}": "[أمان]   ✗ '{}' ({}): {}",
+    "[safety] {} segment(s) flagged for review (kept).": "[أمان] تم تمييز {} مقطعًا للمراجعة (تم الإبقاء عليها).",
+    "[safety] All {} segments passed the policy check ✔": "[أمان] جميع المقاطع ({}) اجتازت فحص السياسة ✔",
+    "Block violating segments (recommended)": "حظر المقاطع المخالفة (موصى به)",
+    "Flag only (keep segments)": "تمييز فقط (الإبقاء على المقاطع)",
+    "🛡️ Safety filter (hate speech)": "🛡️ فلتر الأمان (الكلام الذي يحضّ على الكراهية)",
+    "Blocks clips containing hate speech / incitement to violence before cutting — protects your channel from YouTube strikes.": "يحظر المقاطع التي تحتوي على كلام يحض على الكراهية / تحريض على العنف قبل القص — يحمي قناتك من مخالفات يوتيوب.",
+    "Off": "معطّل"
 }

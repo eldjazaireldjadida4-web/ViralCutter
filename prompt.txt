@@ -30,6 +30,13 @@ The transcript below is a continuous text stream with embedded **Time Tags** lik
     -   Use the `(XXs)` tags to estimate duration.
     -   CONSTRAINT: Segment MUST be between {min_duration}s and {max_duration}s.
 
+5.  **CONTENT SAFETY (YouTube Policy — ABSOLUTE RULE, OVERRIDES VIRALITY):**
+    -   NEVER select a segment containing **hate speech**: slurs, insults or dehumanizing language targeting any race, religion, nationality, ethnicity, gender, or group (e.g. calling people "animals", "apes", "pigs", "filthy", "infidels" as an attack, etc.).
+    -   NEVER select a segment containing **calls to violence or harm** ("kill them", "slaughter them", "they must be eliminated", "death to ...").
+    -   NEVER select a segment with heavy profanity, sexual slurs, or harassment of an individual.
+    -   Even if such a moment looks "viral", it will get the channel a YouTube strike — it is WORTHLESS. Skip it and find a clean alternative.
+    -   Quoting hate speech to condemn it is only acceptable if the segment clearly frames it as condemnation; when in doubt, SKIP.
+
 ### YOUR TASK:
 Analyze the transcript below. Find {amount} potential viral segments.
 

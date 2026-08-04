@@ -26,6 +26,7 @@ from scripts import (
     save_json,
     organize_output,
     translate_json,
+    safety_filter,
 )
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
@@ -194,6 +195,11 @@ def main():
     parser.add_argument("--workers", type=int, help="Number of parallel workers for segment cutting")
     parser.add_argument("--prefer-hardware-acceleration", action="store_true", default=None, help="Prefer hardware video encoding when available")
     parser.add_argument("--verbose", action="store_true", help="Print extra debug information")
+    parser.add_argument("--safety-mode", choices=["block", "flag", "off"], default="block",
+                        help="Policy safety filter (hate speech / violence): 'block' removes violating segments before cutting (default), 'flag' only annotates them, 'off' disables the filter")
+    parser.add_argument("--safety-min-severity", choices=["low", "medium", "high"], default="medium",
+                        help="Minimum severity that blocks a segment in 'block' mode (default: medium)")
+    parser.add_argument("--safety-extra-terms", help="Path to a safety_terms.json file with extra blocked terms")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -565,6 +571,31 @@ def main():
                       except Exception as e:
                           print(i18n("Failed to align raw segments: {}").format(e))
                           # If alignment fails, it might crash later, but we tried. 
+
+        # 3.7. Safety Filter (YouTube hate-speech / violence policy shield)
+        if workflow_choice != "3" and viral_segments and "segments" in viral_segments:
+            if args.safety_mode != "off":
+                print(i18n("Running safety filter (mode: {})...").format(args.safety_mode))
+                emit_progress("ai", 58, "فحص الأمان")
+                try:
+                    filtered = safety_filter.apply_safety_filter(
+                        viral_segments,
+                        project_folder=project_folder,
+                        mode=args.safety_mode,
+                        min_severity=args.safety_min_severity,
+                        extra_terms_path=args.safety_extra_terms,
+                        i18n=i18n,
+                    )
+                    if filtered is not viral_segments:
+                        viral_segments = filtered
+                        save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
+                except Exception as e:
+                    print(i18n("Safety filter failed (continuing without it): {}").format(e))
+
+                if args.safety_mode == "block" and not viral_segments.get("segments"):
+                    print(i18n("Error: All segments were blocked by the safety filter (hate speech / policy violations)."))
+                    print(i18n("Check safety_report.json in the project folder for details. Nothing was cut."))
+                    sys.exit(1)
 
         # 4. Cut Segments
         # Se workflow for 3, pulamos corte

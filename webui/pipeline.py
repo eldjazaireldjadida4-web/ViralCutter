@@ -24,7 +24,8 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
                   active_speaker_score_diff=None, include_motion=False,
                   active_speaker_motion_threshold=None,
                   active_speaker_motion_sensitivity=None, active_speaker_decay=None,
-                  translate_target=None, subtitle_config_path=None):
+                  translate_target=None, subtitle_config_path=None,
+                  safety_mode=None):
     """Assemble the full CLI command for main_improved.py.
 
     `source_args` holds the input-source-specific flags already resolved by
@@ -91,5 +92,9 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
 
     if subtitle_config_path:
         cmd.extend(["--subtitle-config", subtitle_config_path])
+
+    if safety_mode and safety_mode != "block":
+        # "block" is the CLI default; only pass explicit overrides
+        cmd.extend(["--safety-mode", str(safety_mode)])
 
     return cmd

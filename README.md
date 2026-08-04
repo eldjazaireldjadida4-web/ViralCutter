@@ -29,6 +29,7 @@ Esqueça assinaturas caras e limites de minutos. O ViralCutter oferece poder ili
 ## Funcionalidades Principais 🚀
 
 -   🤖 **Corte Viral com IA**: Identifica automaticamente os ganchos e momentos mais engajadores usando **Gemini**, **GPT-4** ou **LLMs Locais (Llama 3, DeepSeek, etc)**.
+-   🛡️ **Filtro de Segurança Anti-Strike (Novo!)**: Bloqueia antes do corte os clipes com **discurso de ódio / incitação à violência** (principal causa de strikes do YouTube). 100% local, multilíngue (árabe + dialetos, EN, PT, FR, ES, TR), com relatório `safety_report.json` por projeto.
 -   🗣️ **Transcrição Ultra-Precisa**: Baseado em **WhisperX** com aceleração via GPU para legendas perfeitas.
 -   🎨 **Legendas Dinâmicas**: Estilo "Hormozi" com highlight palavra por palavra, cores vibrantes, emojis e total customização.
 -   🎥 **Direção de Câmera Automática**:

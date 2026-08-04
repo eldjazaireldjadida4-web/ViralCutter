@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy this file to 'safety_terms.json' (repo root or inside a project folder) and add your own terms. severity: high|medium|low — category is free-form. Terms listed here are checked IN ADDITION to the built-in blocklist.",
+  "extra_terms": [
+    {"term": "كلمة محظورة إضافية", "lang": "ar", "severity": "high", "category": "custom"},
+    {"term": "another banned phrase", "lang": "en", "severity": "medium", "category": "custom"}
+  ]
+}
