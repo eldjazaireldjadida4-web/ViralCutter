@@ -581,6 +581,14 @@ def main():
             else:
                 input_video = download_result
                 project_folder = os.path.dirname(input_video)
+
+            # Guard: a failed/empty download must never leave input_video=None
+            # (this crashed with `os.path.dirname(None)` — v6.3b).
+            if not input_video or not os.path.exists(input_video):
+                print(i18n("\n[ERROR] The video could not be downloaded. "
+                           "Check the URL, or use --cookies-from-browser for "
+                           "private / age-restricted videos."))
+                sys.exit(1)
                 
             print(f"DEBUG: Download finished. input_video={input_video}, project_folder={project_folder}")
             emit_progress("download", 15, "Download complete")

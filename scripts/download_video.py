@@ -43,26 +43,22 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best",
     # Since replace_file_content works on line ranges, I should be careful.
     # Let's assume I'm replacing the whole function body or significant parts.
     
-    # Tentativa 1: Com cookies
-    try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'cookiesfrombrowser': ('chrome',)}) as ydl:
-            info = ydl.extract_info(url, download=False)
-            title = info.get('title')
-    except Exception as e:
-        try:
-            print(i18n("Warning: Failed to extract info with cookies: {}").format(e))
-        except UnicodeEncodeError:
-            print(i18n("Warning: Failed to extract info with cookies: [Encoding Error in Message]"))
-
-    # Tentativa 2: Sem cookies
+    # Titulo: usa cookies apenas quando o usuário pediu explicitamente
+    # (--cookies-from-browser / --cookies). Forçar chrome antes causava
+    # "Could not copy Chrome cookie database" em Windows (yt-dlp#7271).
     if not title:
+        info_opts = {'quiet': True, 'no_warnings': True}
+        if cookies_from_browser:
+            info_opts['cookiesfrombrowser'] = (cookies_from_browser,)
+        if cookies_file:
+            info_opts['cookiefile'] = cookies_file
         try:
-             with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+            with yt_dlp.YoutubeDL(info_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 title = info.get('title')
         except Exception as e:
             try:
-                print(i18n("Error getting video info (without cookies): {}").format(e))
+                print(i18n("Error getting video info: {}").format(e))
             except UnicodeEncodeError:
                 print(i18n("Error getting video info (without cookies): [Encoding Error in Message]"))
 
@@ -249,6 +245,13 @@ def _print_friendly_and_exit(e, url=""):
     except Exception as e:
         print(i18n("Unexpected error: {}").format(e))
         raise
+
+    # Safety net: if the video file still does not exist after all attempts,
+    # fail loudly instead of returning a bogus path (v6.3b).
+    if not os.path.exists(final_video_path) or os.path.getsize(final_video_path) < 1024:
+        print(i18n("\n[ERROR] Download finished but the video file is missing/empty: {}")
+              .format(final_video_path))
+        raise SystemExit(1)
 
     # RENOMEAR LEGENDA PARA PADRÃO (input.vtt ou input.srt)
     # Se for VTT, converte para SRT para garantir compatibilidade.

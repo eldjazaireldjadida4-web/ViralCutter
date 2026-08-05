@@ -187,3 +187,14 @@
 - CLI: when a download fails as "private / age-restricted" and the user runs interactively, ViralCutter now ASKS "Retry using your Chrome browser cookies? (yes/no)" and retries automatically with --cookies-from-browser chrome. (TTY-only — the WebUI never hangs on a prompt.)
 - WebUI: new "🔒 YouTube login (cookies)" dropdown (Chrome/Edge/Firefox) wired through build_command.
 - Tests: 313 → 314.
+
+## 🔧 v6.3c — Windows crash fixes (Chrome cookie noise + input_video=None)
+
+- download_video: title extraction no longer forces Chrome cookies (removed the
+  "Could not copy Chrome cookie database" noise on Windows, yt-dlp#7271) —
+  cookies are used only when the user asks (--cookies-from-browser/--cookies).
+- download_video: safety net — after all attempts, if the video file is missing/empty,
+  fail loudly instead of returning a bogus path.
+- main_improved: guard against input_video=None after a failed download → clean
+  error message + exit(1) instead of `os.path.dirname(None)` TypeError.
+- Tests: 314.
