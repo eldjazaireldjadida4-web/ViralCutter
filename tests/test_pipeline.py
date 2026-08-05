@@ -321,3 +321,25 @@ class TestGeminiDualSDK:
         assert out == '{"segments": []}'
         del _sys.modules["google.generativeai"]
         importlib.reload(cvs)
+
+
+class TestSanitizeArabicTitle:
+    """Arabic YouTube titles must produce real folder names (v6.5)."""
+
+    def test_arabic_title_preserved(self):
+        from scripts.download_video import sanitize_filename
+        assert sanitize_filename("كيف تصنع فيديو فيروسي 😱") == "كيف تصنع فيديو فيروسي"
+
+    def test_reserved_chars_stripped(self):
+        from scripts.download_video import sanitize_filename
+        assert ":" not in sanitize_filename("a:b")
+        assert "/" not in sanitize_filename("a/b")
+
+    def test_emoji_stripped_latin_kept(self):
+        from scripts.download_video import sanitize_filename
+        out = sanitize_filename("Viral Video! (Part 1) 😱🎬")
+        assert "😱" not in out and "Viral Video" in out
+
+    def test_empty_falls_back(self):
+        from scripts.download_video import sanitize_filename
+        assert sanitize_filename("") == "Unknown_Video"

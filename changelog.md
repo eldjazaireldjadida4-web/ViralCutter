@@ -230,3 +230,11 @@
 - WebUI error hints now match the real error line first (no more wrong hints
   from older log lines).
 - Tests: 322 → 325.
+
+## 🇩🇿 v6.5b — CRITICAL: Arabic video titles erased (folder collapse)
+
+- sanitize_filename stripped non-Latin scripts (cp1252/ascii fallback) → Arabic
+  titles became "" → every Arabic-titled project collapsed into VIRALS/ and
+  overwrote input.mp4. Now keeps Unicode letters (Arabic/CJK/Latin), strips only
+  reserved chars/emojis; empty → "Unknown_Video". + regression tests.
+- Tests: 325 → 329.

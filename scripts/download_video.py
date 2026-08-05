@@ -59,20 +59,19 @@ def _print_friendly_and_exit(e, url=""):
 
 
 def sanitize_filename(name):
-    """Remove caracteres inválidos e emojis para evitar erro de encoding no Windows."""
-    # Remove caracteres reservados do sistema de arquivos
-    cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
+    """Safe folder name for any script (incl. Arabic) — v6.5.
 
-    # Remove emojis e caracteres não suportados pelo console Windows (CP1252)
-    # Isso mantém acentos (á, ç, é) mas remove 😱, etc.
-    try:
-        cleaned = cleaned.encode('cp1252', 'ignore').decode('cp1252')
-    except:
-        # Fallback se não tiver CP1252: remove tudo não-ascii (remove acentos)
-        cleaned = cleaned.encode('ascii', 'ignore').decode('ascii')
-
-    cleaned = cleaned.strip()
-    return cleaned
+    The old cp1252/ascii fallback erased non-Latin scripts entirely (Arabic
+    titles became "" → every Arabic-titled project collapsed into VIRALS/ and
+    overwrote input.mp4). NTFS/FAT32 handle Unicode fine; only strip the
+    reserved characters, control chars and emojis (keep letters incl. Arabic,
+    digits, spaces, and safe punctuation).
+    """
+    cleaned = re.sub(r'[\\/*?:"<>|]', "", str(name))
+    # keep unicode word chars (Arabic/Latin/CJK), spaces, and safe punctuation
+    cleaned = re.sub(r"[^\w\s\-\.\(\)\[\]]", "", cleaned, flags=re.UNICODE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    return cleaned[:120] or "Unknown_Video"
 
 
 def progress_hook(d):
