@@ -134,3 +134,37 @@ def test_bad_numeric_inputs_fall_back_to_defaults():
     assert pairs["--min-duration"] == "15"
     assert pairs["--max-duration"] == "90"
     assert pairs["--chunk-size"] == "70000"
+
+
+class TestDownloadFriendlyErrors:
+    """Friendly handling of private/age-restricted/unavailable videos (v6.2)."""
+
+    def _import_dl(self):
+        from scripts import download_video as dl
+        return dl
+
+    def test_private_video_message(self):
+        dl = self._import_dl()
+        msg = dl._friendly_download_error(
+            "ERROR: [youtube] abc123: Private video. Sign in if you've been "
+            "granted access to this video. Use --cookies-from-browser or "
+            "--cookies for the authentication.")
+        assert "PRIVATE" in msg
+        assert "--cookies-from-browser" in msg
+
+    def test_age_restricted_message(self):
+        dl = self._import_dl()
+        msg = dl._friendly_download_error(
+            "ERROR: [youtube] xyz: Sign in to confirm your age")
+        assert "age-restricted" in msg
+
+    def test_unavailable_message(self):
+        dl = self._import_dl()
+        msg = dl._friendly_download_error(
+            "ERROR: [youtube] qwe: Video unavailable. This video is not available")
+        assert "unavailable" in msg
+
+    def test_subtitle_429_returns_none(self):
+        dl = self._import_dl()
+        assert dl._friendly_download_error(
+            "ERROR: Unable to download video subtitles (429)") is None

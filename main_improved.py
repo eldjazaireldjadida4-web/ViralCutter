@@ -243,6 +243,10 @@ def main():
                         help="Download the small ONNX visual classifier into models/ when missing (Roadmap 2.1)")
     parser.add_argument("--allow-placeholder-transcription", action="store_true",
                         help="When whisperx/torch are missing, continue with placeholder subtitles (for testing editing/safety only — NOT for real viral-segment selection)")
+    parser.add_argument("--cookies-from-browser", choices=["chrome", "firefox", "edge", "safari", "brave", "opera", "vivaldi"], default=None,
+                        help="Use your browser's login cookies to download private / age-restricted videos (e.g. --cookies-from-browser chrome)")
+    parser.add_argument("--cookies", default=None,
+                        help="Path to a Netscape-format cookies.txt file exported for yt-dlp (alternative to --cookies-from-browser)")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -544,7 +548,9 @@ def main():
             print(i18n("Starting download..."))
             emit_progress("download", 5, "Download started")
             download_subs = not args.skip_youtube_subs
-            download_result = download_video.download(url, download_subs=download_subs, quality=args.video_quality)
+            download_result = download_video.download(url, download_subs=download_subs, quality=args.video_quality,
+                                                      cookies_from_browser=args.cookies_from_browser,
+                                                      cookies_file=args.cookies)
             
             if isinstance(download_result, tuple):
                 input_video, project_folder = download_result

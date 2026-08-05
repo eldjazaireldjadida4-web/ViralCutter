@@ -175,3 +175,9 @@
 - **Auto-update armed**: falls back to latest git tag when no Release exists; tag v0.9.0 pushed.
 - doctor.py checks whisperx/torch; README_ar quickstart "3 steps to full pipeline".
 - Testes: 304 → 309.
+
+## 🔐 v6.3 — YouTube download UX (private / age-restricted videos)
+
+- `--cookies-from-browser chrome|firefox|edge|...` + `--cookies file.txt` (yt-dlp auth) for private/age-restricted downloads.
+- Friendly error messages instead of raw tracebacks: private video / age-restricted / unavailable / removed / invalid URL → actionable guidance + clean exit(1).
+- Tests: 309 → 313.

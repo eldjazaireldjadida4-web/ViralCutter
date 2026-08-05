@@ -96,6 +96,12 @@ python main_improved.py --url "https://youtube.com/watch?v=..." --platform tikto
 run_webui.bat
 ```
 
+> 🔒 **فيديو خاص أو مقيد عمرياً؟** استعمل كوكيز متصفحك (الفيديو يجب أن يكون متاحاً لحسابك):
+> ```bat
+> python main_improved.py --url "..." --cookies-from-browser chrome
+> :: أو ملف كوكيز مُصدَّر (Netscape):  --cookies cookies.txt
+> ```
+
 > 💡 **ملاحظات ويندوز**:
 > - بطاقة NVIDIA → اختر CUDA في المثبّت (أسرع بكثير). AMD/Intel → نسخة CPU (تعمل لكن أبطأ).
 > - لو فشل `install_dependencies.bat` في البداية، أعد فتح الطرفية بعد تثبيت uv.

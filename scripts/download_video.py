@@ -31,7 +31,8 @@ def progress_hook(d):
     elif d['status'] == 'finished':
         print(f"[download] Download concluído: {d['filename']}", flush=True)
 
-def download(url, base_root="VIRALS", download_subs=True, quality="best"):
+def download(url, base_root="VIRALS", download_subs=True, quality="best",
+             cookies_from_browser=None, cookies_file=None):
     # 1. Extrair informações do vídeo para pegar o título
     # 1. Extrair informações do vídeo para pegar o título
     print(i18n("Extracting video information..."))
@@ -141,6 +142,9 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best"):
         'quiet': False,
         'no_warnings': False,
         'force_ipv4': True,
+        # Authentication for private / age-restricted videos (v6.2)
+        'cookiesfrombrowser': (cookies_from_browser,) if cookies_from_browser else None,
+        'cookiefile': cookies_file or None,
     }
     
 
@@ -150,6 +154,46 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best"):
             'key': 'FFmpegSubtitlesConvertor',
             'format': 'srt',
         }]
+
+_COOKIES_HINT = (
+    "\n"
+    "  Private / age-restricted video? Authenticate yt-dlp and retry:\n"
+    "    python main_improved.py --url \"...\" --cookies-from-browser chrome\n"
+    "  (or export cookies with a browser extension: yt-dlp.github.io/yt-dlp FAQ)\n"
+    "  Docs: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp")
+
+
+def _friendly_download_error(e, url=""):
+    """Map common yt-dlp failures to clear, actionable messages."""
+    msg = str(e)
+    low = msg.lower()
+    if "private video" in low or "sign in" in low or "private" in low and "video" in low:
+        return (i18n("\n[ERROR] This YouTube video is PRIVATE — it can only be downloaded "
+                     "by accounts granted access.\nSolutions:") + _COOKIES_HINT)
+    if "age" in low and ("restrict" in low or "confirm" in low):
+        return (i18n("\n[ERROR] This video is age-restricted. Authenticate with "
+                     "--cookies-from-browser to download it.") + _COOKIES_HINT)
+    if "video unavailable" in low or "not available" in low:
+        return i18n("\n[ERROR] This video is unavailable (removed, geo-blocked or "
+                    "deleted). Check the link on your browser.")
+    if "copyright" in low or "removed" in low:
+        return i18n("\n[ERROR] This video was removed (copyright or creator takedown).")
+    if "is not a valid url" in low:
+        return i18n("\n[ERROR] The link is not a valid YouTube URL.")
+    if "unable to download video subtitles" in low or "429" in low:
+        return None  # handled by the retry-without-subs branch
+    return i18n("\n[ERROR] YouTube download failed: {}").format(e)
+
+
+def _print_friendly_and_exit(e, url=""):
+    msg = _friendly_download_error(e, url)
+    if msg:
+        try:
+            print(msg)
+        except UnicodeEncodeError:
+            print(msg.encode('ascii', 'replace').decode('ascii'))
+    raise SystemExit(1)
+
 
     try:
         print(i18n("Downloading video to: {}...").format(project_folder))
@@ -184,10 +228,11 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best"):
                 raise
         elif "is not a valid URL" in error_str:
              print(i18n("Error: the entered link is not valid."))
-             raise 
+             _print_friendly_and_exit(e, url)
         else:
-            print(i18n("Download error: {}").format(e))
-            raise
+            # Friendly, actionable message for private/age-restricted/unavailable
+            # videos (v6.2) — clean exit instead of a raw traceback.
+            _print_friendly_and_exit(e, url)
     except Exception as e:
         print(i18n("Unexpected error: {}").format(e))
         raise
