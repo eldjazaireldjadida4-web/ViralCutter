@@ -34,3 +34,13 @@ output/
 # Auto-updated safety blocklist cache (downloaded from GitHub)
 safety_blocklist_cache.json
 .safety_update_stamp
+
+# v6 features
+checkpoint.json
+final_polished/
+.polish_tmp/
+updates/
+update_info.json
+crash_report.log
+api_config.secure.json
+transcription_model.json

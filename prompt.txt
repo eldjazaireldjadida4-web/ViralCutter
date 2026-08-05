@@ -47,3 +47,8 @@ TRANSCRIPT:
 {json_template}
 
 Return ONLY VALID JSON. No markdown, no commentary.
+### A/B TESTING (IMPORTANT):
+For EACH segment you select, also write:
+- `alt_titles`: 3 alternative hook titles (different angles/phrasing) for A/B testing.
+- `alt_captions`: 3 alternative publish-ready captions.
+Keep them in the SAME LANGUAGE as the transcript. These are used for thumbnails/titles A/B tests.

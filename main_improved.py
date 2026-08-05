@@ -30,6 +30,13 @@ from scripts import (
     safety_ai,
     censor_engine,
     risk_scorecard,
+    checkpoint,
+    oom_guard,
+    polish,
+    upload_gate,
+    metadata_compliance,
+    secure_config,
+    crash_report,
 )
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
@@ -212,9 +219,47 @@ def main():
     parser.add_argument("--risk-gate", choices=["off", "warn", "block"], default="warn",
                         help="What to do when a clip fails the compliance gate: 'warn' prints warnings and writes publish_blocklist.json (default), 'block' stops the run, 'off' does nothing")
 
+    # --- Sprint 3/4/5 features (added in v6) ---
+    parser.add_argument("--checkpoint", choices=["on", "off"], default="on",
+                        help="Crash-safe resume: skip stages completed in a previous run (checkpoint.json per project). Default: on")
+    parser.add_argument("--check-updates", action="store_true",
+                        help="Check GitHub Releases for a newer ViralCutter build at startup")
+    parser.add_argument("--polish", choices=["on", "off"], default="off",
+                        help="Run the professional polish pass (jump cuts + punch zoom + background music + branding) after editing, before subtitles. Default: off")
+    parser.add_argument("--polish-stages", default="jump_cuts,punch_zoom,background_music,branding",
+                        help="Comma-separated polish stages to run (with --polish)")
+    parser.add_argument("--music", default=None, help="Background music file (with --polish; default: <project>/music/ folder)")
+    parser.add_argument("--music-volume", type=float, default=0.15, help="Background music volume (0..1)")
+    parser.add_argument("--logo", default=None, help="Channel logo PNG for the watermark (with --polish)")
+    parser.add_argument("--intro", default=None, help="Intro clip to prepend (with --polish)")
+    parser.add_argument("--outro", default=None, help="Outro clip to append (with --polish)")
+    parser.add_argument("--zoom-keywords", default=None,
+                        help="Comma-separated keywords that trigger punch-in zoom (with --polish)")
+    parser.add_argument("--metadata-gate", choices=["off", "warn", "block"], default="warn",
+                        help="Metadata compliance gate (title/caption/hashtags): 'warn' flags + writes to the scorecard (default), 'block' stops the run when any clip has risky metadata, 'off' skips it")
+    parser.add_argument("--auto-download-visual", action="store_true",
+                        help="Download the small ONNX visual classifier into models/ when missing (Roadmap 2.1)")
+
     args = parser.parse_args()
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
+
+    # Optional startup update check (Roadmap 1.2) — never blocks startup.
+    if args.check_updates:
+        try:
+            from scripts import auto_updater
+            upd = auto_updater.check_for_update()
+            if upd.get("update_available"):
+                print(i18n("[auto-update] 🚀 ViralCutter {} available (local: {}). "
+                           "Download: {}").format(
+                    upd.get("latest_version"), auto_updater.LOCAL_VERSION,
+                    upd.get("download_url") or "see GitHub Releases"))
+            elif upd.get("error"):
+                debug("Update check skipped: {}".format(upd["error"]))
+            else:
+                debug("Up to date (local: {}).".format(auto_updater.LOCAL_VERSION))
+        except Exception as e:
+            debug("Update check failed (ignored): {}".format(e))
     
     # Workflow Logic
     workflow_choice = args.workflow
@@ -359,9 +404,9 @@ def main():
                  except ValueError:
                      print(i18n("Invalid number. Using previous values."))
 
-        # Load API Config
+        # Load API Config (env vars and the encrypted store take priority — Roadmap 4.4)
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_config.json')
-        api_config = load_json_file(config_path, default={})
+        api_config = secure_config.load_api_config()
 
         # Seleção do Backend de IA
         ai_backend = args.ai_backend
@@ -494,6 +539,13 @@ def main():
             
         print(f"Project Folder: {project_folder}")
         
+        # Crash-safe resume tracker (Roadmap 4.2): completed stages are
+        # skipped when a previous run was interrupted.
+        tracker = checkpoint.StageTracker(project_folder, enabled=(args.checkpoint == "on"))
+        pending = tracker.resume_info()
+        if pending["pending"]:
+            debug("Checkpoint: stages pending → {}".format(", ".join(pending["pending"])))
+        
         # 2. Transcribe
         if workflow_choice == "3":
             print(i18n("Workflow 3: Skipping Transcribe."))
@@ -504,7 +556,19 @@ def main():
             print(i18n("Transcribing with model {}...").format(args.model))
             emit_progress("transcribe", 20, "تفريغ الصوت")
             # Se skip config, args.model é default
-            srt_file, tsv_file = transcribe_video.transcribe(input_video, args.model, project_folder=project_folder)
+            # GPU OOM guard (Roadmap 4.1) + checkpoint resume (Roadmap 4.2)
+            _transcribe_result = tracker.run(
+                "transcribe",
+                oom_guard.transcribe_with_fallback,
+                input_video, args.model,
+                project_folder=project_folder)
+            if _transcribe_result is None:
+                # stage already completed in a previous run → reuse files
+                base_name = os.path.splitext(os.path.basename(input_video))[0]
+                srt_file = os.path.join(project_folder, base_name + ".srt")
+                tsv_file = os.path.join(project_folder, base_name + ".tsv")
+            else:
+                srt_file, tsv_file = _transcribe_result
             emit_progress("transcribe", 65, "تفريغ الصوت")
  
         # 3. Create Viral Segments
@@ -688,7 +752,9 @@ def main():
                 print(i18n("Cutting segments..."))
             emit_progress("cut", 70, "Cutting segments")
 
-            cut_segments.cut(viral_segments, project_folder=project_folder, skip_video=skip_cutting, workers=args.workers)
+            tracker.run("cut", cut_segments.cut, viral_segments,
+                        project_folder=project_folder, skip_video=skip_cutting,
+                        workers=args.workers)
             emit_progress("cut", 80, "Cutting segments")
 
             # 4.5. Bleep censoring (mute violating words in audio + subtitles)
@@ -722,24 +788,24 @@ def main():
                 dead_zone_val = 40.0
                 
             emit_progress("edit", 85, "Editing video")
-            edit_video.edit(
-                project_folder=project_folder, 
-                face_model=face_model, 
-                face_mode=face_mode, 
-                detection_period=detection_intervals,
-                filter_threshold=args.face_filter_threshold,
-                two_face_threshold=args.face_two_threshold,
-                confidence_threshold=args.face_confidence_threshold,
-                dead_zone=dead_zone_val,
-                focus_active_speaker=args.focus_active_speaker,
-                active_speaker_mar=args.active_speaker_mar,
-                active_speaker_score_diff=args.active_speaker_score_diff,
-                include_motion=args.include_motion,
-                active_speaker_motion_deadzone=args.active_speaker_motion_threshold,
-                active_speaker_motion_sensitivity=args.active_speaker_motion_sensitivity,
-                active_speaker_decay=args.active_speaker_decay,
-                segments_data=viral_segments.get("segments", []) if viral_segments else None,
-                no_face_mode=args.no_face_mode
+            tracker.run("edit", edit_video.edit,
+                        project_folder=project_folder, 
+                        face_model=face_model, 
+                        face_mode=face_mode, 
+                        detection_period=detection_intervals,
+                        filter_threshold=args.face_filter_threshold,
+                        two_face_threshold=args.face_two_threshold,
+                        confidence_threshold=args.face_confidence_threshold,
+                        dead_zone=dead_zone_val,
+                        focus_active_speaker=args.focus_active_speaker,
+                        active_speaker_mar=args.active_speaker_mar,
+                        active_speaker_score_diff=args.active_speaker_score_diff,
+                        include_motion=args.include_motion,
+                        active_speaker_motion_deadzone=args.active_speaker_motion_threshold,
+                        active_speaker_motion_sensitivity=args.active_speaker_motion_sensitivity,
+                        active_speaker_decay=args.active_speaker_decay,
+                        segments_data=viral_segments.get("segments", []) if viral_segments else None,
+                        no_face_mode=args.no_face_mode
             )
 
 
@@ -783,6 +849,30 @@ def main():
                          os.rename(old_tl_path, new_tl_path)
                          print(f"Renamed (Workflow 3): {old_tl_name} -> {new_base_name}_timeline.json")
 
+        # 5.5. Polish pass (Sprint 3: jump cuts / punch zoom / music / branding)
+        # Runs AFTER editing (final/) and BEFORE subtitle burning so the burned
+        # subs land on the polished video and get re-timed automatically.
+        if args.polish == "on":
+            print(i18n("Running polish pass (stages: {})...").format(args.polish_stages))
+            emit_progress("polish", 87, "تحسين المونتاج")
+            try:
+                polish_reports = polish.polish_project(
+                    project_folder,
+                    enable=[s for s in args.polish_stages.split(",") if s.strip()],
+                    keywords=args.zoom_keywords,
+                    music_path=args.music,
+                    music_volume=args.music_volume,
+                    logo_path=args.logo,
+                    intro=args.intro,
+                    outro=args.outro,
+                    zoom_keywords=args.zoom_keywords,
+                    punch_zoom_amount=1.18,
+                )
+                ok_n = sum(1 for r in polish_reports if r.get("ok"))
+                print(i18n("Polish: {}/{} clips enhanced").format(ok_n, len(polish_reports)))
+            except Exception as e:
+                print(i18n("Polish pass failed (continuing with unpolished clips): {}").format(e))
+
         # 6. Subtitles
         burn_subtitles_option = True 
         if burn_subtitles_option:
@@ -803,13 +893,14 @@ def main():
 
             sub_config = get_subtitle_config(args.subtitle_config)
             
+            def _run_subtitles():
+                adjust_subtitles.adjust(project_folder=project_folder, **sub_config)
+                burn_subtitles.burn(project_folder=project_folder, prefer_hardware_acceleration=args.prefer_hardware_acceleration)
 
-            
             # Passa o dicionário desempacotado como argumentos, mais o project_folder
             try:
-                adjust_subtitles.adjust(project_folder=project_folder, **sub_config)
                 emit_progress("subtitles", 95, "Rendering subtitles")
-                burn_subtitles.burn(project_folder=project_folder, prefer_hardware_acceleration=args.prefer_hardware_acceleration)
+                tracker.run("subtitles", _run_subtitles)
             except FileNotFoundError as fnf_error:
                 print(i18n("\n[ERROR] Subtitle processing failed: {}").format(str(fnf_error)))
                 print(i18n("Tip: If you are using Workflow 3 (Subtitles Only), ensure the 'subs' folder exists and contains valid JSON files."))
@@ -825,11 +916,17 @@ def main():
         if args.risk_scorecard == "on" and viral_segments and "segments" in viral_segments:
             try:
                 print(i18n("Running risk scorecard (per-clip compliance report)..."))
-                report = risk_scorecard.analyze_project(
+                report = tracker.run(
+                    "scorecard",
+                    risk_scorecard.analyze_project,
                     project_folder,
                     viral_segments=viral_segments,
                     i18n=i18n,
+                    auto_download_visual=args.auto_download_visual,
                 )
+                if report is None:
+                    report = risk_scorecard.analyze_project(
+                        project_folder, viral_segments=viral_segments, i18n=i18n)
                 blocked = report.get("blocked", [])
                 if blocked:
                     print(i18n("[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json").format(len(blocked)))
@@ -838,6 +935,50 @@ def main():
                         sys.exit(1)
             except Exception as e:
                 print(i18n("Risk scorecard failed (skipped): {}").format(e))
+
+        # 6.6. Metadata compliance gate (Roadmap 2.4) + upload-gate audit (2.2).
+        #      Merges a `metadata` axis into the scorecard, then audits every
+        #      clip through upload_gate (publish_blocklist + safety + metadata).
+        if args.metadata_gate != "off" and viral_segments and "segments" in viral_segments:
+            try:
+                print(i18n("Running metadata compliance + upload gate audit..."))
+                segs = viral_segments.get("segments", [])
+                scorecard_path = os.path.join(project_folder, risk_scorecard.SCORECARD_FILENAME)
+                sc = load_json_file(scorecard_path, default={})
+                meta_blocked = []
+                for entry in sc.get("segments", []):
+                    idx = entry.get("index")
+                    if idx is None or idx >= len(segs):
+                        continue
+                    seg = segs[idx]
+                    axis = metadata_compliance.metadata_axis(
+                        seg.get("title", ""), seg.get("caption", ""),
+                        seg.get("hashtags", []))
+                    entry["axes"]["metadata"] = axis
+                    if not axis["ok"]:
+                        meta_blocked.append(entry)
+                try:
+                    with open(scorecard_path, "w", encoding="utf-8") as f:
+                        json.dump(sc, f, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    debug("Could not save metadata axis into scorecard: {}".format(e))
+
+                allowed, blocked = upload_gate.audit_project(project_folder)
+                total_blocked = len(blocked) + len(meta_blocked)
+                if total_blocked:
+                    print(i18n("[gate] ⛔ {} clip(s) refused for publish by the safety gate").format(total_blocked))
+                    for entry in meta_blocked:
+                        axis = entry["axes"]["metadata"]
+                        print(i18n("[gate]   ✗ #{} '{}' — {}").format(
+                            entry.get("index"), entry.get("title"),
+                            metadata_compliance.summarize_metadata(axis)))
+                    if args.metadata_gate == "block":
+                        print(i18n("[gate] gate mode 'block' — stopping the run."))
+                        sys.exit(1)
+                else:
+                    print(i18n("[gate] ✔ all clips pass the publish gate"))
+            except Exception as e:
+                print(i18n("Metadata gate failed (skipped): {}").format(e))
 
         # Organização Final (Opcional, pois agora já está tudo em project_folder)
         # organize_output.organize(project_folder=project_folder)
@@ -897,12 +1038,23 @@ def main():
         # -------------------------------------
 
         emit_progress("done", 100, "Completed")
+        try:
+            checkpoint.mark_done(project_folder, "done")
+        except Exception:
+            pass
         cleanup_temp_files()
         main._retried = False
         print(i18n("Process completed! Check your results in: {}").format(project_folder))
 
     except Exception as e:
         print(i18n("\nAn error occurred: {}").format(str(e)))
+        # Privacy-respecting crash report (Roadmap 4.5) — local always, sent
+        # only when the user opts in via VIRALCUTTER_CRASH_REPORT=1.
+        try:
+            crash_report.report("pipeline", e,
+                                log_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash_report.log"))
+        except Exception:
+            pass
         import traceback
         traceback.print_exc()
         cleanup_temp_files()

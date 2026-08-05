@@ -7,7 +7,9 @@ import ast
 import io
 
 # Configura stdout para evitar erros de encoding no Windows (substitui caracteres inválidos por ?)
-if sys.stdout and hasattr(sys.stdout, 'buffer'):
+# Aplicado apenas no Windows — em Linux/macOS (e no CI/pytest) o stdout nativo já é UTF-8
+# e substituí-lo quebraria o capture do pytest.
+if sys.platform == "win32" and sys.stdout and hasattr(sys.stdout, 'buffer'):
     try:
         # Mantém encoding original mas ignora erros (substitui por ?)
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding=sys.stdout.encoding or 'utf-8', errors='replace', line_buffering=True)
@@ -448,12 +450,16 @@ def process_segments(raw_segments, transcript_segments, min_duration, max_durati
                 "title": seg.get('title', 'Viral Segment'),
                 "start_time": final_start_time,
                 "end_time": final_end_time,
-                "hook": seg.get('title', ''), 
+                "hook": seg.get('title', ''),
                 "reasoning": seg.get('reasoning', ''),
                 "score": seg.get('score', 0),
                 "duration": duration,
                 "caption": seg.get('caption', ''),
-                "hashtags": hashtags
+                "hashtags": hashtags,
+                # A/B titles/captions (Roadmap 5.3): kept when the AI
+                # returned them, otherwise fall back to the main title.
+                "alt_titles": seg.get('alt_titles') or [seg.get('title', '')],
+                "alt_captions": seg.get('alt_captions') or [seg.get('caption', '')],
             })
 
         except Exception as e:
@@ -501,6 +507,33 @@ def process_segments(raw_segments, transcript_segments, min_duration, max_durati
     final_result['segments'] = validated_segments
     
     return final_result
+
+
+def segment_titles(segment):
+    """A/B test titles for a segment: alt_titles + the main title (Roadmap 5.3).
+
+    Returns a de-duplicated list; the main title is always last as the
+    safe default choice.
+    """
+    seen, out = set(), []
+    for t in list(segment.get("alt_titles") or []) + [segment.get("title", "")]:
+        t = (t or "").strip()
+        if t and t.lower() not in seen:
+            seen.add(t.lower())
+            out.append(t)
+    return out or ["Viral Segment"]
+
+
+def segment_captions(segment):
+    """A/B test captions for a segment: alt_captions + the main caption."""
+    seen, out = set(), []
+    for c in list(segment.get("alt_captions") or []) + [segment.get("caption", "")]:
+        c = (c or "").strip()
+        if c and c.lower() not in seen:
+            seen.add(c.lower())
+            out.append(c)
+    return out or [""]
+
 
 
 def create(num_segments, viral_mode, themes, tempo_minimo, tempo_maximo, ai_mode="manual", api_key=None, project_folder="tmp", chunk_size_arg=None, model_name_arg=None):
@@ -587,9 +620,11 @@ OUTPUT JSON ONLY:
                         "end_text": "Exact last 5-10 words of the segment",
                         "start_time_ref": "Value of closest (XXs) tag",
                         "title": "Viral Hook Title (Same Language as Transcript)",
+                        "alt_titles": ["3 alternative A/B titles, different hooks, same language"],
                         "reasoning": "Why this is viral? Hook? Value? (Same Language as Transcript)",
                         "score": 95,
                         "caption": "Publish-ready caption for this clip, 1-2 catchy sentences (Same Language as Transcript)",
+                        "alt_captions": ["3 alternative captions for A/B testing"],
                         "hashtags": ["3-5 relevant hashtags without the # symbol"]
                     }
                 ]

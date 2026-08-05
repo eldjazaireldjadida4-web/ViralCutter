@@ -26,6 +26,7 @@ import os
 import subprocess
 
 from scripts.safety_filter import find_matches, normalize_text
+from scripts import visual_check
 
 SCORECARD_FILENAME = "risk_scorecard.json"
 PUBLISH_BLOCKLIST_FILENAME = "publish_blocklist.json"
@@ -204,7 +205,7 @@ def _load_words(project_folder):
 
 
 def score_segment(segment, index, project_folder, words, source_video,
-                  visual_model_path=None):
+                  visual_model_path=None, visual_classifier=None):
     """Compute the risk axes for one segment. Returns a dict (never raises)."""
     entry = {
         "index": index,
@@ -249,8 +250,18 @@ def score_segment(segment, index, project_folder, words, source_video,
     visual = {"letterboxed": reuse["letterboxed"], "model": None, "score": 0}
     if visual_model_path and os.path.exists(visual_model_path):
         visual["model"] = os.path.basename(visual_model_path)
-        # Hook for a local ONNX classifier (e.g. NudeNet-lite). Without a
-        # bundled model we report the infrastructure is ready but no scores.
+    # Real ONNX inference (NudeNet-lite style) — Roadmap 2.1. Runs only when a
+    # classifier object is available so a missing model is a silent no-op.
+    if visual_classifier is not None and visual_classifier.available and clip and os.path.exists(clip):
+        vreport = visual_classifier.analyze_video(clip, num_frames=4)
+        if vreport.get("graphic_score") is not None:
+            visual["score"] = round(vreport["graphic_score"], 1)
+            visual["graphic"] = vreport["graphic"]
+            visual["top_class"] = vreport["top_class"]
+            visual["frames"] = vreport["frames"]
+            visual["model"] = vreport["model"] or visual["model"]
+            if visual["score"] >= 70.0:
+                visual["flag"] = "graphic content ({}% probability)".format(visual["score"])
     entry["axes"]["visual"] = visual
 
     # --- overall ---
@@ -264,7 +275,7 @@ def score_segment(segment, index, project_folder, words, source_video,
 
 
 def analyze_project(project_folder, viral_segments=None, gate_threshold=HIGH_REUSE_THRESHOLD,
-                    visual_model_path=None, i18n=lambda k: k):
+                    visual_model_path=None, auto_download_visual=False, i18n=lambda k: k):
     """Score every segment, persist risk_scorecard.json + publish_blocklist.json.
 
     Returns {"segments": [...], "blocked": [...], "summary": {...}}.
@@ -276,6 +287,24 @@ def analyze_project(project_folder, viral_segments=None, gate_threshold=HIGH_REU
         with open(path, "r", encoding="utf-8") as f:
             viral_segments = json.load(f)
 
+    # Real visual classifier (Roadmap 2.1): explicit path > default models dir.
+    classifier = None
+    model_path = visual_model_path
+    if not model_path or not os.path.exists(model_path):
+        default = visual_check.default_model_path()
+        if os.path.exists(default):
+            model_path = default
+    if auto_download_visual and (not model_path or not os.path.exists(model_path)):
+        try:
+            model_path = visual_check.download_model()
+        except Exception as e:
+            print("[risk] visual model download skipped: {}".format(e))
+    if model_path and os.path.exists(model_path):
+        classifier = visual_check.NudeNetClassifier(model_path)
+        if not classifier.available:
+            print("[risk] visual classifier unavailable ({}); continuing text-only".format(
+                classifier.error))
+
     segments = (viral_segments or {}).get("segments", [])
     source_video = _find_source_video(project_folder)
     words = _load_words(project_folder)
@@ -283,7 +312,8 @@ def analyze_project(project_folder, viral_segments=None, gate_threshold=HIGH_REU
     entries = []
     for i, seg in enumerate(segments):
         entries.append(score_segment(seg, i, project_folder, words,
-                                     source_video, visual_model_path))
+                                     source_video, visual_model_path=model_path,
+                                     visual_classifier=classifier))
 
     blocked = [e for e in entries if
                e["axes"]["reuse"].get("score", 0) >= gate_threshold
@@ -297,7 +327,7 @@ def analyze_project(project_folder, viral_segments=None, gate_threshold=HIGH_REU
         "danger": sum(1 for e in entries if e["overall"] == "danger"),
         "blocked_for_publish": len(blocked),
         "gate_threshold": gate_threshold,
-        "visual_model": os.path.basename(visual_model_path) if visual_model_path and os.path.exists(visual_model_path) else None,
+        "visual_model": os.path.basename(model_path) if model_path and os.path.exists(model_path) else None,
     }
 
     report = {"summary": summary, "segments": entries, "blocked": blocked}
@@ -338,13 +368,16 @@ def main():
     parser.add_argument("--project", required=True, help="Project folder")
     parser.add_argument("--gate-threshold", type=float, default=HIGH_REUSE_THRESHOLD)
     parser.add_argument("--visual-model", default=None,
-                        help="Path to an optional local ONNX visual classifier (e.g. models/nudenet.onnx)")
+                        help="Path to an optional local ONNX visual classifier (e.g. models/nudenet_lite.onnx)")
+    parser.add_argument("--auto-download-visual", action="store_true",
+                        help="Download the default small visual classifier into models/ if missing")
     parser.add_argument("--exit-on-blocked", action="store_true",
                         help="Exit code 1 if any clip is blocked for publish")
     args = parser.parse_args()
 
     report = analyze_project(args.project, gate_threshold=args.gate_threshold,
-                             visual_model_path=args.visual_model)
+                             visual_model_path=args.visual_model,
+                             auto_download_visual=args.auto_download_visual)
     blocked = len(report.get("blocked", []))
     if args.exit_on_blocked and blocked:
         raise SystemExit(1)

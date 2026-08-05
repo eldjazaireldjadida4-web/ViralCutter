@@ -70,7 +70,10 @@ def burn(project_folder="tmp", prefer_hardware_acceleration=None):
         project_folder_abs = project_folder
 
     subs_folder = os.path.join(project_folder_abs, 'subs_ass')
+    polished_folder = os.path.join(project_folder_abs, 'final_polished')
     videos_folder = os.path.join(project_folder_abs, 'final')
+    if os.path.isdir(polished_folder) and any(f.endswith(('.mp4', '.mkv', '.avi')) for f in os.listdir(polished_folder)):
+        videos_folder = polished_folder  # prefer the polished pass (jump cuts / zoom / music / branding)
     output_folder = os.path.join(project_folder_abs, 'burned_sub')
 
     os.makedirs(output_folder, exist_ok=True)

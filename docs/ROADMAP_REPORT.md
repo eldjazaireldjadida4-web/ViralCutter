@@ -1,6 +1,9 @@
 # 📑 التقرير الشامل — خارطة طريق ViralCutter الاحترافية
 **آخر تحديث**: 2026-08-04 | **آخر إصدار مطبق**: `c9a7051` (v5 — تقرير التسليم)
 
+> **⚠️ مهم للمطوّر التالي**: اقرأ **القسم السادس (جولة التطوير v6)** أولاً —
+> يوثّق كل ما نُفّذ في هذه الجولة حتى لا يُعاد العمل عليه.
+
 ---
 
 ## 🟢 القسم الأول: ما تم إنجازه فعلياً (الحماية النصية شبه مكتملة)
@@ -14,6 +17,7 @@
 | 🔄 v3 | `85ee01f` | تحديث تلقائي للقائمة كل 24 ساعة من GitHub |
 | 📊 v4 | `ff72749` | بطاقة مخاطر لكل مقطع + كشف المحتوى المُعاد استخدامه + فحص الربحية |
 | 📋 v5 | `c9a7051` | تقرير تسليم المطور (هذا الملف موثّق) |
+| ⚙️ v6 | *(انظر القسم السادس)* | جولة التطوير الكبرى: توزيع + حماية بصرية + مونتاج احترافي + موثوقية |
 
 **الحماية المكتملة نصياً**: خطاب الكراهية (3 طبقات)، المحتوى المُعاد استخدامه (درجة تطابق)، الربحية (أول 7 ثوانٍ).
 
@@ -230,3 +234,124 @@
 - [ ] **تتعلّم من الضربات**
 
 > **الخلاصة**: الأداة الآن **"محرك امتثال نصي محصّن"** — ينقصها أن تصبح **"أداة كاملة تُوزَّع وتُفرض فيها الحماية"**. السبرنت 1+2 يحوّلها لتلك الأداة.
+
+---
+
+## 🔵 القسم السادس: جولة التطوير v6 — ما نُفّذ فعلياً (لا تُعِد العمل عليه!)
+
+> **التاريخ**: 2026-08-04 | **الكوميت**: *(يُملأ بعد الرفع)* | **الاختبارات**: 196 → **286**
+>
+> هذه الجولة نفّذت بنود الخارطة التالية. كل وحدة جديدة لها اختباراتها الخاصة،
+> والمجموعة كلها خضراء في هذا الجهاز (اختبارات حقيقية بـ ffmpeg + فيديو مولّد).
+
+### ✅ 1.1 ملف .exe واحد (PyInstaller) — منفّذ
+- `packaging/viralcutter.spec`: build أحادي الملف (onefile) يجمع `i18n/`, `models/`,
+  `prompt.txt`, `api_config.json`, `safety_blocklist.json` + `hiddenimports` لـ whisperx/onnxruntime.
+- سكربتات بناء: `packaging/build_windows.bat`, `build_linux.sh`, `build_macos.sh`.
+- FFmpeg لا يُضمَّن داخل الملف (تراخيص/منصات) — سكربت `packaging/install_ffmpeg_windows.bat`
+  ينزّله بجانب الـ exe مرة واحدة، أو فعّل سطر `binaries` في الـ spec بعد وضع الملفات في
+  `packaging/ffmpeg-bin/`.
+- **لم يُختبر البناء الفعلي هنا** (لا Windows) — جرّب `pyinstaller packaging/viralcutter.spec`.
+
+### ✅ 1.2 تحديث تلقائي للبرنامج — منفّذ
+- `scripts/auto_updater.py`: يفحص GitHub Releases (`check_for_update`)، ينزّل الأداة
+  (`download_update` → `updates/`)، يطبّقها عند الإقلاع (`apply_pending_update`).
+- نسخة موحّدة في `app_version.py` (`0.9.0`). CLI: `python -m scripts.auto_updater --check/--download/--apply`.
+- `main_improved.py --check-updates` يفحص عند بدء التشغيل دون أن يمنع الإقلاع أبداً.
+- **ملاحظة**: لا يوجد Release منشور بعد — أول إصدار على GitHub Releases سيفعّل الحلقة كاملة.
+
+### ✅ 1.3 مثبّت Linux/macOS — منفّذ
+- `install_linux.sh` (apt/dnf/pacman + venv + requirements)، `install_macos.sh` (Homebrew)،
+  `run.sh` (مشغّل يطبّق التحديثات المعلّقة ويفعّل الـ venv، يدعم `--webui`).
+
+### ✅ 2.1 فحص بصري بنموذج ONNX حقيقي — منفّذ (النموذج يُنزَّل مرة واحدة)
+- `scripts/visual_check.py`: يستخرج 3-5 فريمات بـ ffmpeg (بدون PIL) ويفحصها بنموذج ONNX محلي
+  (اتفاقية NudeNet-lite: 320×320، أصناف drawing/hentai/neutral/porn/sexy).
+  يبلّغ `graphic_score` (0-100) + درجة كل فريم + الكلاس الأعلى. انحدار آمن: لا نموذج → لا انهيار.
+- تنزيل: `python -m scripts.visual_check --download` أو `risk_scorecard --auto-download-visual`
+  (يُحفظ في `models/` وهو git-ignored).
+- **التكامل تم**: `risk_scorecard.py` صار يمرّر classifier حقيقياً إلى خطاف
+  `visual_model_path` ويُسجّل محور `visual` بالدرجات والفريمات، وعلامة `flag` عند ≥70%.
+- **ملاحظة**: يتطلب `pip install onnxruntime` + `numpy` (Pillow لم تعد مطلوبة).
+
+### ✅ 2.2 بوابة رفض إجبارية قبل الرفع — المنطق منفّذ بالكامل (SDKs المنصات جاهزة للربط)
+- `scripts/upload_gate.py`: يرفض الرفع عندما يكون المقطع على `publish_blocklist.json`
+  أو محظوراً في `safety_report.json` أو فاشلاً في فحص الـ metadata أو ناقص الفيديو.
+- `UploadGateError` يُرفع قبل أي استدعاء SDK. محوّلات جاهزة: `YouTubeUploader/TikTokUploader/InstagramUploader`
+  (كلها تمر عبر البوابة؛ كود OAuth الفعلي موثّق كـ TODO في كل كلاس — **بقي ربط الـ SDKs**).
+- CLI: `python -m scripts.upload_gate --project X --index 0 --title ... --caption ... --hashtags ...`
+  (رمز خروج 3 = مرفوض). `--upload youtube --video clip.mp4` (dry-run افتراضياً).
+- **بقي للجولة القادمة**: مفاتيح OAuth حقيقية + استدعاءات APIs (انظر TODOs داخل الملف).
+
+### ✅ 2.4 فحص الكابشن/العنوان (Metadata Compliance) — منفّذ بالكامل
+- `scripts/metadata_compliance.py`: هاشتاغات محظورة (احتيال/مراهنة/بالغ/طبي/سياسي)،
+  ادعاءات طبية/مالية، clickbait مبالغ فيه، engagement bait، حشو كلمات.
+  درجات low/medium/high + قواعد قابلة للتوسيع (JSON خارجي بنمط `safety_terms.json`).
+- CLI: `python -m scripts.metadata_compliance --title ... --caption ... --hashtags ...`.
+- مدمج في: بطاقة المخاطر (محور `metadata` عبر `metadata_axis`) + بوابة الرفع.
+
+### ✅ 3.1 حذف الصمت والحشو (Jump Cuts) — منفّذ بالكامل
+- `scripts/jump_cuts.py`: `silencedetect` (عتبة dB قابلة للضبط) + كشف كلمات الحشو من توقيت الكلمات
+  (um/uh/ah/… قابلة للتوسيع) → دمج ذكي → قص بـ `select/aselect` مع إعادة تزامن A/V.
+- **إعادة توقيت الترجمة تلقائياً**: `polish.retime_subs()` ينقل توقيت الكلمات بعد كل قص
+  (+ إزاحة الـ intro) حتى تبقى الحرق متزامنة.
+
+### ✅ 3.2 زوم Punch-in — منفّذ بالكامل
+- `scripts/punch_zoom.py`: تخطيط النكزات من الكلمات المفتاحية/العاطفية + نكزة افتتاحية (hook)
+  + إيقاع تلقائي اختياري، تنفيذ عبر `zoompan` مضبوط على رقم الفريم.
+
+### ✅ 3.3 موسيقى خلفية + Auto-Duck — منفّذ بالكامل
+- `scripts/background_music.py`: يكرّر الموسيقى بطول المقطع، `sidechaincompress` يخفضها عند الكلام
+  (أصلحنا bug شهير في ffmpeg 4.4: تكرار استهلاك label → `asplit`).
+
+### ✅ 3.4 شعار/براند القناة — منفّذ بالكامل
+- `scripts/branding.py`: ووترمارك (PNG شفاف، موضع/حجم/شفافية قابلة للضبط) + Intro/Outro
+  (تطبيع موحّد + concat). أصلحنا bug كتابة/قراءة نفس الملف.
+
+### ✅ سلسلة التلميع `polish.py` (تدير 3.1-3.4 معاً)
+- `scripts/polish.py`: يشغّل السلسلة على `final/` → `final_polished/` مع إعادة توقيت الـ subs.
+- `burn_subtitles.burn()` صار يفضّل `final_polished/` تلقائياً.
+- في الـ main: `--polish on` + `--polish-stages` + `--music/--music-volume/--logo/--intro/--outro/--zoom-keywords`.
+
+### ✅ 4.1 حماية GPU OOM — منفّذ
+- `scripts/oom_guard.py`: عند خطأ OOM يتراجع تلقائياً large → medium → small → base → tiny،
+  يحرّر VRAM (`empty_cache`) بين المحاولات، ويسجّل النموذج المستخدم في `transcription_model.json`.
+- مدمج في الـ main عبر `transcribe_with_fallback`.
+
+### ✅ 4.2 استئناف ذكي بعد انقطاع — منفّذ
+- `scripts/checkpoint.py`: `checkpoint.json` لكل مشروع، `StageTracker` يخطّي المراحل المكتملة
+  (transcribe/cut/edit/subtitles/scorecard). `--checkpoint on|off` (افتراضي on).
+- CLI: `python -m scripts.checkpoint --project X --status`.
+
+### ✅ 4.3 CI باختبارات فيديو حقيقية — منفّذ
+- `tests/test_ci_smoke.py`: يولّد فيديو حقيقياً (مع فجوة صمت) + موسيقى + لوجو ثم يشغّل:
+  jump cuts (يتحقق أن المدة قصرت) + ووترمارك + موسيقى + بوابة الرفض + فحص metadata.
+- `.github/workflows/ci.yml`: أضفنا خطوة تثبيت `ffmpeg` قبل pytest على كل إصدارات Python.
+
+### ✅ 4.4 مفتاح API مشفّر — منفّذ
+- `scripts/secure_config.py`: ترتيب الأولوية: env (`GEMINI_API_KEY`/`VIRALCUTTER_GEMINI_KEY`)
+  ← مخزن مشفّر (`api_config.secure.json` بـ Fernet عبر `cryptography`) ← `api_config.json` القديم (مع تحذير).
+- CLI: `python -m scripts.secure_config --set KEY --passphrase ...`.
+- `main_improved.py` صار يقرأ عبر `secure_config.load_api_config()`.
+- **تنبيه**: بدون `pip install cryptography` يتحول لتشفير XOR مع تحذير — ثبّت المكتبة للحماية الحقيقية.
+
+### ✅ 4.5 تقارير أخطاء تحترم الخصوصية — منفّذ
+- `scripts/crash_report.py`: يسجّل محلياً دائماً (`crash_report.log`)، يُرسل فقط عند
+  `VIRALCUTTER_CRASH_REPORT=1`، يجرّد المسارات المطلقة تماماً. مدمج في معالج أخطاء الـ main.
+
+### ✅ 5.3 اقتراح 3 عناوين A/B — منفّذ
+- `prompt.txt` + `create_viral_segments.py`: النموذج يخرج `alt_titles`/`alt_captions` لكل مقطع،
+  `process_segments` يحفظها، وهيلبرز `segment_titles()/segment_captions()` للعرض.
+
+### ⏳ بقي للجولات القادمة (موثّق في الخارطة، لم يُلمس)
+- 2.2 **ربط SDKs الفعلية** (OAuth يوتيوب/TikTok/Instagram) — البوابة جاهزة وتفرض الرفض.
+- 2.3 بصمة الموسيقى (Chromaprint/AcoustID).
+- 5.1 حلقة التغذية الراجعة من الضربات.
+- 5.2 قوالب لكل منصة (تُنفَّذ لاحقاً على مستوى الإخراج).
+- 5.4 تحليلات الأداء (YouTube Analytics API).
+- واجهة WebUI لأزرار polish/gate (الـ CLI مكتمل).
+
+### 🧪 عدد الاختبارات
+| قبل | بعد |
+|---|---|
+| 196 | 286 (يشمل فيديو حقيقياً بـ ffmpeg في الـ smoke + CI) |
