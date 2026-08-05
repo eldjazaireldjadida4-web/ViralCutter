@@ -208,3 +208,16 @@
 - Regression tests added: private video → AuthNeededError (never None); invalid URL → SystemExit.
 - main_improved: guard placed BEFORE os.path.dirname + version banner at startup.
 - Tests: 314 → 316.
+
+## 🎨 v6.4 — Arabic WebUI: organization + performance + error reports
+
+- **Error report display**: raw 30-line traceback tails are now summarized into
+  scannable cards — title (ERROR line) + Arabic friendly hint (private video /
+  whisperx / ffmpeg / 429 / OOM / cookies…) + collapsible technical details +
+  exit code badge. (webui/utils.py summarize_error + render_error_html).
+- **Performance**: logs list capped at 1000 lines (was unbounded O(n²) joins).
+- **Organization**: v6 settings grouped into a labeled Accordion
+  "✨ المونتاج الاحترافي والمنصات (v6)" with sub-sections (platform/publishing,
+  editing quality, YouTube login).
+- **Arabic**: all new WebUI labels translated to ar_SA (27 keys) + pt_BR/tr_TR synced.
+- Tests: 316 → 322.

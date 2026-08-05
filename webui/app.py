@@ -101,6 +101,7 @@ from utils import (
     render_progress_html,
     render_tasks_html,
     render_error_html,
+    summarize_error,
 )
 PROGRESS_ORDER = PROGRESS_STAGES
 _safe_int = safe_int
@@ -351,13 +352,16 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                     current_stage = stage
                     last_progress_tick = time.time()
                 except Exception as e:
-                    error_items.append(f"Bad progress line: {e}")
+                    error_items.append({"title": "Bad progress line: {}".format(e),
+                                         "detail": str(e), "hint": ""})
                 continue
 
             current_buffer.append(line)
             if len(current_buffer) > 200:
                 current_buffer = current_buffer[-200:]
             logs.append(line)
+            if len(logs) > 1000:
+                del logs[: len(logs) - 1000]
             if "Project Folder:" in line:
                 parts = line.split("Project Folder:")
                 if len(parts) > 1:
@@ -371,10 +375,10 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         return_code = current_process.poll()
         if return_code not in (0, None):
             tail = "\n".join(current_buffer[-30:])
-            if tail:
-                error_items.append(f"Process exited with code {return_code}.\n{tail}")
-            else:
-                error_items.append(f"Process exited with code {return_code}.")
+            title, detail, hint = summarize_error(
+                tail or "Process exited with code {}".format(return_code))
+            error_items.append({"title": title, "detail": detail,
+                                "hint": hint, "code": return_code})
             yield "\n".join(logs), gr.update(value=i18n("Start Processing"), interactive=True), gr.update(visible=True, interactive=True), None, render_progress_html(progress_state), render_tasks_html(progress_state), render_error_html(error_items)
             return
 
@@ -386,7 +390,9 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         yield fail(f"{i18n('Error: Process failed.')} {e}")
         return
     except Exception as e:
-        error_items.append(f"Error running process: {str(e)}")
+        title, detail, hint = summarize_error(str(e))
+        error_items.append({"title": "Error running process: {}".format(title),
+                            "detail": detail, "hint": hint})
         yield "\n".join(logs + [f"Error running process: {str(e)}"]), gr.update(visible=True, interactive=False), gr.update(visible=True, interactive=True), None, render_progress_html(progress_state), render_tasks_html(progress_state), render_error_html(error_items)
     finally:
         if current_process:
@@ -577,39 +583,43 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         info=i18n("Sends surviving clips to the AI for a second policy check (Gemini/G4F only)."),
                     )
                     # --- v6: platform template + professional polish (Roadmap 5.2 / Sprint 3) ---
-                    with gr.Row():
-                        platform_input = gr.Dropdown(
-                            choices=[(i18n("(No platform template)"), ""), (i18n("YouTube Shorts (9:16, ≤60s)"), "yt_shorts"),
-                                     (i18n("TikTok (9:16, ≤90s)"), "tiktok"),
-                                     (i18n("Instagram Reels (9:16, ≤90s)"), "reels"),
-                                     (i18n("YouTube Standard (16:9, ≤10min)"), "yt_standard")],
-                            label=i18n("📱 Platform template"),
+                    with gr.Accordion(i18n("✨ Pro editing & platforms (v6)"), open=False):
+                        gr.Markdown("### " + i18n("🎯 Platform & publishing"))
+                        with gr.Row():
+                            platform_input = gr.Dropdown(
+                                choices=[(i18n("(No platform template)"), ""), (i18n("YouTube Shorts (9:16, ≤60s)"), "yt_shorts"),
+                                         (i18n("TikTok (9:16, ≤90s)"), "tiktok"),
+                                         (i18n("Instagram Reels (9:16, ≤90s)"), "reels"),
+                                         (i18n("YouTube Standard (16:9, ≤10min)"), "yt_standard")],
+                                label=i18n("📱 Platform template"),
+                                value="",
+                            )
+                            metadata_gate_input = gr.Dropdown(
+                                choices=[(i18n("Warn (flag risky metadata)"), "warn"),
+                                         (i18n("Block (stop run on risky metadata)"), "block"),
+                                         (i18n("Off"), "off")],
+                                label=i18n("Metadata gate (title/caption/hashtags)"),
+                                value="warn",
+                            )
+                        gr.Markdown("### " + i18n("🎬 Editing quality"))
+                        polish_input = gr.Checkbox(
+                            label=i18n("✨ Professional polish (jump cuts + punch zoom + music + watermark)"),
+                            value=False,
+                            info=i18n("Removes silence/fillers, adds punch-in zoom, background music with auto-duck and your logo."),
+                        )
+                        with gr.Row():
+                            music_input = gr.Textbox(label=i18n("Background music file"), placeholder="music/bed.m4a", value="")
+                            logo_input = gr.Textbox(label=i18n("Channel logo (PNG)"), placeholder="logo.png", value="")
+                        gr.Markdown("### " + i18n("🔒 YouTube login"))
+                        cookies_input = gr.Dropdown(
+                            choices=[(i18n("(No cookies — public videos only)"), ""),
+                                     (i18n("Chrome cookies (private/age-restricted)"), "chrome"),
+                                     (i18n("Edge cookies"), "edge"),
+                                     (i18n("Firefox cookies"), "firefox")],
+                            label=i18n("🔒 YouTube login (cookies)"),
                             value="",
+                            info=i18n("Useful for private or age-restricted videos you have access to."),
                         )
-                        metadata_gate_input = gr.Dropdown(
-                            choices=[(i18n("Warn (flag risky metadata)"), "warn"),
-                                     (i18n("Block (stop run on risky metadata)"), "block"),
-                                     (i18n("Off"), "off")],
-                            label=i18n("Metadata gate (title/caption/hashtags)"),
-                            value="warn",
-                        )
-                    cookies_input = gr.Dropdown(
-                        choices=[(i18n("(No cookies — public videos only)"), ""),
-                                 (i18n("Chrome cookies (private/age-restricted)"), "chrome"),
-                                 (i18n("Edge cookies"), "edge"),
-                                 (i18n("Firefox cookies"), "firefox")],
-                        label=i18n("🔒 YouTube login (cookies)"),
-                        value="",
-                        info=i18n("Useful for private or age-restricted videos you have access to."),
-                    )
-                    polish_input = gr.Checkbox(
-                        label=i18n("✨ Professional polish (jump cuts + punch zoom + music + watermark)"),
-                        value=False,
-                        info=i18n("Removes silence/fillers, adds punch-in zoom, background music with auto-duck and your logo."),
-                    )
-                    with gr.Row():
-                        music_input = gr.Textbox(label=i18n("Background music file"), placeholder="music/bed.m4a", value="")
-                        logo_input = gr.Textbox(label=i18n("Channel logo (PNG)"), placeholder="logo.png", value="")
                     with gr.Row():
                         safety_update_btn = gr.Button(i18n("🔄 Update safety word list"), size="sm")
                         safety_update_status = gr.Markdown(i18n("Loading…"), elem_id="safety_update_status")

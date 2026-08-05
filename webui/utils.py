@@ -150,3 +150,85 @@ def render_error_html(error_items):
 def _html_escape(text):
     return (str(text).replace("&", "&amp;").replace("<", "&lt;")
             .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+# ---------------------------------------------------------------------------
+# Error report summarizer (v6.4) — turn raw traceback tails into scannable
+# cards with a friendly hint, instead of dumping 30 raw lines.
+# ---------------------------------------------------------------------------
+
+KNOWN_ERROR_HINTS = [
+    ("private video", "الفيديو خاص — استعمل كوكيز المتصفح: من قائمة 🔒 أو أعد التشغيل بـ --cookies-from-browser chrome"),
+    ("sign in", "الفيديو يتطلب تسجيل دخول يوتيوب — استعمل كوكيز متصفحك من قائمة 🔒"),
+    ("cookiesfrombrowser", "تعذّرت قراءة كوكيز المتصفح (تشفير Chrome) — جرّب Firefox أو ملف cookies.txt مُصدَّر"),
+    ("age", "الفيديو مقيد عمرياً — استعمل كوكيز متصفحك"),
+    ("video unavailable", "الفيديو غير متاح (محذوف أو محجوب جغرافياً)"),
+    ("whisperx", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
+    ("torch", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
+    ("out of memory", "نفاد الذاكرة — أغلق البرامج الأخرى أو استعمل نموذج Whisper أصغر"),
+    ("ffmpeg", "FFmpeg غير مثبّت أو غير موجود في المسار — شغّل install_dependencies.bat واختر تنزيل FFmpeg"),
+    ("429", "يوتيوب يحدّ الطلبات مؤقتاً (429) — انتظر دقيقة وأعد المحاولة"),
+    ("connection", "مشكلة اتصال بالإنترنت أو حجب DNS"),
+]
+
+
+def summarize_error(text, max_title=160):
+    """Turn a raw error blob into (title, detail, hint).
+
+    title  — first meaningful line (ERROR: … if present)
+    detail — full text (capped)
+    hint   — friendly Arabic guidance for known problems ("" if unknown)
+    """
+    text = (text or "").strip()
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    title = lines[0] if lines else "خطأ غير معروف"
+    for ln in lines:
+        low = ln.lower()
+        if low.startswith("error") or "error:" in low[:40]:
+            title = ln
+            break
+    hint = ""
+    low_text = text.lower()
+    for key, msg in KNOWN_ERROR_HINTS:
+        if key in low_text:
+            hint = msg
+            break
+    return title[:max_title], text[:3000], hint
+
+
+def render_error_html(error_items):
+    """HTML errors panel: scannable cards (title + hint + collapsible detail).
+
+    Accepts strings (old format) or dicts {"title","detail","hint","code"}.
+    """
+    if not error_items:
+        return ""
+    cards = []
+    for item in error_items:
+        if isinstance(item, dict):
+            title = item.get("title") or "خطأ"
+            detail = item.get("detail") or ""
+            hint = item.get("hint") or ""
+            code = item.get("code")
+        else:
+            title, detail, hint = summarize_error(item)
+            code = None
+        badge = '<span style="background:#b00020;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">خطأ</span>'
+        if code:
+            badge = '<span style="background:#7f1d1d;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">رمز الخروج {}</span>'.format(code)
+        hint_html = (
+            '<div style="color:#7a5c00;background:#fff7e0;border:1px solid #f0dc9a;'
+            'border-radius:4px;padding:4px 8px;margin-top:4px;font-size:12px;">💡 {}</div>'
+            .format(_html_escape(hint))) if hint else ""
+        detail_html = (
+            '<details style="margin-top:4px;"><summary style="cursor:pointer;'
+            'font-size:12px;color:#666;">التفاصيل التقنية</summary>'
+            '<pre style="white-space:pre-wrap;background:#1e1e1e;color:#eee;'
+            'border-radius:4px;padding:8px;font-size:11px;max-height:200px;'
+            'overflow:auto;">{}</pre></details>'.format(_html_escape(detail))) if detail else ""
+        cards.append(
+            '<div style="border:1px solid #f0c4c4;background:#fff5f5;border-radius:6px;'
+            'margin:6px 0;padding:6px 10px;">'
+            '<div style="font-size:13px;font-weight:600;color:#b00020;">{} {}</div>'
+            '{}{}</div>'.format(badge, _html_escape(title), hint_html, detail_html))
+    return "<div style='font-family:sans-serif;'>" + "".join(cards) + "</div>"

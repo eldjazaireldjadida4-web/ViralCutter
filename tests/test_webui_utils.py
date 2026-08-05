@@ -148,3 +148,41 @@ class TestV6Flags:
         cmd = self._cmd(cookies_browser="chrome")
         assert "--cookies-from-browser" in cmd
         assert cmd[cmd.index("--cookies-from-browser") + 1] == "chrome"
+
+
+# --- v6.4: error report summarizer ---
+
+class TestErrorSummarizer:
+    def test_private_video_hint(self):
+        from webui.utils import summarize_error
+        title, detail, hint = summarize_error(
+            "ERROR: [youtube] abc: Private video. Sign in if you've been granted access.")
+        assert "Private video" in title
+        assert "الفيديو خاص" in hint
+
+    def test_whisperx_hint(self):
+        from webui.utils import summarize_error
+        _, _, hint = summarize_error("ModuleNotFoundError: No module named 'whisperx'")
+        assert "whisperx" in hint
+
+    def test_unknown_error_empty_hint(self):
+        from webui.utils import summarize_error
+        title, _, hint = summarize_error("Weird failure 42")
+        assert title == "Weird failure 42"
+        assert hint == ""
+
+    def test_render_error_html_cards(self):
+        from webui.utils import render_error_html
+        html = render_error_html([{"title": "T", "detail": "D", "hint": "الفيديو خاص", "code": 3}])
+        assert "رمز الخروج 3" in html
+        assert "التفاصيل التقنية" in html
+        assert "الفيديو خاص" in html
+
+    def test_render_error_html_empty(self):
+        from webui.utils import render_error_html
+        assert render_error_html([]) == ""
+
+    def test_render_accepts_strings(self):
+        from webui.utils import render_error_html
+        html = render_error_html(["ERROR: [youtube] x: Private video."])
+        assert html != "" and "Private video" in html
