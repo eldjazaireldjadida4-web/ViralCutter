@@ -163,6 +163,14 @@ _COOKIES_HINT = (
     "  Docs: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp")
 
 
+class AuthNeededError(RuntimeError):
+    """A private / age-restricted video needs authenticated cookies.
+
+    Raised (instead of SystemExit) so the CLI can offer an interactive retry
+    with the user's browser cookies; anything else exits cleanly.
+    """
+
+
 def _friendly_download_error(e, url=""):
     """Map common yt-dlp failures to clear, actionable messages."""
     msg = str(e)
@@ -192,6 +200,11 @@ def _print_friendly_and_exit(e, url=""):
             print(msg)
         except UnicodeEncodeError:
             print(msg.encode('ascii', 'replace').decode('ascii'))
+    low = str(e).lower()
+    auth_cases = ("private video" in low or "sign in" in low
+                  or ("age" in low and "restrict" in low))
+    if auth_cases:
+        raise AuthNeededError(msg)   # let the CLI offer a cookies retry
     raise SystemExit(1)
 
 

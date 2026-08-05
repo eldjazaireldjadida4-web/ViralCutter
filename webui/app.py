@@ -197,7 +197,8 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                      face_filter_thresh, face_two_thresh, face_conf_thresh, face_dead_zone, focus_active_speaker, active_speaker_mar, active_speaker_score_diff, include_motion, active_speaker_motion_threshold, active_speaker_motion_sensitivity, active_speaker_decay,
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
                      h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True,
-                     platform=None, polish=False, music=None, logo=None, metadata_gate=None):
+                     platform=None, polish=False, music=None, logo=None, metadata_gate=None,
+                     cookies_browser=None):
     
     global current_process
     progress_state = empty_progress_state(i18n("Starting"))
@@ -306,6 +307,7 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             music=music,
             logo=logo,
             metadata_gate=metadata_gate,
+            cookies_browser=cookies_browser,
         )
 
         env = os.environ.copy()
@@ -591,6 +593,15 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                             label=i18n("Metadata gate (title/caption/hashtags)"),
                             value="warn",
                         )
+                    cookies_input = gr.Dropdown(
+                        choices=[(i18n("(No cookies — public videos only)"), ""),
+                                 (i18n("Chrome cookies (private/age-restricted)"), "chrome"),
+                                 (i18n("Edge cookies"), "edge"),
+                                 (i18n("Firefox cookies"), "firefox")],
+                        label=i18n("🔒 YouTube login (cookies)"),
+                        value="",
+                        info=i18n("Useful for private or age-restricted videos you have access to."),
+                    )
                     polish_input = gr.Checkbox(
                         label=i18n("✨ Professional polish (jump cuts + punch zoom + music + watermark)"),
                         value=False,
@@ -832,7 +843,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                     underline_input, strikeout_input, border_style_input, remove_punc_input,
                     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input, cookies_input
                 ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Review Segments")):
             gr.Markdown(f"### {i18n('Review Segments')}")
@@ -922,7 +933,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
                 video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input, cookies_input
             ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
@@ -985,7 +996,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
                 video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input, cookies_input
             ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")

@@ -181,3 +181,9 @@
 - `--cookies-from-browser chrome|firefox|edge|...` + `--cookies file.txt` (yt-dlp auth) for private/age-restricted downloads.
 - Friendly error messages instead of raw tracebacks: private video / age-restricted / unavailable / removed / invalid URL → actionable guidance + clean exit(1).
 - Tests: 309 → 313.
+
+## 🔐 v6.3b — Interactive cookies retry for private videos
+
+- CLI: when a download fails as "private / age-restricted" and the user runs interactively, ViralCutter now ASKS "Retry using your Chrome browser cookies? (yes/no)" and retries automatically with --cookies-from-browser chrome. (TTY-only — the WebUI never hangs on a prompt.)
+- WebUI: new "🔒 YouTube login (cookies)" dropdown (Chrome/Edge/Firefox) wired through build_command.
+- Tests: 313 → 314.

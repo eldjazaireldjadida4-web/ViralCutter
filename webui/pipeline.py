@@ -28,7 +28,7 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
                   safety_mode=None, safety_ai=None,
                   # --- v6 features (Roadmap 5.2 / Sprint 3 / 4.2 / 2.4) ---
                   platform=None, polish=False, music=None, logo=None,
-                  checkpoint=None, metadata_gate=None):
+                  checkpoint=None, metadata_gate=None, cookies_browser=None):
     """Assemble the full CLI command for main_improved.py.
 
     `source_args` holds the input-source-specific flags already resolved by
@@ -120,5 +120,8 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
     if metadata_gate and metadata_gate != "warn":
         # "warn" is the CLI default; only pass explicit overrides
         cmd.extend(["--metadata-gate", str(metadata_gate)])
+
+    if cookies_browser:
+        cmd.extend(["--cookies-from-browser", str(cookies_browser)])
 
     return cmd

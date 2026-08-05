@@ -548,9 +548,33 @@ def main():
             print(i18n("Starting download..."))
             emit_progress("download", 5, "Download started")
             download_subs = not args.skip_youtube_subs
-            download_result = download_video.download(url, download_subs=download_subs, quality=args.video_quality,
-                                                      cookies_from_browser=args.cookies_from_browser,
-                                                      cookies_file=args.cookies)
+            # Download with an interactive cookies retry: when the video is
+            # private/age-restricted and the user runs interactively (not from
+            # the WebUI, which has no TTY), offer to retry with browser cookies.
+            _interactive_tty = False
+            try:
+                _interactive_tty = sys.stdin.isatty()
+            except Exception:
+                pass
+            _auth_retried = False
+            while True:
+                try:
+                    download_result = download_video.download(
+                        url, download_subs=download_subs, quality=args.video_quality,
+                        cookies_from_browser=args.cookies_from_browser,
+                        cookies_file=args.cookies)
+                    break
+                except download_video.AuthNeededError as auth_err:
+                    if (_interactive_tty and not args.skip_prompts
+                            and not args.cookies_from_browser and not args.cookies
+                            and not _auth_retried):
+                        _auth_retried = True
+                        print(i18n("\nThis video needs a logged-in YouTube account."))
+                        resp = input(i18n("Retry using your Chrome browser cookies? (yes/no): ")).strip().lower()
+                        if resp in ('y', 'yes'):
+                            args.cookies_from_browser = 'chrome'
+                            continue
+                    raise SystemExit(1)
             
             if isinstance(download_result, tuple):
                 input_video, project_folder = download_result

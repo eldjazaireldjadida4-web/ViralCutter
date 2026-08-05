@@ -143,3 +143,8 @@ class TestV6Flags:
     def test_metadata_gate_block_passed(self):
         cmd = self._cmd(metadata_gate="block")
         assert "--metadata-gate" in cmd and cmd[cmd.index("--metadata-gate") + 1] == "block"
+
+    def test_cookies_browser_flag(self):
+        cmd = self._cmd(cookies_browser="chrome")
+        assert "--cookies-from-browser" in cmd
+        assert cmd[cmd.index("--cookies-from-browser") + 1] == "chrome"
