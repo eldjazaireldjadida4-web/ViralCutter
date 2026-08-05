@@ -43,6 +43,10 @@ echo [4/6] Installing core dependencies (requirements.txt)...
 uv pip install -r requirements.txt
 
 echo.
+echo      Upgrading yt-dlp to the latest version (fixes Chrome cookie reading on Windows)...
+uv pip install -U yt-dlp
+
+echo.
 echo [5/6] Installing transcription stack (whisperx - REQUIRED for the full pipeline)...
 uv pip install whisperx
 

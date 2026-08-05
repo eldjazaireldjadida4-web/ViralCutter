@@ -70,6 +70,17 @@ def check_dependency(module, critical):
                 "detail": "missing"}
 
 
+def check_ytdlp():
+    """yt-dlp version — older builds fail to read Chrome cookies on Windows
+    (Chrome 127+ App-Bound Encryption). Newer releases handle it."""
+    try:
+        import yt_dlp
+        version = getattr(yt_dlp.version, '__version__', 'unknown')
+        return {"name": "yt-dlp", "status": OK, "detail": version}
+    except Exception as e:
+        return {"name": "yt-dlp", "status": FAIL, "detail": str(e)}
+
+
 def check_gpu():
     try:
         import torch
@@ -99,6 +110,7 @@ def run_checks():
         check_python(),
         check_binary("ffmpeg", critical=True),
         check_binary("ffprobe", critical=True),
+        check_ytdlp(),
         check_writable(),
         check_gpu(),
     ]
