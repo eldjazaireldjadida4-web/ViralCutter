@@ -170,8 +170,10 @@ def main():
     parser.add_argument("--viral", action="store_true", help="Enable viral mode")
     parser.add_argument("--themes", help="Comma-separated themes (if not viral mode)")
     parser.add_argument("--burn-only", action="store_true", help="Skip processing and only burn subtitles")
-    parser.add_argument("--min-duration", type=int, default=15, help="Minimum segment duration (seconds)")
-    parser.add_argument("--max-duration", type=int, default=90, help="Maximum segment duration (seconds)")
+    parser.add_argument("--min-duration", type=int, default=None, help="Minimum segment duration (seconds; default from --platform template or 15)")
+    parser.add_argument("--max-duration", type=int, default=None, help="Maximum segment duration (seconds; default from --platform template or 90)")
+    parser.add_argument("--platform", choices=["yt_shorts", "tiktok", "reels", "yt_standard"], default=None,
+                        help="Platform output template (Roadmap 5.2): sets duration defaults + aspect hint. yt_shorts (9:16 ≤60s), tiktok/reels (9:16 ≤90s), yt_standard (16:9 ≤10min)")
     parser.add_argument("--model", default="large-v3-turbo", help="Whisper model to use")
     
     parser.add_argument("--ai-backend", choices=["manual", "gemini", "g4f", "local"], help="AI backend for viral analysis")
@@ -243,6 +245,21 @@ def main():
     args = parser.parse_args()
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
+
+    # Platform template (Roadmap 5.2): resolve duration defaults once, up front.
+    if args.platform:
+        try:
+            from scripts import platform_templates
+            args.min_duration, args.max_duration, _tpl = platform_templates.resolve_durations(
+                args.platform, args.min_duration, args.max_duration)
+            print(i18n("Platform template: {}").format(
+                platform_templates.describe(args.platform)))
+        except Exception as e:
+            debug("Platform template failed: {}".format(e))
+    if args.min_duration is None:
+        args.min_duration = 15
+    if args.max_duration is None:
+        args.max_duration = 90
 
     # Optional startup update check (Roadmap 1.2) — never blocks startup.
     if args.check_updates:
@@ -1023,7 +1040,8 @@ def main():
                 "video_config": {
                     "min_duration": args.min_duration,
                     "max_duration": args.max_duration,
-                    "whisper_model": args.model
+                    "whisper_model": args.model,
+                    "platform_template": args.platform
                 },
                 "subtitle_config": current_sub_config
             }

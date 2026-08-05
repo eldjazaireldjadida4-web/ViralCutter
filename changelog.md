@@ -155,3 +155,13 @@
 - **CI real (4.3)**: ffmpeg no workflow + `tests/test_ci_smoke.py` com vídeo real.
 - **Títulos A/B (5.3)**: `alt_titles`/`alt_captions` no prompt e nos segmentos.
 - **Testes**: 196 → 286 (reais com ffmpeg).
+
+## 🟣 v6.1 — Platform templates + verified build + hardening (2026-08-04)
+
+### Novidades
+- **Platform templates (Roadmap 5.2)**: `scripts/platform_templates.py` + `--platform {yt_shorts,tiktok,reels,yt_standard}` — define duration defaults/aspect per platform; saved to process_config.json.
+- **Build verificado (1.1)**: `dist/ViralCutter` onefile (~300 MB) built & tested with PyInstaller 6.21 on Linux. Fixed a spec path bug (`ROOT`).
+- **Hardening**: `transcribe_video.py` now imports torch optionally (binary runs without whisperx/torch); `doctor.py` checks onnxruntime/cryptography; requirements.txt += onnxruntime, cryptography.
+- **i18n**: new v6 keys translated (ar_SA) + pt_BR/tr_TR synced.
+- **WebUI plumbing**: `webui/pipeline.py` supports the v6 flags (Gradio fields still pending).
+- **Testes**: 286 → **304**.

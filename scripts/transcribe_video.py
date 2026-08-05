@@ -1,7 +1,10 @@
 import os
 import sys
 import json
-import torch
+try:
+    import torch  # optional: only required for the real whisperx transcription path
+except ImportError:
+    torch = None
 import time
 try:
     import whisperx
@@ -256,6 +259,10 @@ def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
         _save_transcription_cache(_transcription_cache_path(output_folder), input_file, model_name, srt_file, tsv_file, json_file)
         return srt_file, tsv_file
     print(i18n(f"Iniciando transcrição de {input_file}..."))
+    if torch is None:
+        raise ImportError(
+            "torch is required for transcription (pip install torch). "
+            "The rest of ViralCutter works without it.")
     
     # Diagnóstico de Ambiente
     print(f"DEBUG: Python: {sys.executable}")

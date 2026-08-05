@@ -109,3 +109,37 @@ def test_build_subtitle_config_defaults_on_bad_input():
     assert cfg["outline_thickness"] == 1.5
     assert cfg["vertical_position"] == 210
     assert cfg["remove_punctuation"] is False
+
+
+# --- v6 flags (Roadmap 5.2 / Sprint 3 / 4.2 / 2.4) ---
+
+class TestV6Flags:
+    def _cmd(self, **kw):
+        from webui.pipeline import build_command
+        return build_command("main.py", ["--url", "https://x"], segments=3, **kw)
+
+    def test_platform_flag(self):
+        cmd = self._cmd(platform="tiktok")
+        assert "--platform" in cmd and cmd[cmd.index("--platform") + 1] == "tiktok"
+
+    def test_polish_on_adds_music_and_logo(self):
+        cmd = self._cmd(polish=True, music="bed.m4a", logo="logo.png")
+        assert "--polish" in cmd
+        assert "--music" in cmd and cmd[cmd.index("--music") + 1] == "bed.m4a"
+        assert "--logo" in cmd and cmd[cmd.index("--logo") + 1] == "logo.png"
+
+    def test_polish_default_off(self):
+        cmd = self._cmd()
+        assert "--polish" not in cmd
+
+    def test_checkpoint_off_passed(self):
+        cmd = self._cmd(checkpoint="off")
+        assert "--checkpoint" in cmd and cmd[cmd.index("--checkpoint") + 1] == "off"
+
+    def test_checkpoint_default_not_passed(self):
+        cmd = self._cmd()
+        assert "--checkpoint" not in cmd
+
+    def test_metadata_gate_block_passed(self):
+        cmd = self._cmd(metadata_gate="block")
+        assert "--metadata-gate" in cmd and cmd[cmd.index("--metadata-gate") + 1] == "block"

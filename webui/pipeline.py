@@ -25,7 +25,10 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
                   active_speaker_motion_threshold=None,
                   active_speaker_motion_sensitivity=None, active_speaker_decay=None,
                   translate_target=None, subtitle_config_path=None,
-                  safety_mode=None, safety_ai=None):
+                  safety_mode=None, safety_ai=None,
+                  # --- v6 features (Roadmap 5.2 / Sprint 3 / 4.2 / 2.4) ---
+                  platform=None, polish=False, music=None, logo=None,
+                  checkpoint=None, metadata_gate=None):
     """Assemble the full CLI command for main_improved.py.
 
     `source_args` holds the input-source-specific flags already resolved by
@@ -100,5 +103,22 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
     if safety_ai and safety_ai != "on":
         # "on" is the CLI default; only pass explicit overrides
         cmd.extend(["--safety-ai", str(safety_ai)])
+
+    # --- v6 flags (only when the user explicitly enables them) ---
+    if platform:
+        cmd.extend(["--platform", str(platform)])
+    if polish:
+        cmd.append("--polish")
+        cmd.append("on")
+        if music:
+            cmd.extend(["--music", music])
+        if logo:
+            cmd.extend(["--logo", logo])
+    if checkpoint and checkpoint != "on":
+        # "on" is the CLI default; only pass explicit overrides
+        cmd.extend(["--checkpoint", str(checkpoint)])
+    if metadata_gate and metadata_gate != "warn":
+        # "warn" is the CLI default; only pass explicit overrides
+        cmd.extend(["--metadata-gate", str(metadata_gate)])
 
     return cmd

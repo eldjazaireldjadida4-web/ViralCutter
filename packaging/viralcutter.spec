@@ -19,7 +19,7 @@
 import sys
 from pathlib import Path
 
-ROOT = Path(SPECPATH).parent.parent  # repo root (packaging/ -> root)
+ROOT = Path(SPECPATH).parent  # packaging/ → repo root
 
 datas = [
     (str(ROOT / "i18n"), "i18n"),

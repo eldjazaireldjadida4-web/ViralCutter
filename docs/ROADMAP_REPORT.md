@@ -362,3 +362,43 @@
 | قبل | بعد |
 |---|---|
 | 196 | 286 (يشمل فيديو حقيقياً بـ ffmpeg في الـ smoke + CI) |
+
+---
+
+## 🟣 القسم السابع: جولة v6.1 — أعلى تحسين + إصلاحات (لا تُعِد العمل عليه!)
+
+> **التاريخ**: 2026-08-04 | **الكوميت**: *(يُملأ بعد الرفع)* | **الاختبارات**: 286 → **304**
+
+### ✅ 5.2 قوالب لكل منصة — منفّذ بالكامل
+- `scripts/platform_templates.py`: قوالب `yt_shorts` (9:16، ≤60s)، `tiktok`/`reels` (9:16، ≤90s)،
+  `yt_standard` (16:9، ≤10د). قيم المستخدم الصريحة تتغلب على القالب دائماً.
+- مدمج في الـ main عبر `--platform <name>` (يحلّ مدة الافتراضي + يطبع الوصف + يُسجَّل في
+  `process_config.json`). 12 اختباراً جديداً.
+
+### ✅ 1.1 التحقق الفعلي من البناء — Linux onefile بُني ورُمّي (النتيجة في أسفل القسم)
+- صُلّح خطأ جوهري في `packaging/viralcutter.spec`: `ROOT` كان يحسب مجلداً خاطئاً
+  (كان `parent.parent` ويجب أن يكون `parent`).
+- ✅ **البناء الفعلي تحقق**: PyInstaller 6.21 بنى `dist/ViralCutter` (onefile، ~300MB) على Linux
+  بنجاح، والـ binary يعمل (`--help` يعرض كل الأعلام). لا توجد استيرادات حرجة ناقصة في
+  `warn-viralcutter.txt`.
+- **إصلاح جوهري كشفه البناء**: `scripts/transcribe_video.py` كان يستورد `torch` بشكل غير مشروط
+  فيتكسّر الـ binary عند غيابه — صار استيراداً اختيارياً (placeholder path يعمل بدون torch،
+  وخطأ واضح فقط عند طلب النسخ الكاملة). هذا يعني **الملف التنفيذي يعمل بدون whisperx/torch**
+  والنسخ يعمل كاملة عند تثبيتهما.
+- **ملاحظة**: لتوفير مساحة القرص أُزيلت مجلدات `build/` (والـ dist git-ignored) — أعِد البناء بأي وقت بـ
+  `pyinstaller packaging/viralcutter.spec --noconfirm --clean`.
+- **ملاحظة للمطوّر القادم**: البناء على Windows يحتاج نفس الأمر داخل `build_windows.bat`.
+
+### ✅ إصلاحات جودة (من قائمة "ما ينقص" السابقة)
+- `requirements.txt`: أُضيف `onnxruntime` + `cryptography` (ضرورية للفحص البصري والتشفير).
+- `scripts/doctor.py`: فحوصات جديدة لـ `onnxruntime`/`cryptography`.
+- i18n: كل مفاتيح v6 الجديدة مُترجمة في `ar_SA` + مزامنة `pt_BR`/`tr_TR` (المفاتيح الناقصة
+  أُضيفت) — فحص الاكتمال أخضر.
+- READMEs: `README_ar.md` (قسم v6 كامل بأمثلة) + `README_en.md`/`README.md` (ملخص + رقم الإصدار 0.9.0).
+- **WebUI السباكة**: `webui/pipeline.py` يدعم الآن `--platform/--polish/--music/--logo/
+  --checkpoint/--metadata-gate` (افتراضياً لا يغيّر السلوك). **بقي**: إضافة حقول Gradio
+  المرئية في `webui/app.py` (السباكة جاهزة ومختبرة).
+
+### 🧪 الاختبارات
+- أُضيف: `tests/test_platform_templates.py` (12) + امتداد `tests/test_webui_utils.py` (6).
+- الإجمالي: **304 اختباراً** (يشمل اختبارات ffmpeg حقيقية).

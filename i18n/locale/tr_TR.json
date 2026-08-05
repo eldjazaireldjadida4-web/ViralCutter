@@ -433,5 +433,15 @@
     "Running risk scorecard (per-clip compliance report)...": "Risk skor kartı çalıştırılıyor (klip başına uyum raporu)...",
     "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[risk] ⛔ YAYIN İÇİN ENGELLENDİ: {} klip — yüklemeden önce kaldırın veya yeniden düzenleyin. Ayrıntılar risk_scorecard.json / publish_blocklist.json içinde",
     "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[risk] 'block' modu — uyum kapısından {} klip geçemediği için durduruluyor.",
-    "Risk scorecard failed (skipped): {}": "Risk skor kartı başarısız oldu (atlandı): {}"
+    "Risk scorecard failed (skipped): {}": "Risk skor kartı başarısız oldu (atlandı): {}",
+    "Metadata gate failed (skipped): {}": "Metadata gate failed (skipped): {}",
+    "Platform template: {}": "Platform template: {}",
+    "Polish pass failed (continuing with unpolished clips): {}": "Polish pass failed (continuing with unpolished clips): {}",
+    "Polish: {}/{} clips enhanced": "Polish: {}/{} clips enhanced",
+    "Running metadata compliance + upload gate audit...": "Running metadata compliance + upload gate audit...",
+    "Running polish pass (stages: {})...": "Running polish pass (stages: {})...",
+    "[gate]   ✗ #{} '{}' — {}": "[gate]   ✗ #{} '{}' — {}",
+    "[gate] gate mode 'block' — stopping the run.": "[gate] gate mode 'block' — stopping the run.",
+    "[gate] ⛔ {} clip(s) refused for publish by the safety gate": "[gate] ⛔ {} clip(s) refused for publish by the safety gate",
+    "[gate] ✔ all clips pass the publish gate": "[gate] ✔ all clips pass the publish gate"
 }

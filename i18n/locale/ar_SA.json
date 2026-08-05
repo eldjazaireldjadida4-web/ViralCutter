@@ -536,5 +536,15 @@
     "Running risk scorecard (per-clip compliance report)...": "تشغيل بطاقة المخاطر (تقرير الامتثال لكل مقطع)...",
     "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[مخاطر] ⛔ محظور من النشر: {} مقطع — احذفها أو أعد تحريرها قبل الرفع. التفاصيل في risk_scorecard.json / publish_blocklist.json",
     "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[مخاطر] وضع البوابة 'block' — إيقاف المعالجة لأن {} مقطع فشل في بوابة الامتثال.",
-    "Risk scorecard failed (skipped): {}": "فشلت بطاقة المخاطر (تم التخطي): {}"
+    "Risk scorecard failed (skipped): {}": "فشلت بطاقة المخاطر (تم التخطي): {}",
+    "Metadata gate failed (skipped): {}": "فشل فحص الميتاداتا (تخطّي): {}",
+    "Platform template: {}": "قالب المنصة: {}",
+    "Polish pass failed (continuing with unpolished clips): {}": "فشل تحسين المونتاج (المتابعة بدون تحسين): {}",
+    "Polish: {}/{} clips enhanced": "التحسين: {}/{} مقاطع محسّنة",
+    "Running metadata compliance + upload gate audit...": "تشغيل فحص الميتاداتا + بوابة الرفع...",
+    "Running polish pass (stages: {})...": "تشغيل تحسين المونتاج (المراحل: {})...",
+    "[gate]   ✗ #{} '{}' — {}": "[gate]   ✗ #{} «{}» — {}",
+    "[gate] gate mode 'block' — stopping the run.": "[gate] وضع البوابة 'block' — إيقاف التشغيل.",
+    "[gate] ⛔ {} clip(s) refused for publish by the safety gate": "[gate] ⛔ {} مقطع مرفوض للنشر من بوابة الأمان",
+    "[gate] ✔ all clips pass the publish gate": "[gate] ✔ كل المقاطع تعبر بوابة النشر"
 }

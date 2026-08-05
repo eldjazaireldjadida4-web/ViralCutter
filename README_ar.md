@@ -169,6 +169,30 @@ python scripts/safety_filter.py --project tmp/MyProject --mode block --in-place
 
 > **ملاحظة**: وضع الكتم يحتاج ترجمة بمستوى الكلمة (`input.json` من WhisperX) — أي نسخة صوتية عبر Whisper. إذا استخدمت ترجمات يوتيوب الجاهزة فالكتم يُتخطى تلقائياً (وضع `block` يظل يعمل).
 
+## 🎬 جولة v6 (2026-08) — التوزيع + الحماية البصرية + المونتاج الاحترافي
+
+- [x] بناء ملف واحد (`packaging/viralcutter.spec` + سكربتات Win/Linux/macOS) — **1.1**
+- [x] تحديث تلقائي للبرنامج (`scripts/auto_updater.py` — يفحص GitHub Releases) — **1.2**
+- [x] مثبّتات Linux/macOS (`install_linux.sh` / `install_macos.sh` / `run.sh`) — **1.3**
+- [x] فحص بصري محلي بنموذج ONNX (NudeNet-lite) — `python -m scripts.visual_check --download` — **2.1**
+- [x] بوابة رفض إجبارية قبل الرفع — `python -m scripts.upload_gate --project <مجلد> --index 0` — **2.2**
+- [x] فحص الكابشن/العنوان/الهاشتاغات (Metadata Compliance) — **2.4**
+- [x] حذف الصمت والحشو (Jump Cuts) + زوم Punch-in + موسيقى مع Auto-Duck + ووترمارك/Intro/Outro
+      عبر أمر واحد: `python main_improved.py --url ... --polish on --logo logo.png` — **3.1–3.4**
+- [x] استئناف ذكي بعد الانقطاع (`--checkpoint on`) + حماية GPU من نفاد الذاكرة — **4.1/4.2**
+- [x] مفتاح API مشفّر (`python -m scripts.secure_config --set KEY --passphrase ...`) — **4.4**
+- [x] 3 عناوين A/B لكل مقطع (في المخرجات: `alt_titles`/`alt_captions`) — **5.3**
+
+أمثلة سريعة:
+```bash
+# قالب منصة + مونتاج احترافي + فحص بصري
+python main_improved.py --url "..." --platform tiktok --polish on \
+    --logo logo.png --music music/bed.m4a --auto-download-visual
+
+# بوابة الرفع: ترفض أي مقطع محظور (رمز خروج 3)
+python -m scripts.upload_gate --project VIRALS/مشروعك --index 0 --title "..." --caption "..." --hashtags "#shorts"
+```
+
 ## خارطة الطريق
 
 - [x] إطلاق الكود
@@ -182,9 +206,9 @@ python scripts/safety_filter.py --project tmp/MyProject --mode block --in-place
 - [x] حزمة اختبارات + CI
 - [x] فلتر أمان ضد خطاب الكراهية (حماية من ضربات يوتيوب)
 - [x] كتم الكلمات المخالفة (Bleep) + مراجعة سياقية بالذكاء الاصطناعي
-- [ ] موسيقى خلفية تلقائية (Auto-Duck)
-- [ ] رفع مباشر لـ TikTok/YouTube/Instagram
-- [ ] أبعاد عرض إضافية (غير 9:16)
+- [x] موسيقى خلفية تلقائية (Auto-Duck)
+- [ ] رفع مباشر لـ TikTok/YouTube/Instagram (البوابة جاهزة، SDKs قيد الربط)
+- [ ] قوالب منصات كاملة (توجد قوالب المدة: --platform)
 
 ## المساهمة
 
@@ -194,5 +218,5 @@ python scripts/safety_filter.py --project tmp/MyProject --mode block --in-place
 - **GitHub**: ضع ⭐ إذا أفادك المشروع!
 - المشروع في هذا المستودع تطوير مستمر — الملاحظات والمشاكل عبر Issues.
 
-**الإصدار الحالي**: 0.8 Alpha
+**الإصدار الحالي**: 0.9.0 (v6)
 *ViralCutter: لأن المقاطع الفيروسية لا يجب أن تكلّف ثروة.* 🚀

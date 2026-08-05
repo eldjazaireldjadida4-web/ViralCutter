@@ -121,11 +121,19 @@ To run ViralCutter on a fresh computer, you need to install the following core t
 
 ---
 
+
+## v6 (2026-08)
+Distribution (PyInstaller onefile + auto-update + Linux/macOS installers),
+local ONNX visual check, forced upload gate, professional polish pass
+(`--polish on`: jump cuts / punch zoom / music + auto-duck / watermark),
+crash-safe resume, OOM guard, encrypted API key, A/B titles.
+Full details: [ROADMAP_REPORT.md](docs/ROADMAP_REPORT.md#-section-6).
+
 ## Contribute!
 
 ViralCutter is community-maintained. Join us to democratize AI content creation!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Give us a ⭐ star if this project helped you!
 
-**Current Version**: 0.8v Alpha
+**Current Version**: 0.9.0 (v6)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀

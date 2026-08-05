@@ -121,11 +121,19 @@ Para rodar o ViralCutter em um computador novo, você precisa instalar os seguin
 
 ---
 
+
+## v6 (2026-08)
+Distribuição (PyInstaller onefile + auto-update + instaladores Linux/macOS),
+checagem visual ONNX local, portão de publicação obrigatório, passe de polimento
+profissional (`--polish on`: jump cuts / punch zoom / música + auto-duck / marca d'água),
+resumo crash-safe, proteção OOM, chave de API criptografada, títulos A/B.
+Detalhes: [ROADMAP_REPORT.md](docs/ROADMAP_REPORT.md#-section-6).
+
 ## Contribua!
 
 O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a criação de conteúdo com IA!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Dê uma ⭐ estrela se este projeto te ajudou!
 
-**Versão Atual**: 0.8v Alpha
+**Versão Atual**: 0.9.0 (v6)
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀

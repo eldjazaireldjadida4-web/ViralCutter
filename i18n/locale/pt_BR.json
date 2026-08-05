@@ -433,5 +433,15 @@
     "Running risk scorecard (per-clip compliance report)...": "Executando scorecard de risco (relatório de conformidade por clipe)...",
     "[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json": "[risco] ⛔ BLOQUEADOS PARA PUBLICAÇÃO: {} clipe(s) — remova ou re-edite antes de enviar. Detalhes em risk_scorecard.json / publish_blocklist.json",
     "[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.": "[risco] modo 'block' — parando porque {} clipe(s) falharam no portão de conformidade.",
-    "Risk scorecard failed (skipped): {}": "O scorecard de risco falhou (ignorado): {}"
+    "Risk scorecard failed (skipped): {}": "O scorecard de risco falhou (ignorado): {}",
+    "Metadata gate failed (skipped): {}": "Metadata gate failed (skipped): {}",
+    "Platform template: {}": "Platform template: {}",
+    "Polish pass failed (continuing with unpolished clips): {}": "Polish pass failed (continuing with unpolished clips): {}",
+    "Polish: {}/{} clips enhanced": "Polish: {}/{} clips enhanced",
+    "Running metadata compliance + upload gate audit...": "Running metadata compliance + upload gate audit...",
+    "Running polish pass (stages: {})...": "Running polish pass (stages: {})...",
+    "[gate]   ✗ #{} '{}' — {}": "[gate]   ✗ #{} '{}' — {}",
+    "[gate] gate mode 'block' — stopping the run.": "[gate] gate mode 'block' — stopping the run.",
+    "[gate] ⛔ {} clip(s) refused for publish by the safety gate": "[gate] ⛔ {} clip(s) refused for publish by the safety gate",
+    "[gate] ✔ all clips pass the publish gate": "[gate] ✔ all clips pass the publish gate"
 }
