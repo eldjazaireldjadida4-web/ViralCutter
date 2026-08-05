@@ -198,3 +198,13 @@
 - main_improved: guard against input_video=None after a failed download → clean
   error message + exit(1) instead of `os.path.dirname(None)` TypeError.
 - Tests: 314.
+
+## 🐛 v6.3d — CRITICAL: fix download() returning None (Windows crash root cause)
+
+- The v6.3 helper insertion accidentally nested the main download block inside
+  `_print_friendly_and_exit` — download() silently returned None and the pipeline
+  crashed at `os.path.dirname(None)`. download_video.py fully rewritten with the
+  correct structure.
+- Regression tests added: private video → AuthNeededError (never None); invalid URL → SystemExit.
+- main_improved: guard placed BEFORE os.path.dirname + version banner at startup.
+- Tests: 314 → 318.

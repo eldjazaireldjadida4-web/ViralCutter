@@ -252,6 +252,13 @@ def main():
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
 
+    # Version marker — helps support identify stale local copies
+    try:
+        from app_version import VERSION as _VERSION
+        print("ViralCutter v{} (check: git pull / see docs)".format(_VERSION))
+    except Exception:
+        pass
+
     # Escape hatch for testing without whisperx/torch (read by transcribe_video)
     if args.allow_placeholder_transcription:
         os.environ["VIRALCUTTER_ALLOW_PLACEHOLDER"] = "1"
@@ -576,16 +583,21 @@ def main():
                             continue
                     raise SystemExit(1)
             
+            # Guard FIRST: a failed/empty download must never reach
+            # os.path.dirname(None) (this crashed on Windows — v6.3c).
+            if not download_result:
+                print(i18n("\n[ERROR] The video could not be downloaded. "
+                           "Check the URL, or use --cookies-from-browser for "
+                           "private / age-restricted videos."))
+                sys.exit(1)
             if isinstance(download_result, tuple):
                 input_video, project_folder = download_result
             else:
                 input_video = download_result
                 project_folder = os.path.dirname(input_video)
 
-            # Guard: a failed/empty download must never leave input_video=None
-            # (this crashed with `os.path.dirname(None)` — v6.3b).
             if not input_video or not os.path.exists(input_video):
-                print(i18n("\n[ERROR] The video could not be downloaded. "
+                print(i18n("\n[ERROR] The downloaded video file is missing. "
                            "Check the URL, or use --cookies-from-browser for "
                            "private / age-restricted videos."))
                 sys.exit(1)

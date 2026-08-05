@@ -168,3 +168,91 @@ class TestDownloadFriendlyErrors:
         dl = self._import_dl()
         assert dl._friendly_download_error(
             "ERROR: Unable to download video subtitles (429)") is None
+
+
+class TestDownloadNeverReturnsNone:
+    """Regression: download() must RAISE on private videos, never return None.
+
+    This guards against the v6.3 corruption where the main download block was
+    accidentally nested inside a helper (download() returned None → crash).
+    """
+
+    def _run_private_video_sim(self, monkeypatch, tmp_path, sys_modules):
+        import importlib
+        import sys as _sys
+        import types
+
+        class FakeDownloadError(Exception):
+            def __str__(self):
+                return ("ERROR: [youtube] 2ExOHMwEDD4: Private video. Sign in if "
+                        "you've been granted access to this video.")
+
+        class FakeYDL:
+            def __init__(self, *a, **k):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def extract_info(self, *a, **k):
+                raise FakeDownloadError()
+
+            def download(self, *a, **k):
+                raise FakeDownloadError()
+
+        fake = types.ModuleType("yt_dlp")
+        fake.YoutubeDL = FakeYDL
+        class _U:
+            DownloadError = FakeDownloadError
+        fake.utils = _U()
+        _sys.modules["yt_dlp"] = fake
+
+        from scripts import download_video as dl
+        importlib.reload(dl)
+        return dl
+
+    def test_private_video_raises_auth_error(self, monkeypatch, tmp_path):
+        dl = self._run_private_video_sim(monkeypatch, tmp_path, sys.modules)
+        with pytest.raises(dl.AuthNeededError):
+            dl.download("https://youtube.com/watch?v=2ExOHMwEDD4",
+                        base_root=str(tmp_path), download_subs=False)
+
+    def test_invalid_url_raises(self, monkeypatch, tmp_path):
+        dl = self._run_private_video_sim(monkeypatch, tmp_path, sys.modules)
+        # different message → SystemExit instead of AuthNeededError
+        class FakeBadURL(Exception):
+            def __str__(self):
+                return "is not a valid URL"
+
+        class BadYDL:
+            def __init__(self, *a, **k):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def extract_info(self, *a, **k):
+                raise FakeBadURL()
+
+            def download(self, *a, **k):
+                raise FakeBadURL()
+
+        import sys as _sys
+        import types
+        fake = types.ModuleType("yt_dlp")
+        fake.YoutubeDL = BadYDL
+        class _U:
+            DownloadError = FakeBadURL
+        fake.utils = _U()
+        _sys.modules["yt_dlp"] = fake
+        import importlib
+        from scripts import download_video as dl2
+        importlib.reload(dl2)
+        with pytest.raises(SystemExit):
+            dl2.download("not-a-url", base_root=str(tmp_path), download_subs=False)
