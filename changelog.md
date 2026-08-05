@@ -207,4 +207,4 @@
   correct structure.
 - Regression tests added: private video → AuthNeededError (never None); invalid URL → SystemExit.
 - main_improved: guard placed BEFORE os.path.dirname + version banner at startup.
-- Tests: 314 → 318.
+- Tests: 314 → 316.
