@@ -138,3 +138,20 @@
 - **Novo Motor: InsightFace**: Adição da biblioteca `InsightFace` como motor de detecção facial de alta precisão.
 - **MediaPipe**: Manutenção e correção de erros no fallback para o MediaPipe.
 - **Limpeza de Logs**: Redução da verbosidade dos logs do FFmpeg no console.
+## ⚙️ v6 — Distribution + Visual Safety + Pro Editing + Reliability (`f37e007`)
+
+### Novidades
+- **Pacote único (Roadmap 1.1)**: `packaging/viralcutter.spec` (PyInstaller onefile) + scripts de build Windows/Linux/macOS.
+- **Auto-update (1.2)**: `scripts/auto_updater.py` verifica GitHub Releases; versão central em `app_version.py` (0.9.0); `--check-updates`.
+- **Instaladores Linux/macOS (1.3)**: `install_linux.sh`, `install_macos.sh`, `run.sh`.
+- **Verificação visual ONNX (2.1)**: `scripts/visual_check.py` (NudeNet-lite) integrado ao hook `visual_model_path` do risk scorecard — frames reais por clipe, score 0-100, `--auto-download-visual`.
+- **Porta de publicação obrigatória (2.2)**: `scripts/upload_gate.py` recusa upload de clipes em publish_blocklist / safety_report / metadata inválida; adapters YouTube/TikTok/Instagram já passam pela porta (SDKs a ligar).
+- **Metadata compliance (2.4)**: `scripts/metadata_compliance.py` (hashtags banidas, claims médicas/financeiras, clickbait, keyword stuffing).
+- **Edição profissional (3.1–3.4)**: `scripts/polish.py` — jump cuts (silêncio+fillers), punch-in zoom, música de fundo com auto-duck, watermark + intro/outro; legendas re-sincronizadas (retime) e `burn_subtitles` prefere `final_polished/`.
+- **Resumo crash-safe (4.2)**: `scripts/checkpoint.py` (`--checkpoint on`).
+- **OOM Guard (4.1)**: `scripts/oom_guard.py` cai de modelo automaticamente.
+- **Chave API segura (4.4)**: `scripts/secure_config.py` (env → Fernet → plaintext).
+- **Crash reports privados (4.5)**: `scripts/crash_report.py` (opt-in).
+- **CI real (4.3)**: ffmpeg no workflow + `tests/test_ci_smoke.py` com vídeo real.
+- **Títulos A/B (5.3)**: `alt_titles`/`alt_captions` no prompt e nos segmentos.
+- **Testes**: 196 → 286 (reais com ffmpeg).
