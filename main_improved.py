@@ -241,10 +241,16 @@ def main():
                         help="Metadata compliance gate (title/caption/hashtags): 'warn' flags + writes to the scorecard (default), 'block' stops the run when any clip has risky metadata, 'off' skips it")
     parser.add_argument("--auto-download-visual", action="store_true",
                         help="Download the small ONNX visual classifier into models/ when missing (Roadmap 2.1)")
+    parser.add_argument("--allow-placeholder-transcription", action="store_true",
+                        help="When whisperx/torch are missing, continue with placeholder subtitles (for testing editing/safety only — NOT for real viral-segment selection)")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
+
+    # Escape hatch for testing without whisperx/torch (read by transcribe_video)
+    if args.allow_placeholder_transcription:
+        os.environ["VIRALCUTTER_ALLOW_PLACEHOLDER"] = "1"
 
     # Platform template (Roadmap 5.2): resolve duration defaults once, up front.
     if args.platform:

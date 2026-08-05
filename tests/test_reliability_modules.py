@@ -226,3 +226,30 @@ class TestAutoUpdater:
             assert f.read() == b"BINARYBINARY"
         info = auto_updater.update_info(dest_dir=str(dest))
         assert info[1] == "ViralCutter.exe"
+
+
+class TestAutoUpdaterTagsFallback:
+    def test_falls_back_to_tags_when_no_releases(self, monkeypatch):
+        calls = {}
+
+        def fake_github(path, timeout=8):
+            calls["path"] = path
+            if "releases" in path:
+                raise RuntimeError("Not Found (no release)")
+            return [{"name": "v0.9.1"}]
+
+        monkeypatch.setattr(auto_updater, "_github_api", fake_github)
+        info = auto_updater.check_for_update(current_version="0.9.0", timeout=1)
+        assert info["update_available"] is True
+        assert info["latest_version"] == "v0.9.1"
+        assert "tags" in calls["path"]
+
+    def test_tag_same_version_no_update(self, monkeypatch):
+        def fake_github(path, timeout=8):
+            if "releases" in path:
+                raise RuntimeError("no release")
+            return [{"name": "v0.9.0"}]
+
+        monkeypatch.setattr(auto_updater, "_github_api", fake_github)
+        info = auto_updater.check_for_update(current_version="0.9.0", timeout=1)
+        assert info["update_available"] is False

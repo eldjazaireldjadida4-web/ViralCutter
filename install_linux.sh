@@ -29,5 +29,16 @@ echo "[4/4] Sanity check..."
 python -c "import sys; sys.path.insert(0,'.'); import scripts.risk_scorecard; print('✅ import ok')"
 
 echo ""
+echo "== Optional stacks =="
+read -r -p "Install full transcription stack (whisperx + torch, needed for the complete pipeline, ~2 GB)? [y/N] " full_yn
+if [[ "$full_yn" =~ ^[Yy]$ ]]; then
+    pip install -r requirements-transcribe.txt
+fi
+read -r -p "Install direct-upload stack (YouTube OAuth uploader)? [y/N] " up_yn
+if [[ "$up_yn" =~ ^[Yy]$ ]]; then
+    pip install -r requirements-upload.txt
+fi
+
+echo ""
 echo "✅ Done. Run:  ./run.sh"
 echo "   (optional CUDA: install torch with CUDA support for GPU transcription)"

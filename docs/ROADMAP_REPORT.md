@@ -402,3 +402,44 @@
 ### 🧪 الاختبارات
 - أُضيف: `tests/test_platform_templates.py` (12) + امتداد `tests/test_webui_utils.py` (6).
 - الإجمالي: **304 اختباراً** (يشمل اختبارات ffmpeg حقيقية).
+
+---
+
+## 🟢 القسم الثامن: جولة الجاهزية v6.2 — إصلاح كل ما يمنع "العمل الفعلي" (لا تُعِد العمل عليه!)
+
+> **التاريخ**: 2026-08-04 | **الكوميت**: *(يُملأ بعد الرفع)* | **الاختبارات**: 304 → **309**
+
+### ✅ 1. التثبيت الكامل للدورة الكاملة (أهم إصلاح)
+- **`requirements-transcribe.txt`** (جديد): whisperx + torch + torchaudio — كانا خارج التثبيت
+  نهائياً وبدونهما الـ pipeline الكامل لا يشتغل. المثبّتون (`install_linux.sh`/`install_macos.sh`)
+  يسألون الآن عن تثبيتهما تلقائياً.
+- **`requirements-upload.txt`** (جديد): مكتبات رفع يوتيوب (google-api-python-client + OAuth).
+- **فشل واضح بدل ترجمة وهمية صامتة**: `scripts/transcribe_video.py` يرفع الآن خطأً واضحاً
+  بتعليمات التثبيت عند غياب whisperx/torch (بدل توليد SRT وهمي يفسد اختيار المقاطع).
+  للاختبار فقط: `--allow-placeholder-transcription` أو `VIRALCUTTER_ALLOW_PLACEHOLDER=1`.
+
+### ✅ 2. رفع يوتيوب الفعلي (2.2 — الجزء المتبقي)
+- `YouTubeUploader._do_upload` منفّذ بالكامل: OAuth عبر client_secrets (أول تشغيل يفتح المتصفح)،
+  حفظ التوكن في `~/.viralcutter/yt_token.json`، رفع resumable مع نسبة التقدم،
+  `privacyStatus` افتراضي **private** (آمن) — غيّره بـ `YT_PRIVACY=public` عند القصد.
+  البوابة الإجبارية تعمل قبله دائماً. 3 اختبارات (API مُقلَّد).
+
+### ✅ 3. الواجهة (WebUI) كانت تنهار عند الإقلاع — أُصلحت بالكامل
+أخطاء موجودة مسبقاً (اسمية غير معرّفة) كانت تمنع أي تشغيل للواجهة — كلها أُصلحت:
+- `render_progress_html/render_tasks_html/render_error_html` — لم تكن معرّفة إطلاقاً → أُنشئت في `webui/utils.py`.
+- `GEMINI_MODELS/G4F_MODELS/get_local_models` — لم تكن معرّفة → أُنشئت.
+- `apply_face_preset/apply_experimental_preset` — لم تكن معرّفة → أُنشئت.
+- `template_choices/save_template/load_templates` (قوالب الإعدادات المحفوظة) — لم تكن معرّفة → أُنشئت مع ملف `subtitle_templates.json`.
+- أزرار محرر الترجمة (`editor_render_single_btn/editor_render_all_btn/editor_export_all_btn`) + `current_json_path` — لم تكن معرّفة → أُنشئت.
+- **حقول v6 المرئية أُضيفت**: قالب المنصة، بوابة الميتاداتا، تحسين polish، ملف الموسيقى، اللوجو — مربوطة بـ `build_command`.
+- التحقق: `import webui.app` ينجح الآن (كان NameError)، وفحص pyflakes نظيف من undefined names.
+
+### ✅ 4. التحديث التلقائي مفعّل فعلاً
+- `check_for_update` صار يتراجع إلى **آخر git tag** عندما لا توجد Releases رسمية — الحلقة تشتغل.
+- **tag `v0.9.0` مرفوع** — أول tag مستقبلي (`v0.9.1+`) سيُظهر التحديث للمستخدمين.
+
+### ✅ 5. إضافات جاهزية
+- `doctor.py` يفحص whisperx/torch الآن.
+- `README_ar.md`: قسم "للعمل الكامل تحتاج 3 خطوات فقط" في رأس التثبيت.
+
+### 🧪 الاختبارات: **309** (304 + 3 يوتيوب + 2 tags-fallback)

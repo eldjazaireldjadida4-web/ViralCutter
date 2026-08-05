@@ -240,9 +240,32 @@ def parse_vtt(vtt_path):
         return None
     return segments
 
+def _placeholder_allowed():
+    """Escape hatch for testing stages without the transcription stack.
+
+    Enable with env VIRALCUTTER_ALLOW_PLACEHOLDER=1 (or --allow-placeholder-transcription
+    in the CLI). Default OFF: the pipeline fails fast with clear instructions
+    instead of silently producing garbage segments from a fake transcript.
+    """
+    return os.getenv("VIRALCUTTER_ALLOW_PLACEHOLDER", "").strip().lower() in {
+        "1", "true", "yes", "on"}
+
+
 def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
-    if whisperx is None:
-        print("whisperx not installed. Generating placeholder subtitles so the app can keep running.")
+    if whisperx is None or torch is None:
+        msg = (
+            "WhisperX/torch are not installed \u2014 full transcription is unavailable. "
+            "Install the transcription stack:\n"
+            "    pip install -r requirements-transcribe.txt\n"
+            "(GPU recommended \u2014 install a CUDA torch first, see the file header).\n"
+            "Then re-run. (Testing only the editing/safety features? Set "
+            "VIRALCUTTER_ALLOW_PLACEHOLDER=1 to continue with placeholder subtitles.)"
+        )
+        if not _placeholder_allowed():
+            raise ImportError(msg)
+        print("[transcribe] WARNING: " + msg)
+        print("[transcribe] Placeholder subtitles will be generated \u2014 viral-segment "
+              "selection will NOT work; only downstream tooling can be tested.")
         output_folder = project_folder or os.path.dirname(input_file) or 'tmp'
         os.makedirs(output_folder, exist_ok=True)
         base_name = os.path.splitext(os.path.basename(input_file))[0]
@@ -253,7 +276,7 @@ def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
         with open(srt_file, 'w', encoding='utf-8') as f:
             f.write("1\n00:00:00,000 --> 00:00:02,000\nWhisperX not installed. Install it for full transcription.\n")
         with open(tsv_file, 'w', encoding='utf-8') as f:
-            f.write("start	end	text\n0.0	2.0	WhisperX not installed. Install it for full transcription.\n")
+            f.write("start\tend\ttext\n0.0\t2.0\tWhisperX not installed. Install it for full transcription.\n")
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(placeholder, f, ensure_ascii=False, indent=2)
         _save_transcription_cache(_transcription_cache_path(output_folder), input_file, model_name, srt_file, tsv_file, json_file)

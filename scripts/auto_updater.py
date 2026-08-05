@@ -39,6 +39,14 @@ def _github_api(path, timeout=8):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _latest_tag(repo, timeout=8):
+    """Fallback: read the latest git tag when no formal Release exists yet."""
+    tags = _github_api("/repos/{}/tags".format(repo), timeout=timeout)
+    if isinstance(tags, list) and tags:
+        return tags[0].get("name", "")
+    return ""
+
+
 def _parse_version(tag):
     """'v0.9.0' / '0.9.0' → (0, 9, 0). Unparseable → (0, 0, 0)."""
     digits = "".join(c for c in (tag or "") if c.isdigit() or c == ".")
@@ -63,8 +71,19 @@ def check_for_update(repo=REPO, current_version=None, timeout=8, urlopen=None):
         global LOCAL_VERSION
         LOCAL_VERSION = current_version
     try:
-        data = _github_api("/repos/{}/releases/latest".format(repo), timeout=timeout) \
-            if urlopen is None else json.loads(urlopen(timeout))
+        try:
+            data = _github_api("/repos/{}/releases/latest".format(repo), timeout=timeout) \
+                if urlopen is None else json.loads(urlopen(timeout))
+        except Exception:
+            if urlopen is not None:
+                # an injected urlopen failed → report the error, never hit the
+                # network behind the caller's back
+                raise
+            # No formal release yet → fall back to the latest git tag so the
+            # update loop still works once maintainers push version tags.
+            tag = _latest_tag(repo, timeout=timeout)
+            return {"update_available": _newer(tag), "latest_version": tag or None,
+                    "download_url": None, "notes": None, "error": None}
         tag = data.get("tag_name", "")
         assets = data.get("assets", [])
         download_url = None

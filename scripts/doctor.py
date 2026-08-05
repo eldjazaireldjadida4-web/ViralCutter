@@ -37,6 +37,11 @@ DEPENDENCIES = [
     # onnxruntime = local visual classifier, cryptography = real key encryption.
     ("onnxruntime", False),
     ("cryptography", False),
+    # Full transcription stack (Roadmap "ready to run"): whisperx + torch make
+    # the complete YouTube→shorts pipeline work; without them only the
+    # editing/safety/polish features run.
+    ("whisperx", False),
+    ("torch", False),
 ]
 
 

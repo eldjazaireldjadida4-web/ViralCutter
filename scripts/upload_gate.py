@@ -215,16 +215,91 @@ class _BaseUploader:
 
 
 class YouTubeUploader(_BaseUploader):
-    """YouTube Data API adapter (scaffold — needs client_secrets OAuth).
+    """YouTube Data API v3 uploader with real OAuth (Roadmap 2.2).
 
-    TODO(2.2): implement _do_upload with google-api-python-client:
-       1. google.oauth2.credentials + googleapiclient.discovery.build('youtube','v3')
-       2. videos.insert(part='snippet,status', media_body=MediaFileUpload(video_path))
+    Setup (once):
+      1. pip install -r requirements-upload.txt
+      2. Google Cloud console → enable "YouTube Data API v3" →
+         create OAuth 2.0 Client ID (Desktop app) → save JSON as client_secrets.json
+      3. Run any upload: the first run opens the browser for consent and
+         stores the token in ~/.viralcutter/yt_token.json.
+
+    The safety gate runs BEFORE any API call (see _BaseUploader.upload).
+    Privacy: default privacyStatus is "private" (safe) — set YT_PRIVACY=public
+    only when you intend to publish.
     """
     platform = "youtube"
+    SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
+    def _token_path(self):
+        return os.getenv("YT_TOKEN_FILE") or os.path.join(
+            os.path.expanduser("~"), ".viralcutter", "yt_token.json")
+
+    def _load_or_create_token(self):
+        """Return credentials; run the OAuth consent flow on first use."""
+        import google.auth.transport.requests as g_requests
+        from google.oauth2.credentials import Credentials
+
+        token_path = self._token_path()
+        secrets = os.getenv("YT_CLIENT_SECRETS_FILE") or os.path.join(
+            os.getcwd(), "client_secrets.json")
+        if not os.path.exists(secrets):
+            self._missing_credentials(self.platform, ["YT_CLIENT_SECRETS_FILE"])
+        if os.path.exists(token_path):
+            creds = Credentials.from_authorized_user_file(token_path, self.SCOPES)
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(g_requests.Request())
+            if creds and creds.valid:
+                return creds
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        flow = InstalledAppFlow.from_client_secrets_file(secrets, self.SCOPES)
+        creds = flow.run_local_server(port=0, prompt="consent")
+        os.makedirs(os.path.dirname(token_path), exist_ok=True)
+        with open(token_path, "w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+        return creds
 
     def _do_upload(self, video_path, title, caption, hashtags):
-        self._missing_credentials(self.platform, ["YT_CLIENT_SECRETS_FILE"])
+        if not os.path.exists(video_path):
+            raise FileNotFoundError("video not found: {}".format(video_path))
+        creds = self._load_or_create_token()
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.http import MediaFileUpload
+        except ImportError:
+            raise RuntimeError(
+                "youtube upload needs: pip install -r requirements-upload.txt")
+
+        tags = [str(h).lstrip("#") for h in (hashtags or []) if str(h).strip()]
+        description = caption or ""
+        if tags:
+            description += "\n\n" + " ".join("#" + t for t in tags)
+        body = {
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "categoryId": os.getenv("YT_CATEGORY_ID", "22"),  # 22 = People & Blogs
+            },
+            "status": {
+                "privacyStatus": os.getenv("YT_PRIVACY", "private"),
+                "selfDeclaredMadeForKids": False,
+            },
+        }
+        service = build("youtube", "v3", credentials=creds)
+        media = MediaFileUpload(video_path, chunksize=8 * 1024 * 1024, resumable=True)
+        request = service.videos().insert(part="snippet,status", body=body,
+                                          media_body=media)
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                print("[youtube] uploaded {:.0f}%".format(
+                    status.progress() * 100 if status.progress() else 0), flush=True)
+        video_id = response.get("id")
+        print("[youtube] uploaded '{}' → https://youtu.be/{}".format(title, video_id))
+        return {"status": "uploaded", "platform": "youtube",
+                "video_id": video_id, "url": "https://youtu.be/{}".format(video_id)}
 
 
 class TikTokUploader(_BaseUploader):

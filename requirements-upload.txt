@@ -1,0 +1,18 @@
+# ViralCutter — direct upload stack (Roadmap 2.2)
+#
+# Install with:  pip install -r requirements-upload.txt
+#
+# Enables the real YouTube uploader in scripts/upload_gate.py:
+#   1. Get OAuth client secrets: https://console.cloud.google.com/apis/credentials
+#      (OAuth 2.0 Client ID → Desktop app, enable "YouTube Data API v3")
+#   2. Save the JSON as client_secrets.json (or set YT_CLIENT_SECRETS_FILE)
+#   3. python -m scripts.upload_gate --project <dir> --upload youtube \
+#         --video clip.mp4 --title "..." --caption "..." --hashtags "#shorts"
+#      (first run opens a browser for the OAuth consent)
+#
+# TikTok / Instagram uploaders are documented scaffolds inside upload_gate.py
+# (they require platform app approval; code is ready to plug in).
+
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

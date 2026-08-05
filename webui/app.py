@@ -31,6 +31,37 @@ def tr(key):
     return i18n(key)
 
 
+# --- AI model lists (were referenced but never defined — fixed in v6.1) ---
+GEMINI_MODELS = [
+    "gemini-2.5-flash-lite-preview-09-2025",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-pro",
+]
+G4F_MODELS = [
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo",
+    "claude-3-haiku",
+    "llama-3.1-8b",
+    "gemini-1.5-flash",
+    "gemini-pro",
+    "mistral-7b",
+    "mixtral-8x7b",
+]
+
+
+def get_local_models():
+    """List .gguf models in the models/ folder (local LLM backend)."""
+    models_dir = os.path.join(WORKING_DIR, "models")
+    if not os.path.isdir(models_dir):
+        return []
+    return sorted(f for f in os.listdir(models_dir) if f.endswith(".gguf"))
+
+
 
 # --- PRESETS DEFINITIONS ---
 FACE_PRESETS = {
@@ -67,12 +98,75 @@ from utils import (
     normalize_path,
     safe_int,
     safe_float,
+    render_progress_html,
+    render_tasks_html,
+    render_error_html,
 )
 PROGRESS_ORDER = PROGRESS_STAGES
 _safe_int = safe_int
 _safe_float = safe_float
 _normalize_path = normalize_path
 _build_subtitle_config = build_subtitle_config
+
+
+# ---------------------------------------------------------------------------
+# v6.1 fixes — helpers that were referenced by the UI but never defined
+# (face presets, experimental presets, subtitle template persistence)
+# ---------------------------------------------------------------------------
+
+TEMPLATES_FILE = os.path.join(WORKING_DIR, "subtitle_templates.json")
+
+
+def load_templates():
+    """All saved subtitle/settings templates ({} when none)."""
+    if not os.path.exists(TEMPLATES_FILE):
+        return {}
+    try:
+        with open(TEMPLATES_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_template(name, payload):
+    """Persist a template dict. Returns an error string or None."""
+    templates = load_templates()
+    templates[name] = payload
+    try:
+        with open(TEMPLATES_FILE, "w", encoding="utf-8") as f:
+            json.dump(templates, f, ensure_ascii=False, indent=2)
+        return None
+    except Exception as e:
+        return str(e)
+
+
+def template_choices():
+    return sorted(load_templates().keys())
+
+
+def apply_face_preset(preset_name):
+    preset = FACE_PRESETS.get(preset_name, {})
+    return (
+        gr.update(value=preset.get("thresh", 0.35)),
+        gr.update(value=preset.get("two_face", 0.60)),
+        gr.update(value=preset.get("conf", 0.40)),
+        gr.update(value=preset.get("dead_zone", 150)),
+    )
+
+
+def apply_experimental_preset(preset_name):
+    preset = EXPERIMENTAL_PRESETS.get(preset_name, {})
+    return (
+        gr.update(value=bool(preset.get("focus", False))),
+        gr.update(value=preset.get("mar", 0.03)),
+        gr.update(value=preset.get("score", 1.5)),
+        gr.update(value=bool(preset.get("motion", False))),
+        gr.update(value=preset.get("motion_th", 3.0)),
+        gr.update(value=preset.get("motion_sens", 0.05)),
+        gr.update(value=preset.get("decay", 2.0)),
+    )
+
 
 def kill_process():
     global current_process
@@ -102,7 +196,8 @@ def kill_process():
 def run_viral_cutter(input_source, project_name, url, video_file, segments, viral, themes, min_duration, max_duration, model, ai_backend, api_key, ai_model_name, chunk_size, workflow, face_model, face_mode, face_detect_interval, no_face_mode, 
                      face_filter_thresh, face_two_thresh, face_conf_thresh, face_dead_zone, focus_active_speaker, active_speaker_mar, active_speaker_score_diff, include_motion, active_speaker_motion_threshold, active_speaker_motion_sensitivity, active_speaker_decay,
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
-                     h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True):
+                     h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True,
+                     platform=None, polish=False, music=None, logo=None, metadata_gate=None):
     
     global current_process
     progress_state = empty_progress_state(i18n("Starting"))
@@ -205,6 +300,12 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             subtitle_config_path=subtitle_config_path,
             safety_mode=safety_mode,
             safety_ai="on" if safety_ai else "off",
+            # v6 features (Roadmap 5.2 / Sprint 3 / 2.4)
+            platform=platform,
+            polish=polish,
+            music=music,
+            logo=logo,
+            metadata_gate=metadata_gate,
         )
 
         env = os.environ.copy()
@@ -473,6 +574,31 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         value=True,
                         info=i18n("Sends surviving clips to the AI for a second policy check (Gemini/G4F only)."),
                     )
+                    # --- v6: platform template + professional polish (Roadmap 5.2 / Sprint 3) ---
+                    with gr.Row():
+                        platform_input = gr.Dropdown(
+                            choices=[(i18n("(No platform template)"), ""), (i18n("YouTube Shorts (9:16, ≤60s)"), "yt_shorts"),
+                                     (i18n("TikTok (9:16, ≤90s)"), "tiktok"),
+                                     (i18n("Instagram Reels (9:16, ≤90s)"), "reels"),
+                                     (i18n("YouTube Standard (16:9, ≤10min)"), "yt_standard")],
+                            label=i18n("📱 Platform template"),
+                            value="",
+                        )
+                        metadata_gate_input = gr.Dropdown(
+                            choices=[(i18n("Warn (flag risky metadata)"), "warn"),
+                                     (i18n("Block (stop run on risky metadata)"), "block"),
+                                     (i18n("Off"), "off")],
+                            label=i18n("Metadata gate (title/caption/hashtags)"),
+                            value="warn",
+                        )
+                    polish_input = gr.Checkbox(
+                        label=i18n("✨ Professional polish (jump cuts + punch zoom + music + watermark)"),
+                        value=False,
+                        info=i18n("Removes silence/fillers, adds punch-in zoom, background music with auto-duck and your logo."),
+                    )
+                    with gr.Row():
+                        music_input = gr.Textbox(label=i18n("Background music file"), placeholder="music/bed.m4a", value="")
+                        logo_input = gr.Textbox(label=i18n("Channel logo (PNG)"), placeholder="logo.png", value="")
                     with gr.Row():
                         safety_update_btn = gr.Button(i18n("🔄 Update safety word list"), size="sm")
                         safety_update_status = gr.Markdown(i18n("Loading…"), elem_id="safety_update_status")
@@ -705,7 +831,8 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                     bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                     underline_input, strikeout_input, border_style_input, remove_punc_input,
-                    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input
+                    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
                 ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Review Segments")):
             gr.Markdown(f"### {i18n('Review Segments')}")
@@ -794,7 +921,8 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input
+                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
             ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
@@ -856,7 +984,8 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
                 highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
                 underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input
+                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+                    platform_input, metadata_gate_input, polish_input, music_input, logo_input
             ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
@@ -865,6 +994,11 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 editor_refresh_btn = gr.Button(tr("Refresh"), size="sm")
             with gr.Group():
                 editor_status = gr.Textbox(label="الحالة", interactive=False)
+            current_json_path = gr.State(None)
+            with gr.Row():
+                editor_render_single_btn = gr.Button(i18n("🎬 Render Selected (single clip)"), size="sm")
+                editor_render_all_btn = gr.Button(i18n("🎬 Render All (background)"), size="sm")
+                editor_export_all_btn = gr.Button(i18n("📤 Export All Segments"), size="sm")
             editor_refresh_btn.click(library.refresh_projects, outputs=editor_project_dropdown)
 
             def save_settings_template(name, proj_name, use_custom, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc, face_mode, face_model, no_face_mode, face_detect_interval):

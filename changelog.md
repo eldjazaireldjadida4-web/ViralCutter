@@ -165,3 +165,13 @@
 - **i18n**: new v6 keys translated (ar_SA) + pt_BR/tr_TR synced.
 - **WebUI plumbing**: `webui/pipeline.py` supports the v6 flags (Gradio fields still pending).
 - **Testes**: 286 → **304**.
+
+## 🟢 v6.2 — Ready-to-run fixes (2026-08-04)
+
+- **Full install**: `requirements-transcribe.txt` (whisperx+torch) + `requirements-upload.txt` (YouTube OAuth); installers ask to install them.
+- **Clear failure instead of silent placeholder**: transcription raises actionable ImportError when whisperx/torch missing; `--allow-placeholder-transcription` for testing only.
+- **Real YouTube uploader**: full OAuth flow (client_secrets → token in ~/.viralcutter/yt_token.json), resumable upload, default privacyStatus=private.
+- **WebUI fixed (was crashing on startup)**: implemented render_progress_html/render_tasks_html/render_error_html, GEMINI_MODELS/G4F_MODELS/get_local_models, apply_face_preset/apply_experimental_preset, template_choices/save_template/load_templates, subtitle-editor buttons + current_json_path; added visible v6 fields (platform/polish/music/logo/metadata gate).
+- **Auto-update armed**: falls back to latest git tag when no Release exists; tag v0.9.0 pushed.
+- doctor.py checks whisperx/torch; README_ar quickstart "3 steps to full pipeline".
+- Testes: 304 → 309.

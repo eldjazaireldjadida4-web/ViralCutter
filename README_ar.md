@@ -55,6 +55,17 @@ $env:VIRALCUTTER_LANG="en_US"; python webui/app.py
 
 ## التثبيت المحلي (سريع جداً ⚡)
 
+> ✅ **للعمل الكامل (يوتيوب → مقطع فيروسي) تحتاج 3 خطوات فقط**:
+> 1. `pip install -r requirements.txt`
+> 2. `pip install -r requirements-transcribe.txt`  ← التفريغ الصوتي (whisperx + torch، يُفضّل GPU)
+> 3. ضع مفتاح Gemini: `export GEMINI_API_KEY=...`  (أو `python -m scripts.secure_config --set KEY --passphrase ...`)
+>
+> ثم: `python main_improved.py --url "..." --platform tiktok --polish on`
+>
+> (الرفع المباشر لليوتيوب: `pip install -r requirements-upload.txt` — راجع قسم بوابة الرفع)
+
+
+
 ### المتطلبات الأساسية
 
 1. **أدوات بناء Visual Studio (C++ Build Tools)**

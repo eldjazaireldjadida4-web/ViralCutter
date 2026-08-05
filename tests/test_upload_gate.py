@@ -98,3 +98,82 @@ class TestAudit:
         assert allowed == [0]
         assert len(blocked) == 1
         assert blocked[0]["index"] == 1
+
+
+class TestYouTubeUploaderReal:
+    """YouTube OAuth uploader (Roadmap 2.2) — mocked API, real gate logic."""
+
+    def test_missing_video_raises(self, tmp_path, monkeypatch):
+        from scripts import upload_gate as ug
+        monkeypatch.setenv("YT_CLIENT_SECRETS_FILE", str(tmp_path / "cs.json"))
+        uploader = ug.YouTubeUploader(str(tmp_path), dry_run=False)
+        with pytest.raises(FileNotFoundError):
+            uploader.upload(str(tmp_path / "nope.mp4"), "T", "C", [], index=0)
+
+    def test_missing_credentials_clear_error(self, tmp_path, monkeypatch):
+        from scripts import upload_gate as ug
+        monkeypatch.delenv("YT_CLIENT_SECRETS_FILE", raising=False)
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"x")
+        uploader = ug.YouTubeUploader(str(tmp_path), dry_run=False)
+        with pytest.raises(RuntimeError, match="OAuth credentials"):
+            uploader.upload(str(video), "T", "C", ["shorts"], index=0)
+
+    def test_upload_builds_request_and_returns_id(self, tmp_path, monkeypatch):
+        import sys as _sys
+        from scripts import upload_gate as ug
+
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"fake video")
+
+        captured = {}
+
+        class FakeCreds:
+            valid = True
+
+        class FakeMedia:
+            def __init__(self, path, chunksize, resumable):
+                captured["media_path"] = path
+                captured["chunksize"] = chunksize
+
+        class FakeRequest:
+            def __init__(self, body, media_body):
+                captured["body"] = body
+                captured["media"] = media_body
+
+            def next_chunk(self):
+                captured["called"] = True
+                return None, {"id": "VID123", "status": "uploaded"}
+
+        class FakeVideos:
+            def insert(self, part, body, media_body):
+                captured["part"] = part
+                return FakeRequest(body, media_body)
+
+        class FakeService:
+            def __init__(self, *_a, **_k):
+                pass
+
+            def videos(self):
+                return FakeVideos()
+
+        # fake the google libs that _do_upload imports lazily
+        fake_discovery = type(_sys)("googleapiclient.discovery")
+        fake_discovery.build = lambda *a, **k: FakeService(*a, **k)
+        fake_http = type(_sys)("googleapiclient.http")
+        fake_http.MediaFileUpload = FakeMedia
+        _sys.modules["googleapiclient.discovery"] = fake_discovery
+        _sys.modules["googleapiclient.http"] = fake_http
+
+        monkeypatch.setenv("YT_PRIVACY", "unlisted")
+        uploader = ug.YouTubeUploader(str(tmp_path), dry_run=False)
+        monkeypatch.setattr(uploader, "_load_or_create_token", lambda: FakeCreds())
+        result = uploader.upload(str(video), "My Title", "My caption",
+                                 ["#shorts", "funny"], index=0)
+        assert result["video_id"] == "VID123"
+        assert result["status"] == "uploaded"
+        assert captured["body"]["snippet"]["title"] == "My Title"
+        assert captured["body"]["snippet"]["tags"] == ["shorts", "funny"]
+        assert "funny" in captured["body"]["snippet"]["description"]
+        assert captured["body"]["status"]["privacyStatus"] == "unlisted"
+        assert captured["called"] is True
