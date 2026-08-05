@@ -163,6 +163,9 @@ KNOWN_ERROR_HINTS = [
     ("cookiesfrombrowser", "تعذّرت قراءة كوكيز المتصفح (تشفير Chrome) — جرّب Firefox أو ملف cookies.txt مُصدَّر"),
     ("age", "الفيديو مقيد عمرياً — استعمل كوكيز متصفحك"),
     ("video unavailable", "الفيديو غير متاح (محذوف أو محجوب جغرافياً)"),
+    ("google-generativeai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai (أو أعد تشغيل install_dependencies.bat)"),
+    ("google.genai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-genai (أو أعد تشغيل install_dependencies.bat)"),
+    ("gemini sdk", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai"),
     ("whisperx", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
     ("torch", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
     ("out of memory", "نفاد الذاكرة — أغلق البرامج الأخرى أو استعمل نموذج Whisper أصغر"),
@@ -188,11 +191,19 @@ def summarize_error(text, max_title=160):
             title = ln
             break
     hint = ""
-    low_text = text.lower()
+    # prefer matching the hint against the TITLE line first (the real error),
+    # so older messages in the log tail don't hijack the hint
+    low_title = title.lower()
     for key, msg in KNOWN_ERROR_HINTS:
-        if key in low_text:
+        if key in low_title:
             hint = msg
             break
+    if not hint:
+        low_text = text.lower()
+        for key, msg in KNOWN_ERROR_HINTS:
+            if key in low_text:
+                hint = msg
+                break
     return title[:max_title], text[:3000], hint
 
 

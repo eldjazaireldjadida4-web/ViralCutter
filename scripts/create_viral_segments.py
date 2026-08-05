@@ -17,11 +17,22 @@ if sys.platform == "win32" and sys.stdout and hasattr(sys.stdout, 'buffer'):
         pass
 
 # Tenta importar bibliotecas de IA opcionalmente
+# Gemini SDK support: legacy `google.generativeai` (pip install
+# google-generativeai) OR the new `google.genai` (pip install google-genai).
+# v6.4: previously only the legacy import existed while requirements.txt listed
+# the new package → runtime ImportError. Now either library works.
 try:
     import google.generativeai as genai
     HAS_GEMINI = True
+    GEMINI_SDK = "legacy"
 except ImportError:
-    HAS_GEMINI = False
+    try:
+        from google import genai as genai  # new unified SDK
+        HAS_GEMINI = True
+        GEMINI_SDK = "new"
+    except ImportError:
+        HAS_GEMINI = False
+        GEMINI_SDK = None
 
 try:
     import g4f
@@ -198,37 +209,47 @@ def preprocess_transcript_for_ai(segments):
 
     return full_text.strip()
 
+def _gemini_generate(model_name, prompt, api_key):
+    """Generate via whichever Gemini SDK is installed. Returns text."""
+    if GEMINI_SDK == "legacy":
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name)
+        return model.generate_content(prompt).text
+    # new SDK
+    client = genai.Client(api_key=api_key)
+    return client.models.generate_content(model=model_name, contents=prompt).text
+
+
 def call_gemini(prompt, api_key, model_name='gemini-2.5-flash-lite-preview-09-2025'):
     if not HAS_GEMINI:
-        raise ImportError("A biblioteca 'google-generativeai' não está instalada. Instale com: pip install google-generativeai")
-    
-    genai.configure(api_key=api_key)
-    # Usando modelo definido na config ou o padrão
-    model = genai.GenerativeModel(model_name) 
-    
+        raise ImportError(
+            "Gemini SDK is not installed. Install one of:\n"
+            "    pip install google-generativeai   (classic)\n"
+            "    pip install google-genai          (new SDK)\n"
+            "or re-run install_dependencies.bat / install_linux.sh which install them.")
+
     max_retries = 5
     base_wait = 30
 
     for attempt in range(max_retries):
         try:
-            response = model.generate_content(prompt)
-            return response.text
+            return _gemini_generate(model_name, prompt, api_key)
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "Quota exceeded" in error_str:
                 wait_time = base_wait * (attempt + 1)
-                
+
                 match = re.search(r"retry in (\d+(\.\d+)?)s", error_str)
                 if match:
                     wait_time = float(match.group(1)) + 5.0
-                
+
                 print(f"[429] Quota Exceeded. Waiting {wait_time:.2f}s before retry {attempt+1}/{max_retries}...", flush=True)
                 time.sleep(wait_time)
                 continue
             else:
                 print(f"Erro na API do Gemini: {e}")
                 return "{}"
-    
+
     print("Falha após max retries no Gemini.")
     return "{}"
 

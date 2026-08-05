@@ -186,3 +186,9 @@ class TestErrorSummarizer:
         from webui.utils import render_error_html
         html = render_error_html(["ERROR: [youtube] x: Private video."])
         assert html != "" and "Private video" in html
+
+    def test_gemini_sdk_hint(self):
+        from webui.utils import summarize_error
+        _, _, hint = summarize_error(
+            "ImportError: Gemini SDK is not installed.\n... Sign in to confirm your age")
+        assert "Gemini" in hint and "كوكيز" not in hint

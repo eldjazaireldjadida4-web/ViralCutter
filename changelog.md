@@ -221,3 +221,12 @@
   editing quality, YouTube login).
 - **Arabic**: all new WebUI labels translated to ar_SA (27 keys) + pt_BR/tr_TR synced.
 - Tests: 316 → 322.
+
+## 🤖 v6.5 — Gemini SDK fix (both libraries supported)
+
+- create_viral_segments: works with EITHER `google-generativeai` (classic) or
+  `google-genai` (new SDK) — auto-detects; requirements.txt now installs both.
+- Actionable ImportError message (Arabic hint added to the WebUI error cards).
+- WebUI error hints now match the real error line first (no more wrong hints
+  from older log lines).
+- Tests: 322 → 325.

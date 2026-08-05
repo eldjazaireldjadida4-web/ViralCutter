@@ -256,3 +256,68 @@ class TestDownloadNeverReturnsNone:
         importlib.reload(dl2)
         with pytest.raises(SystemExit):
             dl2.download("not-a-url", base_root=str(tmp_path), download_subs=False)
+
+
+class TestGeminiDualSDK:
+    """create_viral_segments must work with EITHER Gemini SDK (v6.4)."""
+
+    def test_import_error_message_is_actionable(self):
+        import builtins
+        import importlib
+        import sys as _sys
+
+        real_import = builtins.__import__
+
+        def blocked(name, *a, **k):
+            if name == "google" or name.startswith("google."):
+                raise ImportError("blocked for test")
+            return real_import(name, *a, **k)
+
+        builtins.__import__ = blocked
+        try:
+            import scripts.create_viral_segments as cvs
+            importlib.reload(cvs)
+            assert cvs.HAS_GEMINI is False
+            try:
+                cvs.call_gemini("prompt", "key")
+                assert False, "should raise"
+            except ImportError as e:
+                assert "google-generativeai" in str(e) or "google-genai" in str(e)
+        finally:
+            builtins.__import__ = real_import
+            importlib.reload(__import__("scripts.create_viral_segments"))
+        try:
+            cvs.call_gemini("prompt", "key")
+            assert False, "should raise"
+        except ImportError as e:
+            assert "google-generativeai" in str(e) or "google-genai" in str(e)
+
+    def test_legacy_sdk_path_used(self):
+        import sys as _sys
+        import types
+
+        class FakeGenAI:
+            @staticmethod
+            def configure(**k):
+                pass
+
+            class GenerativeModel:
+                def __init__(self, name):
+                    self.name = name
+
+                def generate_content(self, prompt):
+                    return types.SimpleNamespace(text='{"segments": []}')
+
+        fake = types.ModuleType("google.generativeai")
+        fake.configure = FakeGenAI.configure
+        fake.GenerativeModel = FakeGenAI.GenerativeModel
+        _sys.modules["google.generativeai"] = fake
+        import importlib
+        import scripts.create_viral_segments as cvs
+        importlib.reload(cvs)
+        assert cvs.HAS_GEMINI is True
+        assert cvs.GEMINI_SDK == "legacy"
+        out = cvs.call_gemini("prompt", "key", model_name="m1")
+        assert out == '{"segments": []}'
+        del _sys.modules["google.generativeai"]
+        importlib.reload(cvs)
