@@ -53,6 +53,54 @@ $env:VIRALCUTTER_LANG="en_US"; python webui/app.py
 
 اللغات المتاحة: `ar_SA` (العربية)، `en_US` (الإنجليزية)، `pt_BR` (البرتغالية)، `tr_TR` (التركية).
 
+## 🪟 التثبيت على ويندوز (خطوة بخطوة)
+
+> **المتطلبات**: ويندوز 10/11 + إنترنت. (بايثون يُثبَّت تلقائياً بواسطة السكربت)
+
+**الطريقة 1 — سكربت واحد (موصى بها):**
+```bat
+:: 1) نزّل المشروع (زر Code ← Download ZIP وفك الضغط، أو:)
+git clone https://github.com/eldjazaireldjadida4-web/ViralCutter.git
+cd ViralCutter
+
+:: 2) شغّل المثبّت (يثبّت بايثون/الاعتماديات/FFmpeg/whisperx — اسألك عن كرت الشاشة)
+install_dependencies.bat
+
+:: 3) ضع مفتاح Gemini (مرة واحدة)
+setx GEMINI_API_KEY "مفتاحك-هنا"
+
+:: 4) شغّل البرنامج
+run.bat
+:: أو الواجهة الرسومية:
+run_webui.bat
+```
+
+**الطريقة 2 — يدوياً (PowerShell):**
+```powershell
+winget install Python.Python.3.11          # أو من python.org (فعّل "Add to PATH")
+winget install Gyan.FFmpeg                 # أو نزّل من gyan.dev
+py -m venv .venv
+.\.venv\Scriptsctivate
+pip install -r requirements.txt
+pip install -r requirements-transcribe.txt # whisperx + torch (GPU: ثبّت torch CUDA أولاً)
+$env:GEMINI_API_KEY="مفتاحك-هنا"
+python main_improved.py --url "..." --platform tiktok --polish on
+```
+
+**أمثلة تشغيل:**
+```bat
+:: CLI بمقطع فيروسي + قالب تيك توك + تحسين احترافي
+python main_improved.py --url "https://youtube.com/watch?v=..." --platform tiktok --polish on --logo logo.png
+
+:: الواجهة الرسومية (عربية RTL)
+run_webui.bat
+```
+
+> 💡 **ملاحظات ويندوز**:
+> - بطاقة NVIDIA → اختر CUDA في المثبّت (أسرع بكثير). AMD/Intel → نسخة CPU (تعمل لكن أبطأ).
+> - لو فشل `install_dependencies.bat` في البداية، أعد فتح الطرفية بعد تثبيت uv.
+> - مفتاح Gemini مجاني من https://aistudio.google.com/apikey
+
 ## التثبيت المحلي (سريع جداً ⚡)
 
 > ✅ **للعمل الكامل (يوتيوب → مقطع فيروسي) تحتاج 3 خطوات فقط**:
