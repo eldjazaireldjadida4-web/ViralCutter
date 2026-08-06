@@ -3,16 +3,22 @@ import sys
 import json
 try:
     import torch  # optional: only required for the real whisperx transcription path
-except Exception:
+except Exception as _torch_err:
     torch = None
+    _TORCH_IMPORT_ERROR = str(_torch_err)
+else:
+    _TORCH_IMPORT_ERROR = ""
 import time
 try:
     import whisperx
-except Exception:
+except Exception as _whisperx_err:
     # NOT just ModuleNotFoundError: a broken optional stack (e.g. a
     # transformers/tokenizers version conflict) must never kill the WebUI
     # or the rest of the pipeline — transcription degrades with a clear error.
     whisperx = None
+    _WHISPERX_IMPORT_ERROR = str(_whisperx_err)
+else:
+    _WHISPERX_IMPORT_ERROR = ""
 import gc
 import re
 import glob
@@ -273,12 +279,17 @@ def resolve_model_candidates(model_name):
 def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
     if whisperx is None or torch is None:
         missing = []
+        detail = ""
         if whisperx is None:
             missing.append("whisperx (import failed — check with: python -c \"import whisperx\")")
+            if _WHISPERX_IMPORT_ERROR:
+                detail += "\n  → whisperx import error: " + _WHISPERX_IMPORT_ERROR
         if torch is None:
             missing.append("torch (import failed — check with: python -c \"import torch\")")
+            if _TORCH_IMPORT_ERROR:
+                detail += "\n  → torch import error: " + _TORCH_IMPORT_ERROR
         msg = (
-            "Transcription is unavailable \u2014 missing/failed: " + ", ".join(missing) + "\n"
+            "Transcription is unavailable — missing/failed: " + ", ".join(missing) + detail + "\n"
             "Install the transcription stack:\n"
             "    pip install -r requirements-transcribe.txt\n"
             "or on Windows re-run install_dependencies.bat (choose your GPU type).\n"
