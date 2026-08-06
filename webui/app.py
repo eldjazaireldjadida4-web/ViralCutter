@@ -463,7 +463,8 @@ css = """
     align-items: center;
 }
 
-.vc-topbar > div {
+.vc-topbar > div,
+.vc-topbar > button {
     flex: 0 0 auto !important;
 }
 
@@ -495,6 +496,13 @@ footer {visibility: hidden}
 body, .gradio-container {
     direction: rtl !important;
     font-family: "Cairo", "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif !important;
+}
+
+/* Section headings inside the app: subtle separator for clean formatting */
+.gradio-container h3 {
+    margin-top: 16px !important;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 /* Header card: force light text regardless of Gradio theme defaults */
@@ -576,15 +584,19 @@ with gr.Blocks(**_blocks_kwargs) as demo:
         stop_btn = gr.Button("⏹️ إيقاف", variant="stop", visible=True, interactive=False, size="lg", min_width=140)
     with gr.Row(elem_classes=["vc-panels"]):
         with gr.Column(scale=1, min_width=280):
+            gr.Markdown("### 📊 التقدم")
             progress_panel = gr.HTML(value=render_progress_html(empty_progress_state()))
         with gr.Column(scale=1, min_width=280):
+            gr.Markdown("### 🧩 المهام")
             tasks_panel = gr.HTML(value=render_tasks_html(empty_progress_state()))
         with gr.Column(scale=1, min_width=280):
+            gr.Markdown("### ⚠️ الأخطاء")
             errors_panel = gr.HTML(value=render_error_html([]))
     with gr.Tabs():
-        with gr.Tab("إنشاء جديد"):
+        with gr.Tab("📥 إنشاء جديد"):
             with gr.Row():
                 with gr.Column(scale=1):
+                    gr.Markdown("### 1️⃣ المصدر")
                     input_source = gr.Radio([("رابط يوتيوب", "YouTube URL"), ("مشروع موجود", "Existing Project"), ("رفع فيديو", "Upload Video")], label="مصدر الإدخال", value="YouTube URL")
                     url_input = gr.Textbox(label="رابط يوتيوب", placeholder="https://www.youtube.com/watch?v=...", visible=True)
                     video_upload = gr.File(label=i18n("Drag & drop a video here or click to browse"), file_count="single", file_types=["video"], visible=False, elem_id="video_upload_box")
@@ -605,6 +617,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         projs = library.get_existing_projects(force_refresh=True)
                         return gr.update(visible=False), gr.update(choices=projs, visible=True), gr.update(visible=False), gr.update(value="Subtitles Only"), gr.update(visible=False)
 
+                    gr.Markdown("### ✂️ القص والترجمة")
                     with gr.Row():
                         segments_input = gr.Number(label="عدد المقاطع", value=3, precision=0)
                         viral_input = gr.Checkbox(label="وضع الفيروسية", value=True)
@@ -614,6 +627,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         min_dur_input = gr.Number(label="أقل مدة (ث)", value=15)
                         max_dur_input = gr.Number(label="أقصى مدة (ث)", value=90)
                 with gr.Column(scale=1):
+                    gr.Markdown("### 🤖 الذكاء الاصطناعي")
                     with gr.Row():
                         ai_backend_input = gr.Dropdown(choices=[(i18n("Gemini"), "gemini"), (i18n("G4F"), "g4f"), (i18n("Local (GGUF)"), "local"), (i18n("Manual"), "manual")], label="محرك الذكاء الاصطناعي", value="gemini", scale=2)
                         api_key_input = gr.Textbox(label="مفتاح Gemini API", type="password", scale=3)
@@ -655,6 +669,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     with gr.Row():
                         workflow_input = gr.Dropdown(choices=[(i18n("Full"), "Full"), (i18n("Cut Only"), "Cut Only"), (i18n("Subtitles Only"), "Subtitles Only")], label="طريقة العمل", value="Full")
                         face_model_input = gr.Dropdown(["insightface", "mediapipe"], label="نموذج الوجه", value="insightface")
+                    gr.Markdown("### 🛡️ الأمان")
                     safety_mode_input = gr.Dropdown(
                         choices=[(i18n("Block violating segments (recommended)"), "block"), (i18n("Bleep violating words (keep clip)"), "censor"), (i18n("Flag only (keep segments)"), "flag"), (i18n("Off"), "off")],
                         label=i18n("🛡️ Safety filter (hate speech)"),
@@ -757,12 +772,6 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         no_face_mode_input = gr.Dropdown(choices=[(i18n("Padding (9:16)"), "padding"), (i18n("Zoom (Center)"), "zoom")], label=i18n("No Face Fallback"), value="zoom")
                     input_source.change(on_source_change, inputs=input_source, outputs=[url_input, project_selector, video_upload, workflow_input, upload_hint])
 
-                with gr.Row():
-                    logs_output = gr.Textbox(label="السجل", lines=14, autoscroll=True, elem_id="logs_output")
-                    logs_output.change(fn=None, inputs=[], outputs=[], js="function() { var ta = document.querySelector('#logs_output textarea'); if (ta) { if (!ta._scrollerSetup) { ta._isSticky = true; ta.addEventListener('scroll', function() { var diff = ta.scrollHeight - ta.scrollTop - ta.clientHeight; ta._isSticky = diff <= 50; }); ta._scrollerSetup = true; } if (ta._isSticky === undefined || ta._isSticky === true) { ta.scrollTop = ta.scrollHeight; } } }")
-                gr.Markdown(tr("تظهر تحديثات التقدم هنا أثناء التشغيل."))
-                # kill_process returns 6 values (logs, start, stop, progress, tasks, errors)
-                stop_btn.click(kill_process, outputs=[logs_output, start_btn, stop_btn, progress_panel, tasks_panel, errors_panel])
             
             with gr.Accordion(i18n("Advanced Face Settings"), open=False):
                 face_preset_input = gr.Dropdown(choices=[(i18n(k), k) for k in FACE_PRESETS.keys()], label=i18n("Configuration Presets"), value="Default (Balanced)", interactive=True)
@@ -932,25 +941,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                 load_template_btn.click(load_settings_template, inputs=template_dropdown, outputs=[use_custom_subs] + manual_inputs + [face_mode_input, face_model_input, no_face_mode_input, face_detect_interval_input, template_status])
 
                 results_html = gr.HTML(label=tr("Results"))
-                with gr.Row():
-                    gr.Markdown(tr("سجل مباشر واضح، تقدّم مرئي، ورسائل خطأ مفهومة."))
 
-                start_btn.click(run_viral_cutter, inputs=[
-                    input_source, project_selector, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
-                    model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
-                    workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
-                    face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
-                    active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
-                    use_custom_subs,
-                    font_name_input, font_size_input, font_color_input, highlight_color_input,
-                    outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
-                    bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
-                    highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
-                    underline_input, strikeout_input, border_style_input, remove_punc_input,
-                    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
-                ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
-        with gr.Tab(i18n("Review Segments")):
+        with gr.Tab("👀 " + i18n("Review Segments")):
             gr.Markdown(f"### {i18n('Review Segments')}")
             gr.Markdown(i18n("Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones."))
             with gr.Row():
@@ -1025,22 +1017,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
             review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
             review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
-            review_render_btn.click(run_review_render, inputs=[
-                review_project_dropdown, review_df, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
-                model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
-                workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
-                face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
-                active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
-                use_custom_subs,
-                font_name_input, font_size_input, font_color_input, highlight_color_input,
-                outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
-                bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
-                highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
-                underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
-            ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
-        with gr.Tab(i18n("Batch Queue")):
+        with gr.Tab("📋 " + i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
             gr.Markdown(i18n("One YouTube URL per line. The queue processes them one by one with the current settings."))
             batch_urls_input = gr.Textbox(
@@ -1088,22 +1065,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                        gr.update(visible=True, interactive=False), None,
                        gr.update(), gr.update(), gr.update())
 
-            batch_run_btn.click(run_batch, inputs=[
-                batch_urls_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
-                model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
-                workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
-                face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
-                active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
-                use_custom_subs,
-                font_name_input, font_size_input, font_color_input, highlight_color_input,
-                outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
-                bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
-                highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
-                underline_input, strikeout_input, border_style_input, remove_punc_input,
-                video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-                    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
-            ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
-        with gr.Tab(i18n("Subtitle Editor")):
+        with gr.Tab("✍️ " + i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
             with gr.Row():
                 editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None, scale=4)
@@ -1187,7 +1149,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
 
             editor_export_all_btn.click(export_all, inputs=[editor_project_dropdown], outputs=editor_status)
 
-        with gr.Tab(i18n("Library")):
+        with gr.Tab("🗂️ " + i18n("Library")):
             gr.Markdown(f"### {i18n('Existing Projects')}")
             with gr.Row():
                 lib_query_input = gr.Textbox(label=i18n("Search by name"), placeholder=i18n("Type part of a project name"))
@@ -1203,6 +1165,68 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             def on_select_project(proj_name): return library.generate_project_gallery(proj_name)
             project_dropdown.change(on_select_project, project_dropdown, project_gallery_html)
     
+
+
+    gr.Markdown("---")
+    with gr.Row():
+        logs_output = gr.Textbox(label="📜 السجل — تظهر تحديثات التقدم هنا أثناء التشغيل", lines=12, autoscroll=True, elem_id="logs_output", scale=9)
+        with gr.Column(scale=1, min_width=110):
+            gr.Markdown("&nbsp;")
+            clear_log_btn = gr.Button("🗑️ مسح السجل", size="sm")
+    logs_output.change(fn=None, inputs=[], outputs=[], js="function() { var ta = document.querySelector('#logs_output textarea'); if (ta) { if (!ta._scrollerSetup) { ta._isSticky = true; ta.addEventListener('scroll', function() { var diff = ta.scrollHeight - ta.scrollTop - ta.clientHeight; ta._isSticky = diff <= 50; }); ta._scrollerSetup = true; } if (ta._isSticky === undefined || ta._isSticky === true) { ta.scrollTop = ta.scrollHeight; } } }")
+    clear_log_btn.click(lambda: "", outputs=logs_output)
+
+    # kill_process returns 6 values (logs, start, stop, progress, tasks, errors)
+    stop_btn.click(kill_process, outputs=[logs_output, start_btn, stop_btn, progress_panel, tasks_panel, errors_panel])
+
+
+    start_btn.click(run_viral_cutter, inputs=[
+    input_source, project_selector, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
+    model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
+    workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
+    face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
+    active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
+    use_custom_subs,
+    font_name_input, font_size_input, font_color_input, highlight_color_input,
+    outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
+    bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
+    highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
+    underline_input, strikeout_input, border_style_input, remove_punc_input,
+    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
+
+    review_render_btn.click(run_review_render, inputs=[
+    review_project_dropdown, review_df, url_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
+    model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
+    workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
+    face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
+    active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
+    use_custom_subs,
+    font_name_input, font_size_input, font_color_input, highlight_color_input,
+    outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
+    bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
+    highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
+    underline_input, strikeout_input, border_style_input, remove_punc_input,
+    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
+
+    batch_run_btn.click(run_batch, inputs=[
+    batch_urls_input, video_upload, segments_input, viral_input, themes_input, min_dur_input, max_dur_input,
+    model_input, ai_backend_input, api_key_input, ai_model_input, chunk_size_input,
+    workflow_input, face_model_input, face_mode_input, face_detect_interval_input, no_face_mode_input,
+    face_filter_thresh_input, face_two_thresh_input, face_conf_thresh_input, face_dead_zone_input, focus_active_speaker_input,
+    active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input,
+    use_custom_subs,
+    font_name_input, font_size_input, font_color_input, highlight_color_input,
+    outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
+    bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
+    highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
+    underline_input, strikeout_input, border_style_input, remove_punc_input,
+    video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
 if __name__ == "__main__":
     import argparse
