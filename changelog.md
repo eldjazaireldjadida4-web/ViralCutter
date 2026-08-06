@@ -273,3 +273,12 @@
   removed in NumPy 2.0 → old pyannote.audio crashes).
 - Arabic WebUI hint for the numpy conflict.
 - Tests: 341 → 342.
+
+## 🛠️ v6.8 — 403 handling + specific whisperx/torch diagnostics
+
+- download_video: on HTTP 403 (Forbidden) → clear Arabic-adjacent guidance AND an
+  automatic retry with alternative YouTube player clients (android/tv/web_safari).
+- transcribe_video: the "stack missing" error now names WHICH import failed
+  (whisperx vs torch) with a check command for each.
+- WebUI hints: 403/Forbidden → update yt-dlp / use cookies / retry later.
+- Tests: 342 → 343.

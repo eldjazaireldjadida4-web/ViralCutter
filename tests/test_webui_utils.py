@@ -203,3 +203,8 @@ class TestErrorSummarizer:
         from webui.utils import summarize_error
         _, _, hint = summarize_error("AttributeError: `np.NaN` was removed in the NumPy 2.0 release.")
         assert "numpy<2" in hint
+
+    def test_403_hint(self):
+        from webui.utils import summarize_error
+        _, _, hint = summarize_error("yt_dlp.utils.DownloadError: ERROR: unable to download video data: HTTP Error 403: Forbidden")
+        assert "yt-dlp" in hint

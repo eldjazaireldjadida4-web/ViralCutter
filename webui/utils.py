@@ -166,6 +166,8 @@ KNOWN_ERROR_HINTS = [
     ("google-generativeai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai (أو أعد تشغيل install_dependencies.bat)"),
     ("google.genai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-genai (أو أعد تشغيل install_dependencies.bat)"),
     ("gemini sdk", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai"),
+    ("403", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
+    ("forbidden", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
     ("np.nan", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
     ("numpy 2.0", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
     ("invalid model size", "نموذج Whisper غير مدعوم في نسخة faster-whisper المثبتة — حدّثها: uv pip install -U faster-whisper، أو اختر نموذجاً آخر مثل large-v3 أو medium من القائمة"),

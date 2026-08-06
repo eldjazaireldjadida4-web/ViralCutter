@@ -40,6 +40,12 @@ def _friendly_download_error(e, url=""):
         return i18n("\n[ERROR] The link is not a valid YouTube URL.")
     if "unable to download video subtitles" in low or "429" in low:
         return None  # handled by the retry-without-subs branch
+    if "403" in msg or "forbidden" in low:
+        return (i18n("\n[ERROR] YouTube blocked the download (HTTP 403).\n"
+                     "Fixes (try in order):\n"
+                     "  1) Update yt-dlp:  uv pip install -U yt-dlp\n"
+                     "  2) Use browser cookies: --cookies-from-browser chrome (or the 🔒 list in the WebUI)\n"
+                     "  3) Retry in a few minutes (YouTube rate-limits aggressively)"))
     return i18n("\n[ERROR] YouTube download failed: {}").format(e)
 
 
@@ -201,11 +207,28 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best",
     except UnicodeEncodeError:
         print(i18n("Downloading video to: {}...").format(project_folder.encode('ascii', 'replace').decode('ascii')))
 
+    def _run_download(opts):
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            ydl.download([url])
+
     # Tentativa 1: Com configuração original
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        _run_download(ydl_opts)
     except yt_dlp.utils.DownloadError as e:
+        error_str = str(e)
+        # HTTP 403 (Forbidden) → retry once with alternative YouTube player
+        # clients (the classic fix for bot-detection blocks).
+        if ("403" in error_str or "Forbidden" in error_str) and "extractor_args" not in ydl_opts:
+            print(i18n("\nWarning: YouTube returned 403 — retrying with an alternative player client..."))
+            retry_opts = dict(ydl_opts)
+            retry_opts['extractor_args'] = {'youtube': {'player_client': ['android', 'tv', 'web_safari']}}
+            try:
+                _run_download(retry_opts)
+                ydl_opts = retry_opts  # so the subtitle post-processor below sees success
+            except yt_dlp.utils.DownloadError as e2:
+                e = e2
+            except Exception as e2:
+                e = e2
         error_str = str(e)
         if "No address associated with hostname" in error_str or "Failed to resolve" in error_str:
             print(i18n("\n[CRITICAL ERROR] Connection Failure: Could not access YouTube."))

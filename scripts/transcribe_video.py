@@ -272,11 +272,16 @@ def resolve_model_candidates(model_name):
 
 def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
     if whisperx is None or torch is None:
+        missing = []
+        if whisperx is None:
+            missing.append("whisperx (import failed — check with: python -c \"import whisperx\")")
+        if torch is None:
+            missing.append("torch (import failed — check with: python -c \"import torch\")")
         msg = (
-            "WhisperX/torch are not installed \u2014 full transcription is unavailable. "
+            "Transcription is unavailable \u2014 missing/failed: " + ", ".join(missing) + "\n"
             "Install the transcription stack:\n"
             "    pip install -r requirements-transcribe.txt\n"
-            "(GPU recommended \u2014 install a CUDA torch first, see the file header).\n"
+            "or on Windows re-run install_dependencies.bat (choose your GPU type).\n"
             "Then re-run. (Testing only the editing/safety features? Set "
             "VIRALCUTTER_ALLOW_PLACEHOLDER=1 to continue with placeholder subtitles.)"
         )
