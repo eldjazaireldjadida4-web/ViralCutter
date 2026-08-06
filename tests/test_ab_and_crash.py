@@ -93,3 +93,43 @@ class TestCrashReport:
         entry = crash_report.report("x", ValueError("z"),
                                     log_path=str(tmp_path / "c.log"))
         assert entry["error_type"] == "ValueError"
+
+
+class TestTitleLanguage:
+    """Arabic titles feature (v6.6) — language_instruction helper."""
+
+    def test_ar_instruction(self):
+        from scripts.create_viral_segments import language_instruction
+        ins = language_instruction("ar")
+        assert "LANGUAGE RULE" in ins and "Arabic" in ins
+
+    def test_auto_no_instruction(self):
+        from scripts.create_viral_segments import language_instruction
+        assert language_instruction("auto") == ""
+        assert language_instruction(None) == ""
+        assert language_instruction("") == ""
+
+    def test_unknown_falls_back_auto(self):
+        from scripts.create_viral_segments import language_instruction
+        assert language_instruction("xx") == ""
+
+    def test_webui_command_passes_flag(self):
+        from webui.pipeline import build_command
+        cmd = build_command("main.py", ["--url", "x"], segments=3, title_language="ar")
+        assert "--title-language" in cmd
+        assert cmd[cmd.index("--title-language") + 1] == "ar"
+
+    def test_webui_auto_omits_flag(self):
+        from webui.pipeline import build_command
+        cmd = build_command("main.py", ["--url", "x"], segments=3, title_language="auto")
+        assert "--title-language" not in cmd
+
+
+class TestAVSyncFix:
+    """edit_video mux must keep audio in sync (v6.6)."""
+
+    def test_finalize_uses_shortest_and_aresample(self):
+        src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "scripts", "edit_video.py"), encoding="utf-8").read()
+        assert "-shortest" in src
+        assert "aresample=async=1" in src

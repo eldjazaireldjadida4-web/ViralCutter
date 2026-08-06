@@ -573,5 +573,15 @@
     "📱 Platform template": "📱 قالب المنصة",
     "🔒 YouTube login": "🔒 تسجيل الدخول ليوتيوب",
     "🔒 YouTube login (cookies)": "🔒 تسجيل دخول يوتيوب (كوكيز)",
-    "✨ Pro editing & platforms (v6)": "✨ المونتاج الاحترافي والمنصات (v6)"
+    "✨ Pro editing & platforms (v6)": "✨ المونتاج الاحترافي والمنصات (v6)",
+    "'Auto' matches the video language; choose Arabic to force all titles/captions in Arabic.": "تلقائي = مثل لغة الفيديو؛ اختر العربية لإجبار كل العناوين والكابشن على العربية.",
+    "Auto (same as video language)": "تلقائي (مثل لغة الفيديو)",
+    "Deutsch": "الألمانية",
+    "English": "الإنجليزية",
+    "Español": "الإسبانية",
+    "Français": "الفرنسية",
+    "Português": "البرتغالية",
+    "Türkçe": "التركية",
+    "🌐 Titles & captions language": "🌐 لغة العناوين والكابشن",
+    "Arabic": "العربية"
 }

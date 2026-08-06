@@ -557,7 +557,39 @@ def segment_captions(segment):
 
 
 
-def create(num_segments, viral_mode, themes, tempo_minimo, tempo_maximo, ai_mode="manual", api_key=None, project_folder="tmp", chunk_size_arg=None, model_name_arg=None):
+LANG_NAMES = {
+    "auto": "the same language as the transcript",
+    "ar": "Arabic (العربية)",
+    "en": "English",
+    "fr": "French",
+    "es": "Spanish",
+    "pt": "Portuguese",
+    "de": "German",
+    "tr": "Turkish",
+    "ru": "Russian",
+    "hi": "Hindi",
+}
+
+
+def language_instruction(title_language):
+    """STRICT output-language rule injected into the prompt (v6.6).
+
+    Default "auto" keeps the old behaviour (match the transcript).
+    Any other code (e.g. "ar") forces ALL generated text (titles, alt_titles,
+    reasoning, captions) into that language regardless of the transcript.
+    """
+    code = str(title_language or "auto").strip().lower()
+    if code == "auto" or code not in LANG_NAMES:
+        return ""
+    return (
+        "\nLANGUAGE RULE (STRICT, OVERRIDES ANYTHING ELSE):\n"
+        "Output EVERYTHING \u2014 title, alt_titles, reasoning, caption, alt_captions \u2014 "
+        "in {} regardless of the transcript language.\n"
+        "Hashtags stay in English (or the requested language).".format(LANG_NAMES[code])
+    )
+
+
+def create(num_segments, viral_mode, themes, tempo_minimo, tempo_maximo, ai_mode="manual", api_key=None, project_folder="tmp", chunk_size_arg=None, model_name_arg=None, title_language="auto"):
     quantidade_de_virals = num_segments
 
     # 1. Load Transcript
@@ -711,6 +743,7 @@ OUTPUT JSON ONLY:
             prompt = prompt.replace("{json_template}", json_template)
             prompt = prompt.replace("{amount}", str(quantidade_de_virals))
 
+        prompt += language_instruction(title_language)
         output_texts.append(prompt)
 
     try:
@@ -724,6 +757,7 @@ OUTPUT JSON ONLY:
         full_prompt = full_prompt.replace("{json_template}", json_template)
         full_prompt = full_prompt.replace("{amount}", str(quantidade_de_virals))
         
+        full_prompt += language_instruction(title_language)
         with open(full_prompt_path, "w", encoding="utf-8") as f:
             f.write(full_prompt)
     except Exception as e:

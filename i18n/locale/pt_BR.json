@@ -470,5 +470,15 @@
     "📱 Platform template": "📱 Platform template",
     "🔒 YouTube login": "🔒 YouTube login",
     "🔒 YouTube login (cookies)": "🔒 YouTube login (cookies)",
-    "✨ Pro editing & platforms (v6)": "✨ Pro editing & platforms (v6)"
+    "✨ Pro editing & platforms (v6)": "✨ Pro editing & platforms (v6)",
+    "'Auto' matches the video language; choose Arabic to force all titles/captions in Arabic.": "'Auto' matches the video language; choose Arabic to force all titles/captions in Arabic.",
+    "Auto (same as video language)": "Auto (same as video language)",
+    "Deutsch": "Deutsch",
+    "English": "English",
+    "Español": "Español",
+    "Français": "Français",
+    "Português": "Português",
+    "Türkçe": "Türkçe",
+    "🌐 Titles & captions language": "🌐 Titles & captions language",
+    "Arabic": "Arabic"
 }

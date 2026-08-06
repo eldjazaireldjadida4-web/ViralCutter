@@ -238,3 +238,15 @@
   overwrote input.mp4. Now keeps Unicode letters (Arabic/CJK/Latin), strips only
   reserved chars/emojis; empty → "Unknown_Video". + regression tests.
 - Tests: 325 → 329.
+
+## 🇩🇿🎬 v6.6 — Arabic titles + A/V sync fix + developer report
+
+- **Arabic titles**: `--title-language ar` forces ALL AI output (titles, alt_titles,
+  reasoning, captions) into Arabic regardless of video language; WebUI dropdown
+  "🌐 لغة العناوين والكابشن" (auto/ar/en/fr/es/pt/de/tr).
+- **A/V sync fix**: edit_video mux now uses -shortest + aresample=async=1 (audio
+  follows the OpenCV-processed video timeline) + fps guard for VFR/broken metadata.
+- **docs/ROADMAP_REPORT.md section 9**: developer handover report — what was fixed,
+  prioritized remaining work (mediapipe guard, fonts, first Release, CI permission,
+  TikTok/IG OAuth, deeper sync rework).
+- Tests: 329 → 335.

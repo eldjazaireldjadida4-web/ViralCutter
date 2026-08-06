@@ -247,6 +247,8 @@ def main():
                         help="Use your browser's login cookies to download private / age-restricted videos (e.g. --cookies-from-browser chrome)")
     parser.add_argument("--cookies", default=None,
                         help="Path to a Netscape-format cookies.txt file exported for yt-dlp (alternative to --cookies-from-browser)")
+    parser.add_argument("--title-language", default="auto",
+                        help="Output language for titles/captions: 'auto' (match the transcript, default) or a code like 'ar', 'en', 'fr', 'es', 'pt', 'de', 'tr', 'ru', 'hi'")
 
     args = parser.parse_args()
     global RUNTIME_VERBOSE
@@ -680,7 +682,8 @@ def main():
                         api_key=api_key,
                         project_folder=project_folder,
                         chunk_size_arg=args.chunk_size,
-                        model_name_arg=args.ai_model_name
+                        model_name_arg=args.ai_model_name,
+                        title_language=args.title_language
                     )
                 
                 emit_progress("ai", 55, "تحليل AI")

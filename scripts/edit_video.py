@@ -103,6 +103,8 @@ def generate_short_fallback(input_file, output_file, index, project_folder, fina
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)
+    if not fps or fps <= 0 or fps > 240:
+        fps = 30.0  # broken/VFR metadata → assume 30; keeps A/V in sync
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
@@ -168,6 +170,9 @@ def finalize_video(input_file, output_file, index, fps, project_folder, final_fo
     if os.path.exists(audio_file) and os.path.getsize(audio_file) > 0:
         final_output = os.path.join(final_folder, f"final-output{str(index).zfill(3)}_processed.mp4")
         encoder_name, encoder_preset = get_best_encoder()
+        # A/V sync fix (v6.6): the OpenCV frame pipe can drop/duplicate frames,
+        # making the video slightly shorter than the source audio. Without
+        # -shortest + aresample the muxed audio drifted out of sync.
         command = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-stats",
             "-i", output_file,
@@ -175,6 +180,8 @@ def finalize_video(input_file, output_file, index, fps, project_folder, final_fo
             "-c:v", encoder_name, "-preset", encoder_preset, "-b:v", "5M",
             "-c:a", "aac", "-b:a", "192k",
             "-r", str(fps),
+            "-af", "aresample=async=1",
+            "-shortest",
             final_output
         ]
         try:
