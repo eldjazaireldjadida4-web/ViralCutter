@@ -49,6 +49,7 @@ uv pip install -U yt-dlp
 echo.
 echo [5/6] Installing transcription stack (whisperx - REQUIRED for the full pipeline)...
 uv pip install whisperx
+uv pip install "numpy<2"  :: whisperx breaks on NumPy 2.x (np.NaN removed) - keep it pinned
 
 echo.
 echo [6/6] FFmpeg check...

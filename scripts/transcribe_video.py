@@ -284,10 +284,20 @@ def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
             missing.append("whisperx (import failed — check with: python -c \"import whisperx\")")
             if _WHISPERX_IMPORT_ERROR:
                 detail += "\n  → whisperx import error: " + _WHISPERX_IMPORT_ERROR
+                err_low = _WHISPERX_IMPORT_ERROR.lower()
+                if "np.nan" in err_low or "numpy 2" in err_low or "num_py" in err_low:
+                    detail += ("\n  → FIX: NumPy 2.x breaks whisperx — downgrade it: "
+                               "uv pip install \"numpy<2\"  (or: pip install \"numpy<2\")")
+                elif "tokenizers" in err_low:
+                    detail += ("\n  → FIX: tokenizers/transformers version conflict — upgrade them: "
+                               "uv pip install -U tokenizers transformers")
         if torch is None:
             missing.append("torch (import failed — check with: python -c \"import torch\")")
             if _TORCH_IMPORT_ERROR:
                 detail += "\n  → torch import error: " + _TORCH_IMPORT_ERROR
+                if "no module named 'torch'" in _TORCH_IMPORT_ERROR.lower():
+                    detail += ("\n  → FIX: install torch first — see the instructions in "
+                               "requirements-transcribe.txt (CUDA build for GPU).")
         msg = (
             "Transcription is unavailable — missing/failed: " + ", ".join(missing) + detail + "\n"
             "Install the transcription stack:\n"
