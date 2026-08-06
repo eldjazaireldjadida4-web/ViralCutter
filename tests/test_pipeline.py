@@ -343,3 +343,38 @@ class TestSanitizeArabicTitle:
     def test_empty_falls_back(self):
         from scripts.download_video import sanitize_filename
         assert sanitize_filename("") == "Unknown_Video"
+
+
+class TestBrokenWhisperxResilience:
+    """A broken optional stack (e.g. tokenizers/transformers conflict) must not
+    kill the WebUI or the pipeline — whisperx import is guarded (v6.7)."""
+
+    def test_transcribe_video_imports_with_broken_whisperx(self):
+        import builtins
+        import importlib
+        real_import = builtins.__import__
+
+        def blocked(name, *a, **k):
+            if name == "whisperx":
+                raise ImportError("tokenizers>=0.22.0,<=0.23.0 is required ...")
+            return real_import(name, *a, **k)
+
+        builtins.__import__ = blocked
+        try:
+            import scripts.transcribe_video as tv
+            importlib.reload(tv)
+            assert tv.whisperx is None
+        finally:
+            builtins.__import__ = real_import
+            importlib.reload(__import__("scripts.transcribe_video"))
+
+    def test_placeholder_path_still_guarded(self):
+        import scripts.transcribe_video as tv
+        # without the env flag it must raise a clear error, not crash
+        import os
+        os.environ.pop("VIRALCUTTER_ALLOW_PLACEHOLDER", None)
+        try:
+            tv.transcribe("/nope.mp4", "large-v3", project_folder="/tmp/x")
+            assert False, "should raise"
+        except ImportError as e:
+            assert "requirements-transcribe" in str(e) or "torch" in str(e) or "WhisperX" in str(e)

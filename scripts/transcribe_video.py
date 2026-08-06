@@ -3,12 +3,15 @@ import sys
 import json
 try:
     import torch  # optional: only required for the real whisperx transcription path
-except ImportError:
+except Exception:
     torch = None
 import time
 try:
     import whisperx
-except ModuleNotFoundError:
+except Exception:
+    # NOT just ModuleNotFoundError: a broken optional stack (e.g. a
+    # transformers/tokenizers version conflict) must never kill the WebUI
+    # or the rest of the pipeline — transcription degrades with a clear error.
     whisperx = None
 import gc
 import re

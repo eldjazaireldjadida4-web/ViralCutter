@@ -259,3 +259,10 @@
 - WebUI error hint for "invalid model size" (Arabic): update faster-whisper or
   pick large-v3/medium — and hints now correctly prefer the real error line.
 - Tests: 335 → 339.
+
+## 🛡️ v6.7b — Broken optional stack no longer kills the WebUI
+
+- whisperx/torch import guards widened (any Exception, not just ModuleNotFoundError):
+  a transformers/tokenizers version conflict no longer crashes the whole app/WebUI.
+- subtitle_editor imports main_improved lazily (faster WebUI startup, less fragile).
+- Tests: 339 → 341.

@@ -9,7 +9,6 @@ from pathlib import Path
 # Import scripts for direct processing
 import scripts.adjust_subtitles as adjust
 import scripts.burn_subtitles as burn
-import main_improved 
 
 # Helper to format seconds to HH:MM:SS,mmm
 def format_timestamp(seconds):
@@ -346,6 +345,7 @@ def render_specific_video(json_full_path):
         if not os.path.exists(config_path):
              config_path = None
         
+        import main_improved  # lazy: heavy import, only when needed (v6.7)
         config = main_improved.get_subtitle_config(config_path)
         # print(f"DEBUG: Loaded subt config: H={config.get('highlight_color')} B={config.get('base_color')}")
         # Ensure 'uppercase' exists as it's not in default config of main_improved
