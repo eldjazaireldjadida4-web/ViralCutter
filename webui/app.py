@@ -27,6 +27,13 @@ sys.path.append(WORKING_DIR)
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 i18n = I18nAuto(DEFAULT_LANGUAGE)
 
+# Version banner at startup — helps confirm you run the latest code
+try:
+    from app_version import VERSION as _VERSION
+    print(f"ViralCutter WebUI v{_VERSION} (update: git reset --hard origin/main)")
+except Exception:
+    pass
+
 def tr(key):
     return i18n(key)
 
