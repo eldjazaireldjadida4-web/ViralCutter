@@ -155,6 +155,14 @@ def _html_escape(text):
 # ---------------------------------------------------------------------------
 
 KNOWN_ERROR_HINTS = [
+    # --- Gemini API errors first: common when keys expire or quota ends (v6.9) ---
+    ("api key not valid", "مفتاح Gemini غير صالح — تحقق منه أو أنشئ مفتاحاً جديداً من aistudio.google.com/apikey ثم احفظه في الإعدادات"),
+    ("api_key_invalid", "مفتاح Gemini غير صالح — تحقق منه أو أنشئ مفتاحاً جديداً من aistudio.google.com/apikey ثم احفظه في الإعدادات"),
+    ("permission_denied", "مفتاح Gemini مرفوض (PERMISSION_DENIED) — تأكد أن المفتاح فعّال وأن Generative Language API مُفعّلة في مشروع Google Cloud"),
+    ("resource_exhausted", "انتهت حصة Gemini المجانية أو الحد اليومي — انتظر حتى يتجدد الحد، أو ارفع الحصة، أو استعمل مفتاحاً آخر"),
+    ("quota exceeded", "انتهت حصة Gemini المجانية أو الحد اليومي — انتظر حتى يتجدد الحد، أو ارفع الحصة، أو استعمل مفتاحاً آخر"),
+    ("rate limit", "يوتيوب/Gemini يحدّ الطلبات مؤقتاً — انتظر دقيقة وأعد المحاولة"),
+    # --- YouTube / download errors ---
     ("private video", "الفيديو خاص — استعمل كوكيز المتصفح: من قائمة 🔒 أو أعد التشغيل بـ --cookies-from-browser chrome"),
     ("sign in", "الفيديو يتطلب تسجيل دخول يوتيوب — استعمل كوكيز متصفحك من قائمة 🔒"),
     ("cookiesfrombrowser", "تعذّرت قراءة كوكيز المتصفح (تشفير Chrome) — جرّب Firefox أو ملف cookies.txt مُصدَّر"),
@@ -163,6 +171,8 @@ KNOWN_ERROR_HINTS = [
     ("google-generativeai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai (أو أعد تشغيل install_dependencies.bat)"),
     ("google.genai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-genai (أو أعد تشغيل install_dependencies.bat)"),
     ("gemini sdk", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai"),
+    ("generativelanguage", "خطأ من واجهة Gemini — غالباً مفتاح غير صالح أو حصة منتهية: جرّب زر 🔌 اختبار الاتصال في إعدادات الذكاء الاصطناعي"),
+    ("no viral segments", "الذكاء الاصطناعي لم يُرجع مقاطع — غالباً مفتاح Gemini غير صالح أو الحصة منتهية: جرّب 🔌 اختبار الاتصال في الإعدادات"),
     ("403", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
     ("forbidden", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
     ("np.nan", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),

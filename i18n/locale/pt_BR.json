@@ -480,5 +480,22 @@
     "Português": "Português",
     "Türkçe": "Türkçe",
     "🌐 Titles & captions language": "🌐 Titles & captions language",
-    "Arabic": "Arabic"
+    "Arabic": "Arabic",
+    "Save Settings": "Salvar configurações",
+    "Test Connection": "Testar conexão",
+    "The key is saved automatically — no need to re-enter it each time.": "A chave é salva automaticamente — sem precisar digitá-la toda vez.",
+    "saved": "salvo",
+    "not saved yet": "ainda não salvo",
+    "not set — paste your key once and it will be remembered": "não definido — cole sua chave uma vez e ela será lembrada",
+    "Settings saved automatically": "Configurações salvas automaticamente",
+    "Error saving settings": "Erro ao salvar configurações",
+    "Settings saved": "Configurações salvas",
+    "Connection test is only available for Gemini.": "O teste de conexão está disponível apenas para o Gemini.",
+    "Connection OK — the key works.": "Conexão OK — a chave funciona.",
+    "Connection failed:": "Falha na conexão:",
+    "from environment variable": "da variável de ambiente",
+    "from encrypted store": "do armazenamento criptografado",
+    "saved in api_config.json": "salvo em api_config.json",
+    "Error: Gemini API key is missing. Paste it in the AI settings (saved automatically) or set the GEMINI_API_KEY environment variable.": "Erro: a chave da API Gemini está ausente. Cole-a nas configurações de IA (salva automaticamente) ou defina a variável de ambiente GEMINI_API_KEY.",
+    "Warning: the API key does not look like a Gemini key (usually starts with 'AIza'). Continuing anyway.": "Aviso: a chave não parece uma chave do Gemini (geralmente começa com 'AIza'). Continuando mesmo assim."
 }

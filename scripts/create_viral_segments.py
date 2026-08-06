@@ -225,6 +225,15 @@ def _gemini_generate(model_name, prompt, api_key):
     return client.models.generate_content(model=model_name, contents=prompt).text
 
 
+def _is_key_error(error_str):
+    """True when the Gemini failure is a key/auth problem, not a transient one."""
+    low = error_str.lower()
+    return any(token in low for token in (
+        "api key not valid", "api_key_invalid", "permission_denied",
+        "401", "403", "unauthenticated", "invalid api key",
+    ))
+
+
 def call_gemini(prompt, api_key, model_name='gemini-2.5-flash-lite-preview-09-2025'):
     if not HAS_GEMINI:
         raise ImportError(
@@ -251,11 +260,21 @@ def call_gemini(prompt, api_key, model_name='gemini-2.5-flash-lite-preview-09-20
                 print(f"[429] Quota Exceeded. Waiting {wait_time:.2f}s before retry {attempt+1}/{max_retries}...", flush=True)
                 time.sleep(wait_time)
                 continue
+            elif _is_key_error(error_str):
+                # v6.9: fail LOUDLY on bad keys. Returning "{}" here used to
+                # push the run forward until it died on the confusing
+                # "no viral segments" error far from the real cause.
+                raise RuntimeError(
+                    "Gemini API key error (API key not valid): "
+                    "check the key or generate a new one at "
+                    "aistudio.google.com/apikey. "
+                    "مفتاح Gemini غير صالح — تحقق منه أو أنشئ مفتاحاً جديداً "
+                    "من aistudio.google.com/apikey") from e
             else:
-                print(f"Erro na API do Gemini: {e}")
+                print(f"Gemini API error (non-fatal, returning empty): {e}")
                 return "{}"
 
-    print("Falha após max retries no Gemini.")
+    print("Gemini failed after max retries.")
     return "{}"
 
 def call_g4f(prompt, model_name="gpt-4o-mini"):

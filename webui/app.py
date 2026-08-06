@@ -18,6 +18,7 @@ import subtitle_handler as subs # Module for Subtitles
 import subtitle_editor as editor # Module for Editor Logic
 import segments_review # Module for Segments Review Logic
 import batch_queue # Module for Batch Queue Logic
+import settings_store # Module for persistent AI settings (save/load Gemini key)
 
 # Path to the main script
 MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main_improved.py")
@@ -176,6 +177,123 @@ def apply_experimental_preset(preset_name):
     )
 
 
+# ---------------------------------------------------------------------------
+# Persistent AI settings (v6.9) — save the Gemini key once, never retype it
+# ---------------------------------------------------------------------------
+
+_KEY_SOURCE_LABELS = {
+    settings_store.KEY_SOURCE_ENV: i18n("from environment variable"),
+    settings_store.KEY_SOURCE_SECURE: i18n("from encrypted store"),
+    settings_store.KEY_SOURCE_FILE: i18n("saved in api_config.json"),
+    settings_store.KEY_SOURCE_NONE: "",
+}
+
+
+def settings_status_text(api_key=None):
+    """Status line for the AI settings card: masked key + where it lives."""
+    saved = settings_store.load_ui_settings()
+    current_key = (api_key if api_key is not None else saved["api_key"]) or ""
+    current_key = current_key.strip()
+    saved_key = (saved["api_key"] or "").strip()
+    if current_key:
+        line = "🔑 **{}:** `{}`".format(
+            i18n("Gemini API Key"), settings_store.mask_key(current_key))
+        if current_key == saved_key:
+            src = _KEY_SOURCE_LABELS.get(saved["key_source"], "")
+            line += " — ✅ " + i18n("saved") + (f" ({src})" if src else "")
+        else:
+            line += " — 💾 " + i18n("not saved yet")
+    else:
+        line = "⚠️ **{}:** {}".format(
+            i18n("Gemini API Key"),
+            i18n("not set — paste your key once and it will be remembered"))
+    return line
+
+
+def _model_choices_for(backend, saved_model):
+    """Model dropdown choices/value per backend, keeping the saved model."""
+    if backend == "gemini":
+        choices, default = list(GEMINI_MODELS), GEMINI_MODELS[1]
+        model_visible, refresh_visible, api_visible = True, False, True
+    elif backend == "g4f":
+        choices, default = list(G4F_MODELS), G4F_MODELS[5]
+        model_visible, refresh_visible, api_visible = True, False, False
+    elif backend == "local":
+        models = get_local_models()
+        choices = models if models else [i18n("No models found")]
+        default = choices[0]
+        model_visible, refresh_visible, api_visible = True, True, False
+    else:
+        choices, default = [], saved_model or ""
+        model_visible, refresh_visible, api_visible = False, False, False
+    val = saved_model or default
+    if val and val not in choices:
+        choices = choices + [val]
+    return choices, val, model_visible, refresh_visible, api_visible
+
+
+def load_saved_settings():
+    """On UI load: prefill AI settings from the saved config (no retyping)."""
+    s = settings_store.load_ui_settings()
+    backend = s["ai_backend"]
+    choices, val, model_visible, refresh_visible, api_visible = _model_choices_for(
+        backend, s["ai_model"])
+    chunk = s["chunk_size"]
+    if backend == "local" and not chunk:
+        chunk = 30000
+    return (
+        gr.update(value=backend),
+        gr.update(value=s["api_key"], visible=api_visible),
+        gr.update(choices=choices, value=val, visible=model_visible),
+        gr.update(visible=refresh_visible),
+        gr.update(value=chunk),
+        settings_status_text(s["api_key"]),
+    )
+
+
+def _save_and_status(backend, api_key, model, chunk, note=None):
+    ok, err = settings_store.save_ui_settings(
+        ai_backend=backend, api_key=api_key, ai_model=model, chunk_size=chunk)
+    status = settings_status_text(api_key)
+    stamp = datetime.datetime.now().strftime("%H:%M:%S")
+    if ok:
+        tail = "💾 {} {}".format(
+            note or i18n("Settings saved automatically"), stamp)
+    else:
+        tail = "❌ {}: {}".format(i18n("Error saving settings"), err)
+    return status + "\n\n" + tail
+
+
+def on_backend_change(backend, api_key, model, chunk):
+    """Backend switched: refresh model choices AND remember the choice."""
+    show_api, model_upd, refresh_upd, chunk_upd = update_ai_ui(backend)
+    if backend == "manual":
+        chunk_upd = gr.update(value=chunk)
+    status = _save_and_status(backend, api_key, model, chunk)
+    return show_api, model_upd, refresh_upd, chunk_upd, status
+
+
+def on_settings_changed(backend, api_key, model, chunk):
+    """Any AI setting edited: remember it immediately (silent on empty key)."""
+    return _save_and_status(backend, api_key, model, chunk)
+
+
+def save_settings_click(backend, api_key, model, chunk):
+    return _save_and_status(backend, api_key, model, chunk,
+                            note=i18n("Settings saved"))
+
+
+def test_api_connection(backend, api_key, model):
+    """Ping Gemini with the current key — instant feedback, no surprise mid-run."""
+    if backend != "gemini":
+        return "ℹ️ " + i18n("Connection test is only available for Gemini.")
+    ok, msg = settings_store.test_gemini_connection(
+        api_key, model if model in GEMINI_MODELS else "gemini-2.5-flash")
+    if ok:
+        return "✅ " + i18n("Connection OK — the key works.")
+    return "❌ " + i18n("Connection failed:") + " " + str(msg)[:300]
+
+
 def kill_process():
     global current_process
     if current_process:
@@ -296,6 +414,21 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             with open(subtitle_config_path, "w", encoding="utf-8") as f:
                 json.dump(subtitle_config, f, indent=4)
 
+        # v6.9 preflight: fail fast with a clear message instead of letting
+        # the run die mid-pipeline on an obvious configuration error.
+        if ai_backend == "gemini":
+            preflight_key = (api_key or "").strip()
+            if not preflight_key:
+                # the field may be empty even though a key is saved — the CLI
+                # resolves env/secure/file on its own, so only hard-fail when
+                # NOTHING is configured anywhere.
+                saved = settings_store.load_ui_settings()
+                if not saved["api_key"]:
+                    yield fail(i18n("Error: Gemini API key is missing. Paste it in the AI settings (saved automatically) or set the GEMINI_API_KEY environment variable."))
+                    return
+            elif not settings_store.looks_like_gemini_key(preflight_key):
+                emit_log(i18n("Warning: the API key does not look like a Gemini key (usually starts with 'AIza'). Continuing anyway."))
+
         cmd = build_command(
             MAIN_SCRIPT_PATH, source_args,
             segments=segments, viral=viral, themes=themes,
@@ -329,7 +462,21 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env.setdefault("GRADIO_ANALYTICS_ENABLED", "False")
-        debug_cmd = " ".join([str(x) for x in cmd if x])
+        # mask the API key in the echoed command — never print secrets to
+        # the visible log (v6.9 fix: keys leaked into screenshots/logs before)
+        def _mask_cmd(cmd_list):
+            masked = []
+            skip_next = False
+            for part in cmd_list:
+                if skip_next:
+                    masked.append(settings_store.mask_key(str(part)) or "***")
+                    skip_next = False
+                    continue
+                masked.append(str(part))
+                if part == "--api-key":
+                    skip_next = True
+            return " ".join(masked)
+        debug_cmd = _mask_cmd([x for x in cmd if x])
         emit_log(f"Command: {debug_cmd}")
         yield "\n".join(logs), gr.update(value=i18n("Running..."), interactive=False), gr.update(visible=True, interactive=True), None, render_progress_html(progress_state), render_tasks_html(progress_state), render_error_html(error_items)
 
@@ -631,6 +778,11 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     with gr.Row():
                         ai_backend_input = gr.Dropdown(choices=[(i18n("Gemini"), "gemini"), (i18n("G4F"), "g4f"), (i18n("Local (GGUF)"), "local"), (i18n("Manual"), "manual")], label="محرك الذكاء الاصطناعي", value="gemini", scale=2)
                         api_key_input = gr.Textbox(label="مفتاح Gemini API", type="password", scale=3)
+                    settings_status = gr.Markdown(elem_id="ai_settings_status")
+                    with gr.Row():
+                        save_settings_btn = gr.Button("💾 " + i18n("Save Settings"), variant="secondary", size="sm", scale=1)
+                        test_key_btn = gr.Button("🔌 " + i18n("Test Connection"), variant="secondary", size="sm", scale=1)
+                        settings_hint = gr.Markdown("💡 " + i18n("The key is saved automatically — no need to re-enter it each time."), scale=3)
                     with gr.Row():
                         ai_model_input = gr.Dropdown(choices=GEMINI_MODELS, label="نموذج الذكاء الاصطناعي", value=GEMINI_MODELS[1], allow_custom_value=True, visible=True, scale=5)
                         refresh_models_btn = gr.Button("🔄", size="sm", visible=False, scale=0, min_width=50)
@@ -664,7 +816,16 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         return gr.update(choices=models, value=val)
 
                     refresh_models_btn.click(refresh_local_models, outputs=ai_model_input)
-                    ai_backend_input.change(update_ai_ui, inputs=ai_backend_input, outputs=[api_key_input, ai_model_input, refresh_models_btn, chunk_size_input])
+                    # v6.9: backend switch now also PERSISTS the settings
+                    ai_backend_input.change(on_backend_change, inputs=[ai_backend_input, api_key_input, ai_model_input, chunk_size_input], outputs=[api_key_input, ai_model_input, refresh_models_btn, chunk_size_input, settings_status])
+                    # v6.9: typing the key / changing model or chunk auto-saves
+                    api_key_input.change(on_settings_changed, inputs=[ai_backend_input, api_key_input, ai_model_input, chunk_size_input], outputs=settings_status)
+                    ai_model_input.change(on_settings_changed, inputs=[ai_backend_input, api_key_input, ai_model_input, chunk_size_input], outputs=settings_status)
+                    chunk_size_input.change(on_settings_changed, inputs=[ai_backend_input, api_key_input, ai_model_input, chunk_size_input], outputs=settings_status)
+                    save_settings_btn.click(save_settings_click, inputs=[ai_backend_input, api_key_input, ai_model_input, chunk_size_input], outputs=settings_status)
+                    test_key_btn.click(test_api_connection, inputs=[ai_backend_input, api_key_input, ai_model_input], outputs=settings_status)
+                    # v6.9: prefill the saved key/model/backend on startup
+                    demo.load(load_saved_settings, outputs=[ai_backend_input, api_key_input, ai_model_input, refresh_models_btn, chunk_size_input, settings_status])
                     model_input = gr.Dropdown(["tiny", "small", "medium", "large", "large-v1", "large-v2", "large-v3", "turbo", "large-v3-turbo", "distil-large-v2", "distil-medium.en", "distil-small.en", "distil-large-v3"], label="نموذج Whisper", value="large-v3-turbo")
                     with gr.Row():
                         workflow_input = gr.Dropdown(choices=[(i18n("Full"), "Full"), (i18n("Cut Only"), "Cut Only"), (i18n("Subtitles Only"), "Subtitles Only")], label="طريقة العمل", value="Full")

@@ -480,5 +480,22 @@
     "Português": "Português",
     "Türkçe": "Türkçe",
     "🌐 Titles & captions language": "🌐 Titles & captions language",
-    "Arabic": "Arabic"
+    "Arabic": "Arabic",
+    "Save Settings": "Save Settings",
+    "Test Connection": "Test Connection",
+    "The key is saved automatically — no need to re-enter it each time.": "The key is saved automatically — no need to re-enter it each time.",
+    "saved": "saved",
+    "not saved yet": "not saved yet",
+    "not set — paste your key once and it will be remembered": "not set — paste your key once and it will be remembered",
+    "Settings saved automatically": "Settings saved automatically",
+    "Error saving settings": "Error saving settings",
+    "Settings saved": "Settings saved",
+    "Connection test is only available for Gemini.": "Connection test is only available for Gemini.",
+    "Connection OK — the key works.": "Connection OK — the key works.",
+    "Connection failed:": "Connection failed:",
+    "from environment variable": "from environment variable",
+    "from encrypted store": "from encrypted store",
+    "saved in api_config.json": "saved in api_config.json",
+    "Error: Gemini API key is missing. Paste it in the AI settings (saved automatically) or set the GEMINI_API_KEY environment variable.": "Error: Gemini API key is missing. Paste it in the AI settings (saved automatically) or set the GEMINI_API_KEY environment variable.",
+    "Warning: the API key does not look like a Gemini key (usually starts with 'AIza'). Continuing anyway.": "Warning: the API key does not look like a Gemini key (usually starts with 'AIza'). Continuing anyway."
 }

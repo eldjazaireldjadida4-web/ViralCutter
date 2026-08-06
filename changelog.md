@@ -1,5 +1,38 @@
 # Changelog
 
+## 💾 v6.9 — Persistent AI settings: save the Gemini key once, never retype it (2026-08)
+
+### New
+- **Auto-saved AI settings (the headline request)**: the WebUI now loads the
+  saved Gemini key / backend / model / chunk size at startup and auto-saves
+  them on every change (plus an explicit 💾 Save button). One paste, remembered
+  forever — no more re-entering the key each session.
+- **🔌 Test Connection button**: validates the Gemini key instantly from the UI
+  (SDK or REST fallback) instead of discovering a bad key mid-processing.
+- **Settings status card**: shows the masked key (`AIza********wxyz`) and where
+  it came from (env var / encrypted store / api_config.json).
+- Resolution order mirrors the CLI: `GEMINI_API_KEY` env → encrypted store →
+  `api_config.json`. Env keys are never copied into the file.
+
+### Error handling
+- **Gemini key errors fail loudly**: `call_gemini` used to return `"{}"` on an
+  invalid key, so runs died later on the confusing "no viral segments" error.
+  It now raises a clear bilingual error naming the real cause.
+- New Arabic hints for: invalid key, quota exhausted, PERMISSION_DENIED,
+  generativelanguage errors, empty AI responses.
+- **WebUI preflight**: missing-key runs fail fast with an actionable message;
+  keys that don't look like Gemini keys (`AIza…`) log a warning.
+
+### Security
+- **API key no longer leaks into the visible log**: the echoed command line now
+  masks `--api-key <value>` before printing.
+- `app_version.py` bumped 0.9.0 → 6.9.0 (it had drifted from the changelog, so
+  the auto-updater compared the wrong version).
+
+### Tests
+- 24 new tests (settings round-trip, atomic writes, env precedence, masking,
+  connection-test guards, loud key errors, new hints). Total: 367.
+
 ## 🛠️ v6.8.1 — WebUI bug fixes, tests green on clean CI, dark theme (2026-08)
 
 ### Fixes
