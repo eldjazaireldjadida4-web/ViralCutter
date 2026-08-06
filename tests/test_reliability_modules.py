@@ -253,3 +253,20 @@ class TestAutoUpdaterTagsFallback:
         monkeypatch.setattr(auto_updater, "_github_api", fake_github)
         info = auto_updater.check_for_update(current_version="0.9.0", timeout=1)
         assert info["update_available"] is False
+
+
+class TestWhisperModelFallback:
+    """large-v3-turbo not supported by older faster-whisper → graceful fallback."""
+
+    def test_turbo_candidates(self):
+        from scripts.transcribe_video import resolve_model_candidates
+        assert resolve_model_candidates("large-v3-turbo")[:3] == ["large-v3-turbo", "large-v3", "medium"]
+
+    def test_plain_model_gets_large_v3_fallback(self):
+        from scripts.transcribe_video import resolve_model_candidates
+        assert resolve_model_candidates("small")[-1] == "large-v3"
+        assert resolve_model_candidates("large-v3") == ["large-v3"]
+
+    def test_none_defaults(self):
+        from scripts.transcribe_video import resolve_model_candidates
+        assert resolve_model_candidates(None)[0] == "large-v3"

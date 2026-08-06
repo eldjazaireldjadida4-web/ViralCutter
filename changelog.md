@@ -250,3 +250,12 @@
   prioritized remaining work (mediapipe guard, fonts, first Release, CI permission,
   TikTok/IG OAuth, deeper sync rework).
 - Tests: 329 → 335.
+
+## 🎙️ v6.7 — Whisper model fallback (large-v3-turbo unsupported on older faster-whisper)
+
+- transcribe_video: resolve_model_candidates() — if the requested model (e.g.
+  large-v3-turbo) is rejected as an invalid size, fall back to large-v3 → medium
+  with a clear console note, instead of crashing.
+- WebUI error hint for "invalid model size" (Arabic): update faster-whisper or
+  pick large-v3/medium — and hints now correctly prefer the real error line.
+- Tests: 335 → 339.

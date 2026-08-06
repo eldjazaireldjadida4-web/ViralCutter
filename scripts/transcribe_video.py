@@ -251,6 +251,22 @@ def _placeholder_allowed():
         "1", "true", "yes", "on"}
 
 
+def resolve_model_candidates(model_name):
+    """Ordered model candidates for transcription (v6.7).
+
+    Some faster-whisper builds reject "large-v3-turbo"/"turbo" as invalid model
+    sizes. Return the requested name first, then supported fallbacks, so the
+    loader can degrade gracefully instead of crashing.
+    """
+    name = str(model_name or "large-v3").strip()
+    candidates = [name]
+    if name in ("large-v3-turbo", "turbo"):
+        candidates += ["large-v3", "medium"]
+    if name not in ("large-v3",) and "large-v3" not in candidates:
+        candidates.append("large-v3")
+    return candidates
+
+
 def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
     if whisperx is None or torch is None:
         msg = (
@@ -379,12 +395,28 @@ def transcribe(input_file, model_name='large-v3', project_folder='tmp'):
             # 3. Transcrever (Caminho Normal)
             print("Nenhuma legenda válida encontrada. Realizando transcrição completa (WhisperX)...")
             print(f"Carregando modelo {model_name}...")
-            model = whisperx.load_model(
-                model_name, 
-                device, 
-                compute_type=compute_type,
-                asr_options={"hotwords": None}
-            )
+            model = None
+            last_load_err = None
+            for candidate in resolve_model_candidates(model_name):
+                try:
+                    model = whisperx.load_model(
+                        candidate,
+                        device,
+                        compute_type=compute_type,
+                        asr_options={"hotwords": None}
+                    )
+                    if candidate != model_name:
+                        print("[transcribe] '{}' not supported by this faster-whisper "
+                              "build — falling back to '{}'.".format(model_name, candidate))
+                    break
+                except ValueError as load_err:
+                    if "Invalid model size" in str(load_err) or "expected one of" in str(load_err):
+                        last_load_err = load_err
+                        continue
+                    raise
+            if model is None:
+                raise last_load_err or ValueError(
+                    "No usable Whisper model size for '{}'".format(model_name))
 
             result = model.transcribe(
                 audio, 

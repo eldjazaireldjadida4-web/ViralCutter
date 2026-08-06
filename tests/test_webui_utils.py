@@ -192,3 +192,9 @@ class TestErrorSummarizer:
         _, _, hint = summarize_error(
             "ImportError: Gemini SDK is not installed.\n... Sign in to confirm your age")
         assert "Gemini" in hint and "كوكيز" not in hint
+
+    def test_whisper_model_hint(self):
+        from webui.utils import summarize_error
+        _, _, hint = summarize_error(
+            "ValueError: Invalid model size 'large-v3-turbo', expected one of: tiny...")
+        assert "faster-whisper" in hint
