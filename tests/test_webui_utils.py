@@ -198,3 +198,8 @@ class TestErrorSummarizer:
         _, _, hint = summarize_error(
             "ValueError: Invalid model size 'large-v3-turbo', expected one of: tiny...")
         assert "faster-whisper" in hint
+
+    def test_numpy_conflict_hint(self):
+        from webui.utils import summarize_error
+        _, _, hint = summarize_error("AttributeError: `np.NaN` was removed in the NumPy 2.0 release.")
+        assert "numpy<2" in hint

@@ -166,6 +166,8 @@ KNOWN_ERROR_HINTS = [
     ("google-generativeai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai (أو أعد تشغيل install_dependencies.bat)"),
     ("google.genai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-genai (أو أعد تشغيل install_dependencies.bat)"),
     ("gemini sdk", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai"),
+    ("np.nan", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
+    ("numpy 2.0", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
     ("invalid model size", "نموذج Whisper غير مدعوم في نسخة faster-whisper المثبتة — حدّثها: uv pip install -U faster-whisper، أو اختر نموذجاً آخر مثل large-v3 أو medium من القائمة"),
     ("expected one of", "نموذج Whisper غير مدعوم في نسخة faster-whisper المثبتة — حدّثها: uv pip install -U faster-whisper، أو اختر نموذجاً آخر مثل large-v3 أو medium من القائمة"),
     ("whisperx", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),

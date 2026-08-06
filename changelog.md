@@ -266,3 +266,10 @@
   a transformers/tokenizers version conflict no longer crashes the whole app/WebUI.
 - subtitle_editor imports main_improved lazily (faster WebUI startup, less fragile).
 - Tests: 339 → 341.
+
+## 🔧 v6.7c — numpy<2 pin (whisperx/pyannote break on NumPy 2.x)
+
+- requirements.txt + requirements-transcribe.txt now pin numpy<2 (np.NaN was
+  removed in NumPy 2.0 → old pyannote.audio crashes).
+- Arabic WebUI hint for the numpy conflict.
+- Tests: 341 → 342.
