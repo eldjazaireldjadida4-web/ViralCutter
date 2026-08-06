@@ -91,12 +91,17 @@ def build_subtitle_config(font_name, font_size, font_color, highlight_color, out
 
 
 # ---------------------------------------------------------------------------
-# Panel renderers (used by webui/app.py; were referenced but never defined —
-# fixed in v6.1 so the WebUI can actually start)
+# Panel renderers (used by webui/app.py)
 # ---------------------------------------------------------------------------
 
+_PANEL_STYLE = (
+    "font-family:inherit;padding:10px 12px;border-radius:10px;"
+    "background:#111827;border:1px solid #1f2937;min-height:120px;"
+)
+
+
 def render_progress_html(state):
-    """HTML progress panel: per-stage bars + overall percentage."""
+    """HTML progress panel: per-stage bars + overall percentage (dark theme)."""
     state = state or {}
     stages = state.get("stages", {}) if isinstance(state.get("stages"), dict) else state
     overall = int(state.get("overall", 0) or 0)
@@ -108,43 +113,35 @@ def render_progress_html(state):
             info = {}
         percent = int(info.get("percent", 0) or 0)
         message = info.get("message", "") or ""
+        color = "#22c55e" if percent >= 100 else ("#f97316" if percent > 0 else "#6b7280")
         rows.append(
-            '<div style="margin:2px 0;font-size:12px;">'
-            '<span style="display:inline-block;width:90px;">{}</span>'
-            '<div style="display:inline-block;width:60%;height:8px;background:#eee;'
-            'border-radius:4px;vertical-align:middle;">'
-            '<div style="width:{}%;height:8px;background:#4caf50;border-radius:4px;"></div>'
-            '</div> <b>{}</b> {}</div>'.format(
-                _html_escape(stage), percent, "{}%".format(percent), _html_escape(message)))
+            '<div style="margin:4px 0;font-size:12px;color:#e5e7eb;">'
+            '<span style="display:inline-block;width:90px;color:#9ca3af;">{}</span>'
+            '<span style="display:inline-block;width:55%;height:8px;background:#374151;'
+            'border-radius:4px;vertical-align:middle;overflow:hidden;">'
+            '<span style="display:inline-block;width:{}%;height:8px;background:{};border-radius:4px;"></span>'
+            '</span> <b style="color:{};">{}</b> <span style="color:#d1d5db;">{}</span></div>'.format(
+                _html_escape(stage), percent, color, color, "%d%%" % percent, _html_escape(message)))
     return (
-        '<div style="font-family:monospace;padding:6px;">'
-        '<div style="font-size:14px;margin-bottom:6px;">'
-        '<b>{} {}</b> — {}</div>{}</div>'.format(
-            i18n("Overall"), "{}%".format(overall), _html_escape(current), "".join(rows)))
+        '<div style="' + _PANEL_STYLE + '">'
+        '<div style="font-size:14px;margin-bottom:8px;color:#f9fafb;">'
+        '<b>📊 {} {}</b> — {}</div>{}</div>'.format(
+            i18n("Overall"), "%d%%" % overall, _html_escape(current), "".join(rows)))
 
 
 def render_tasks_html(state):
-    """HTML tasks panel: current stage + last few messages."""
+    """HTML tasks panel: current stage + last few messages (dark theme)."""
     state = state or {}
     current = state.get("current", "")
     stages = state.get("stages", {}) if isinstance(state.get("stages"), dict) else state
-    lines = ["<b>{}</b>".format(i18n("Current task")), _html_escape(current)]
+    lines = ['<b style="color:#f9fafb;">🧩 {}</b>'.format(i18n("Current task")),
+             '<span style="color:#fdba74;">{}</span>'.format(_html_escape(current))]
     for stage in PROGRESS_STAGES:
         info = stages.get(stage) if isinstance(stages, dict) else state.get(stage, {})
         if isinstance(info, dict) and info.get("message"):
-            lines.append("<i>{}</i>: {}".format(_html_escape(stage),
-                                                _html_escape(str(info["message"]))))
-    return "<div style='padding:6px;font-size:13px;'>{}</div>".format("<br>".join(lines[:8]))
-
-
-def render_error_html(error_items):
-    """HTML errors panel: red list of accumulated error messages."""
-    if not error_items:
-        return ""
-    items = "".join(
-        "<li style='color:#b00020;margin:2px 0;'>{}</li>".format(_html_escape(str(e)))
-        for e in error_items)
-    return "<ul style='padding-left:18px;margin:6px 0;'>{}</ul>".format(items)
+            lines.append('<i style="color:#9ca3af;">{}</i>: <span style="color:#d1d5db;">{}</span>'.format(
+                _html_escape(stage), _html_escape(str(info["message"]))))
+    return '<div style="' + _PANEL_STYLE + 'font-size:13px;line-height:1.7;">{}</div>'.format("<br>".join(lines[:8]))
 
 
 def _html_escape(text):

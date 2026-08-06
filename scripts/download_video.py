@@ -1,9 +1,25 @@
 import os
 import re
-import yt_dlp
 import sys
+
+# yt-dlp is a hard requirement for downloading, but NOT for importing this
+# module: helpers like _friendly_download_error / sanitize_filename must stay
+# importable in minimal environments (CI, WebUI health checks). A clear error
+# is raised only when a download is actually attempted without yt-dlp.
+try:
+    import yt_dlp
+except ImportError:  # pragma: no cover - depends on environment
+    yt_dlp = None
+
 from i18n.i18n import I18nAuto
 i18n = I18nAuto()
+
+
+def _require_yt_dlp():
+    if yt_dlp is None:
+        raise RuntimeError(
+            "yt-dlp is not installed. Install it with: pip install yt-dlp")
+    return yt_dlp
 
 _COOKIES_HINT = (
     "\n"
@@ -93,6 +109,7 @@ def progress_hook(d):
 
 def download(url, base_root="VIRALS", download_subs=True, quality="best",
              cookies_from_browser=None, cookies_file=None):
+    _require_yt_dlp()
     # 1. Extrair informações do vídeo para pegar o título
     print(i18n("Extracting video information..."))
     title = None

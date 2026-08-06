@@ -1,5 +1,44 @@
 # Changelog
 
+## 🛠️ v6.8.1 — WebUI bug fixes, tests green on clean CI, dark theme (2026-08)
+
+### Fixes
+- **WebUI parameter order bug (critical)**: `run_viral_cutter` tail signature
+  `(platform, polish, music, logo, metadata_gate, cookies, title_language)` did
+  not match the `inputs=[...]` order sent by all three callers (Start, Review
+  Segments render, Batch Queue). Effect: polish ran with `--music auto`,
+  cookies/title-language selections were silently ignored. Signature now matches
+  the UI order.
+- **Stop button**: `kill_process` returned 6 values for 5 outputs (missing
+  progress panel) — Gradio raised on every Stop click. Fixed.
+- **Duplicate template handlers**: Save/Apply template buttons were wired twice
+  (flat + nested payload formats) so both fired on one click. Consolidated to a
+  single nested-format handler pair.
+- **Subtitle Editor tab**: file list update was written into a status Textbox
+  (Dropdown update into Textbox) and `current_json_path` was never set — "Render
+  Selected" could never work. Added a real file Dropdown wired to
+  project/subs/*_processed.json.
+- **Gemini dual-SDK detection**: `import google.generativeai` required the parent
+  `google` namespace package; now uses `importlib.import_module` so sys.modules
+  fakes / hermetic environments resolve correctly.
+- **yt-dlp optional import** in `scripts/download_video.py`: module imports
+  without yt-dlp (friendly-error helpers still work); a clear RuntimeError is
+  raised only when a download is attempted.
+- **YouTube uploader**: missing-credentials error now raised *before* importing
+  the optional google libs, so the actionable message appears in minimal envs.
+- **on_source_change** no longer calls `refresh_projects()` twice.
+
+### WebUI polish
+- Rich header (version badge, feature list) actually rendered (was dead code).
+- Full dark theme: Gradio 6 compatible (theme/css routed per version;
+  `is_custom_theme` set for the mount path), dark blocks/inputs/tabs/radios.
+- Progress/tasks panels restyled for the dark surface; dead duplicate
+  `render_error_html` removed; orphaned headings removed from the log row.
+
+### Tests
+- All 343 tests pass with only `pytest` installed (CI parity), including the
+  6 that previously failed on a clean environment.
+
 ## 📊 Risk Scorecard + Reused-Content Protection (v4)
 
 ### Novidades

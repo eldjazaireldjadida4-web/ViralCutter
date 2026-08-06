@@ -237,20 +237,27 @@ class YouTubeUploader(_BaseUploader):
 
     def _load_or_create_token(self):
         """Return credentials; run the OAuth consent flow on first use."""
-        import google.auth.transport.requests as g_requests
-        from google.oauth2.credentials import Credentials
-
+        # Check credentials BEFORE importing the optional google libraries so a
+        # missing client_secrets.json always yields the clear, actionable error
+        # (and never a raw ModuleNotFoundError in minimal environments).
         token_path = self._token_path()
         secrets = os.getenv("YT_CLIENT_SECRETS_FILE") or os.path.join(
             os.getcwd(), "client_secrets.json")
-        if not os.path.exists(secrets):
+        if not os.path.exists(secrets) and not os.path.exists(token_path):
             self._missing_credentials(self.platform, ["YT_CLIENT_SECRETS_FILE"])
+
+        import google.auth.transport.requests as g_requests
+        from google.oauth2.credentials import Credentials
+
         if os.path.exists(token_path):
             creds = Credentials.from_authorized_user_file(token_path, self.SCOPES)
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(g_requests.Request())
             if creds and creds.valid:
                 return creds
+        # The consent flow needs client_secrets.json.
+        if not os.path.exists(secrets):
+            self._missing_credentials(self.platform, ["YT_CLIENT_SECRETS_FILE"])
         from google_auth_oauthlib.flow import InstalledAppFlow
         flow = InstalledAppFlow.from_client_secrets_file(secrets, self.SCOPES)
         creds = flow.run_local_server(port=0, prompt="consent")

@@ -44,3 +44,11 @@ update_info.json
 crash_report.log
 api_config.secure.json
 transcription_model.json
+
+# WebUI runtime artifacts
+VIRALS/
+subtitle_templates.json
+temp_subtitle_config.json
+client_secrets.json
+yt_token.json
+*.zip

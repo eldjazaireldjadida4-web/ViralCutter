@@ -205,8 +205,15 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                      face_filter_thresh, face_two_thresh, face_conf_thresh, face_dead_zone, focus_active_speaker, active_speaker_mar, active_speaker_score_diff, include_motion, active_speaker_motion_threshold, active_speaker_motion_sensitivity, active_speaker_decay,
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
                      h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True,
-                     platform=None, polish=False, music=None, logo=None, metadata_gate=None,
-                     cookies_browser=None, title_language=None):
+                     platform=None, metadata_gate=None, title_language=None, polish=False, music=None, logo=None,
+                     cookies_browser=None):
+    # NOTE: parameter order MUST match the `inputs=[...]` order of every
+    # .click() that targets this function (start / review-render / batch).
+    # v6.8 fix: the tail used to be (platform, polish, music, logo,
+    # metadata_gate, cookies, title_language) while the UI sent (platform,
+    # metadata_gate, title_language, polish, music, logo, cookies) — so
+    # polish was always "warn" (truthy → --polish on) and cookies/title
+    # language selections silently landed in the wrong parameters.
     
     global current_process
     progress_state = empty_progress_state(i18n("Starting"))
@@ -452,6 +459,12 @@ css = """
     backdrop-filter: blur(10px);
     padding: 10px 0;
     margin-bottom: 12px;
+    gap: 12px;
+    align-items: center;
+}
+
+.vc-topbar > div {
+    flex: 0 0 auto !important;
 }
 
 .vc-panels > div {
@@ -484,6 +497,14 @@ body, .gradio-container {
     font-family: "Cairo", "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif !important;
 }
 
+/* Header card: force light text regardless of Gradio theme defaults */
+#vc-header, #vc-header p, #vc-header li, #vc-header strong, #vc-header ul {
+    color: #e2e8f0 !important;
+}
+#vc-header h1 {
+    color: #f8fafc !important;
+}
+
 .gradio-container input,
 .gradio-container textarea {
     unicode-bidi: plaintext !important;
@@ -492,12 +513,67 @@ body, .gradio-container {
 
 import header
 
-with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"), css=css) as demo:
-    gr.Markdown("")
-    gr.Markdown("## ViralCutter\nواجهة عربية كاملة ومحسّنة، مع سجل أوضح وتقدّم أدق وتنظيم أبسط.")
+# --- Gradio version compatibility -------------------------------------------
+# Gradio 6 moved `theme`/`css` from the Blocks constructor to launch(); on
+# Gradio 4/5 they only exist on Blocks. Detect once and route accordingly.
+try:
+    _GRADIO_MAJOR = int(str(gr.__version__).split(".", 1)[0])
+except Exception:
+    _GRADIO_MAJOR = 4
+
+vc_theme = gr.themes.Soft(primary_hue="orange", neutral_hue="slate")
+# Dark theme: the app CSS targets a dark surface; tint the Gradio theme so
+# every component (forms, tables, panels) matches instead of light-on-dark.
+vc_theme.set(
+    body_background_fill="#0b0b0b",
+    body_text_color="#e5e7eb",
+    body_text_color_subdued="#94a3b8",
+    background_fill_primary="#0b0b0b",
+    background_fill_secondary="#111827",
+    block_background_fill="#111827",
+    block_border_color="#1f2937",
+    block_label_text_color="#9ca3af",
+    block_info_text_color="#94a3b8",
+    input_background_fill="#1f1f1f",
+    input_border_color="#333333",
+    input_placeholder_color="#6b7280",
+    border_color_primary="#1f2937",
+    panel_background_fill="#0f172a",
+    panel_border_color="#1f2937",
+    table_even_background_fill="#111827",
+    table_odd_background_fill="#0b0b0b",
+    table_border_color="#1f2937",
+    table_text_color="#e5e7eb",
+    accordion_text_color="#e5e7eb",
+    button_secondary_background_fill="#1f2937",
+    button_secondary_border_color="#374151",
+    button_secondary_text_color="#e5e7eb",
+    checkbox_background_color="#1f1f1f",
+    checkbox_border_color="#444444",
+    checkbox_label_background_fill="#1f2937",
+    checkbox_label_background_fill_selected="#f97316",
+    checkbox_label_text_color="#e5e7eb",
+    checkbox_label_text_color_selected="#ffffff",
+    slider_color="#f97316",
+    loader_color="#f97316",
+    code_background_fill="#1e1e1e",
+)
+if _GRADIO_MAJOR >= 6:
+    _blocks_kwargs = {"title": "ViralCutter"}
+    _launch_theme_kwargs = {"theme": vc_theme, "css": css}
+else:
+    _blocks_kwargs = {"title": "ViralCutter", "theme": vc_theme, "css": css}
+    _launch_theme_kwargs = {}
+
+with gr.Blocks(**_blocks_kwargs) as demo:
+    if _GRADIO_MAJOR >= 6:
+        # mount_gradio_app has no css param — inject the stylesheet inline so
+        # the dark surface applies on every Gradio version.
+        gr.HTML("<style>{}</style>".format(css))
+    gr.HTML(header.description)
     with gr.Row(elem_classes=["vc-topbar"]):
-        start_btn = gr.Button("بدء المعالجة", variant="primary")
-        stop_btn = gr.Button("إيقاف", variant="stop", visible=True, interactive=False)
+        start_btn = gr.Button("🚀 بدء المعالجة", variant="primary", size="lg", min_width=220)
+        stop_btn = gr.Button("⏹️ إيقاف", variant="stop", visible=True, interactive=False, size="lg", min_width=140)
     with gr.Row(elem_classes=["vc-panels"]):
         with gr.Column(scale=1, min_width=280):
             progress_panel = gr.HTML(value=render_progress_html(empty_progress_state()))
@@ -526,7 +602,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                             return gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(value="Full"), gr.update(visible=False)
                         if source == "Upload Video":
                             return gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(value="Full"), gr.update(visible=True)
-                        projs = library.refresh_projects().kwargs.get("choices", []) if hasattr(library.refresh_projects(), "kwargs") else library.get_existing_projects(force_refresh=True)
+                        projs = library.get_existing_projects(force_refresh=True)
                         return gr.update(visible=False), gr.update(choices=projs, visible=True), gr.update(visible=False), gr.update(value="Subtitles Only"), gr.update(visible=False)
 
                     with gr.Row():
@@ -684,13 +760,9 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                 with gr.Row():
                     logs_output = gr.Textbox(label="السجل", lines=14, autoscroll=True, elem_id="logs_output")
                     logs_output.change(fn=None, inputs=[], outputs=[], js="function() { var ta = document.querySelector('#logs_output textarea'); if (ta) { if (!ta._scrollerSetup) { ta._isSticky = true; ta.addEventListener('scroll', function() { var diff = ta.scrollHeight - ta.scrollTop - ta.clientHeight; ta._isSticky = diff <= 50; }); ta._scrollerSetup = true; } if (ta._isSticky === undefined || ta._isSticky === true) { ta.scrollTop = ta.scrollHeight; } } }")
-                    gr.Markdown(tr("تظهر تحديثات التقدم هنا أثناء التشغيل."))
-                    with gr.Row():
-                        with gr.Column(scale=1):
-                            gr.Markdown("### تقدم المهام")
-                        with gr.Column(scale=1):
-                            gr.Markdown("### تقرير الأخطاء")
-                    stop_btn.click(kill_process, outputs=[logs_output, start_btn, stop_btn, tasks_panel, errors_panel])
+                gr.Markdown(tr("تظهر تحديثات التقدم هنا أثناء التشغيل."))
+                # kill_process returns 6 values (logs, start, stop, progress, tasks, errors)
+                stop_btn.click(kill_process, outputs=[logs_output, start_btn, stop_btn, progress_panel, tasks_panel, errors_panel])
             
             with gr.Accordion(i18n("Advanced Face Settings"), open=False):
                 face_preset_input = gr.Dropdown(choices=[(i18n(k), k) for k in FACE_PRESETS.keys()], label=i18n("Configuration Presets"), value="Default (Balanced)", interactive=True)
@@ -776,86 +848,88 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         load_template_btn = gr.Button(tr("Apply Template"), variant="secondary")
                     template_status = gr.Textbox(label="حالة القالب", interactive=False)
 
-                def build_template_payload():
-                    return {
-                        "font_name": font_name_input.value,
-                        "font_size": font_size_input.value,
-                        "font_color": font_color_input.value,
-                        "highlight_color": highlight_color_input.value,
-                        "outline_color": outline_color_input.value,
-                        "outline_thickness": outline_thickness_input.value,
-                        "shadow_color": shadow_color_input.value,
-                        "shadow_size": shadow_size_input.value,
-                        "is_bold": bold_input.value,
-                        "is_italic": italic_input.value,
-                        "is_uppercase": uppercase_input.value,
-                        "vertical_pos": vertical_pos_input.value,
-                        "alignment": alignment_input.value,
-                        "h_size": highlight_size_input.value,
-                        "w_block": words_per_block_input.value,
-                        "gap": gap_limit_input.value,
-                        "mode": mode_input.value,
-                        "under": underline_input.value,
-                        "strike": strikeout_input.value,
-                        "border_s": border_style_input.value,
-                        "remove_punc": remove_punc_input.value,
-                        "face_model": face_model_input.value,
-                        "face_mode": face_mode_input.value,
-                        "no_face_mode": no_face_mode_input.value,
-                        "face_detect_interval": face_detect_interval_input.value,
-                    }
-
-                def save_template_ui(name):
+                def save_settings_template(name, use_custom, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc, face_mode, face_model, no_face_mode, face_detect_interval):
+                    """Save current subtitle + face settings as a named template."""
                     name = (name or "").strip()
                     if not name:
                         return i18n("Template name is required."), gr.update(choices=template_choices())
-                    save_template(name, build_template_payload())
-                    return i18n("Saved template: {}").format(name), gr.update(choices=template_choices(), value=name)
+                    payload = {
+                        "subtitle": {
+                            "use_custom": bool(use_custom),
+                            "font_name": font_name,
+                            "font_size": int(font_size),
+                            "font_color": font_color,
+                            "highlight_color": highlight_color,
+                            "outline_color": outline_color,
+                            "outline_thickness": outline_thickness,
+                            "shadow_color": shadow_color,
+                            "shadow_size": shadow_size,
+                            "is_bold": bool(is_bold),
+                            "is_italic": bool(is_italic),
+                            "is_uppercase": bool(is_uppercase),
+                            "vertical_pos": int(vertical_pos),
+                            "alignment": alignment,
+                            "highlight_size": int(h_size),
+                            "words_per_block": int(w_block),
+                            "gap": gap,
+                            "mode": mode,
+                            "under": bool(under),
+                            "strike": bool(strike),
+                            "border_s": border_s,
+                            "remove_punc": bool(remove_punc),
+                        },
+                        "face": {
+                            "face_mode": face_mode,
+                            "face_model": face_model,
+                            "no_face_mode": no_face_mode,
+                            "face_detect_interval": face_detect_interval,
+                        },
+                    }
+                    err = save_template(name, payload)
+                    if err:
+                        return i18n("Error saving template: {}").format(err), gr.update(choices=template_choices())
+                    return i18n("Template saved: {}").format(name), gr.update(choices=template_choices(), value=name)
 
-                def load_template_ui(name):
+                def load_settings_template(name):
+                    """Apply a saved template to subtitle + face settings."""
                     templates = load_templates()
                     payload = templates.get(name)
                     if not payload:
                         return [gr.update() for _ in range(26)] + [i18n("Template not found.")]
+                    sub = payload.get("subtitle", payload)  # tolerate legacy flat format
+                    face = payload.get("face", {})
                     return [
-                        gr.update(value=payload.get("font_name", font_name_input.value)),
-                        gr.update(value=payload.get("font_size", font_size_input.value)),
-                        gr.update(value=payload.get("font_color", font_color_input.value)),
-                        gr.update(value=payload.get("highlight_color", highlight_color_input.value)),
-                        gr.update(value=payload.get("outline_color", outline_color_input.value)),
-                        gr.update(value=payload.get("outline_thickness", outline_thickness_input.value)),
-                        gr.update(value=payload.get("shadow_color", shadow_color_input.value)),
-                        gr.update(value=payload.get("shadow_size", shadow_size_input.value)),
-                        gr.update(value=payload.get("is_bold", bold_input.value)),
-                        gr.update(value=payload.get("is_italic", italic_input.value)),
-                        gr.update(value=payload.get("is_uppercase", uppercase_input.value)),
-                        gr.update(value=payload.get("vertical_pos", vertical_pos_input.value)),
-                        gr.update(value=payload.get("alignment", alignment_input.value)),
-                        gr.update(value=payload.get("h_size", highlight_size_input.value)),
-                        gr.update(value=payload.get("w_block", words_per_block_input.value)),
-                        gr.update(value=payload.get("gap", gap_limit_input.value)),
-                        gr.update(value=payload.get("mode", mode_input.value)),
-                        gr.update(value=payload.get("under", underline_input.value)),
-                        gr.update(value=payload.get("strike", strikeout_input.value)),
-                        gr.update(value=payload.get("border_s", border_style_input.value)),
-                        gr.update(value=payload.get("remove_punc", remove_punc_input.value)),
-                        gr.update(value=payload.get("face_model", face_model_input.value)),
-                        gr.update(value=payload.get("face_mode", face_mode_input.value)),
-                        gr.update(value=payload.get("no_face_mode", no_face_mode_input.value)),
-                        gr.update(value=payload.get("face_detect_interval", face_detect_interval_input.value)),
-                        i18n("Applied template: {}").format(name),
+                        gr.update(value=sub.get("use_custom", True)),
+                        gr.update(value=sub.get("font_name", "Montserrat-Regular")),
+                        gr.update(value=sub.get("font_size", 12)),
+                        gr.update(value=sub.get("font_color", "#FFFFFF")),
+                        gr.update(value=sub.get("highlight_color", "#00FF00")),
+                        gr.update(value=sub.get("outline_color", "#000000")),
+                        gr.update(value=sub.get("outline_thickness", 1.5)),
+                        gr.update(value=sub.get("shadow_color", "#000000")),
+                        gr.update(value=sub.get("shadow_size", 2)),
+                        gr.update(value=sub.get("is_bold", False)),
+                        gr.update(value=sub.get("is_italic", False)),
+                        gr.update(value=sub.get("is_uppercase", False)),
+                        gr.update(value=sub.get("vertical_pos", 210)),
+                        gr.update(value=sub.get("alignment", 2)),
+                        gr.update(value=sub.get("highlight_size", 14)),
+                        gr.update(value=sub.get("words_per_block", 3)),
+                        gr.update(value=sub.get("gap", 0.5)),
+                        gr.update(value=sub.get("mode", "highlight")),
+                        gr.update(value=sub.get("under", False)),
+                        gr.update(value=sub.get("strike", False)),
+                        gr.update(value=sub.get("border_s", 1)),
+                        gr.update(value=sub.get("remove_punc", True)),
+                        gr.update(value=face.get("face_mode", "auto")),
+                        gr.update(value=face.get("face_model", "insightface")),
+                        gr.update(value=face.get("no_face_mode", "zoom")),
+                        gr.update(value=face.get("face_detect_interval", "0.17,1.0")),
+                        i18n("Template loaded: {}").format(name),
                     ]
 
-                save_template_btn.click(save_template_ui, inputs=[template_name_input], outputs=[template_status, template_dropdown])
-                load_template_btn.click(load_template_ui, inputs=[template_dropdown], outputs=[
-                    font_name_input, font_size_input, font_color_input, highlight_color_input,
-                    outline_color_input, outline_thickness_input, shadow_color_input, shadow_size_input,
-                    bold_input, italic_input, uppercase_input, vertical_pos_input, alignment_input,
-                    highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
-                    underline_input, strikeout_input, border_style_input, remove_punc_input,
-                    face_model_input, face_mode_input, no_face_mode_input, face_detect_interval_input,
-                    template_status,
-                ])
+                save_template_btn.click(save_settings_template, inputs=[template_name_input, use_custom_subs] + manual_inputs + [face_mode_input, face_model_input, no_face_mode_input, face_detect_interval_input], outputs=[template_status, template_dropdown])
+                load_template_btn.click(load_settings_template, inputs=template_dropdown, outputs=[use_custom_subs] + manual_inputs + [face_mode_input, face_model_input, no_face_mode_input, face_detect_interval_input, template_status])
 
                 results_html = gr.HTML(label=tr("Results"))
                 with gr.Row():
@@ -1031,119 +1105,41 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
             ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
         with gr.Tab(i18n("Subtitle Editor")):
             gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
-            with gr.Group():
-                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None)
-                editor_refresh_btn = gr.Button(tr("Refresh"), size="sm")
+            with gr.Row():
+                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None, scale=4)
+                editor_refresh_btn = gr.Button(tr("Refresh"), size="sm", scale=1)
+            editor_file_dropdown = gr.Dropdown(choices=[], label="ملف الترجمة (من مجلد subs)", value=None)
             with gr.Group():
                 editor_status = gr.Textbox(label="الحالة", interactive=False)
-            current_json_path = gr.State(None)
             with gr.Row():
                 editor_render_single_btn = gr.Button(i18n("🎬 Render Selected (single clip)"), size="sm")
                 editor_render_all_btn = gr.Button(i18n("🎬 Render All (background)"), size="sm")
                 editor_export_all_btn = gr.Button(i18n("📤 Export All Segments"), size="sm")
             editor_refresh_btn.click(library.refresh_projects, outputs=editor_project_dropdown)
 
-            def save_settings_template(name, proj_name, use_custom, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc, face_mode, face_model, no_face_mode, face_detect_interval):
-                if not name:
-                    return i18n("Template name required.")
-                payload = {
-                    "subtitle": {
-                        "use_custom": bool(use_custom),
-                        "font_name": font_name,
-                        "font_size": int(font_size),
-                        "font_color": font_color,
-                        "highlight_color": highlight_color,
-                        "outline_color": outline_color,
-                        "outline_thickness": outline_thickness,
-                        "shadow_color": shadow_color,
-                        "shadow_size": shadow_size,
-                        "is_bold": bool(is_bold),
-                        "is_italic": bool(is_italic),
-                        "is_uppercase": bool(is_uppercase),
-                        "vertical_pos": int(vertical_pos),
-                        "alignment": alignment,
-                        "highlight_size": int(h_size),
-                        "words_per_block": int(w_block),
-                        "gap": gap,
-                        "mode": mode,
-                        "under": bool(under),
-                        "strike": bool(strike),
-                        "border_s": border_s,
-                        "remove_punc": bool(remove_punc),
-                    },
-                    "face": {
-                        "face_mode": face_mode,
-                        "face_model": face_model,
-                        "no_face_mode": no_face_mode,
-                        "face_detect_interval": face_detect_interval,
-                    },
-                }
-                save_template(name, payload)
-                return i18n("Template saved: {}").format(name)
-
-            def load_settings_template(name):
-                templates = load_templates()
-                payload = templates.get(name)
-                if not payload:
-                    return [gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), i18n("Template not found.")]
-                sub = payload.get("subtitle", {})
-                face = payload.get("face", {})
-                return [
-                    gr.update(value=sub.get("use_custom", True)),
-                    gr.update(value=sub.get("font_name", "Montserrat-Regular")),
-                    gr.update(value=sub.get("font_size", 12)),
-                    gr.update(value=sub.get("font_color", "#FFFFFF")),
-                    gr.update(value=sub.get("highlight_color", "#00FF00")),
-                    gr.update(value=sub.get("outline_color", "#000000")),
-                    gr.update(value=sub.get("outline_thickness", 1.5)),
-                    gr.update(value=sub.get("shadow_color", "#000000")),
-                    gr.update(value=sub.get("shadow_size", 2)),
-                    gr.update(value=sub.get("is_bold", False)),
-                    gr.update(value=sub.get("is_italic", False)),
-                    gr.update(value=sub.get("is_uppercase", False)),
-                    gr.update(value=sub.get("vertical_pos", 210)),
-                    gr.update(value=sub.get("alignment", 2)),
-                    gr.update(value=sub.get("highlight_size", 14)),
-                    gr.update(value=sub.get("words_per_block", 3)),
-                    gr.update(value=sub.get("gap", 0.5)),
-                    gr.update(value=sub.get("mode", "highlight")),
-                    gr.update(value=sub.get("under", False)),
-                    gr.update(value=sub.get("strike", False)),
-                    gr.update(value=sub.get("border_s", 1)),
-                    gr.update(value=sub.get("remove_punc", True)),
-                    gr.update(value=face.get("face_mode", "auto")),
-                    gr.update(value=face.get("face_model", "insightface")),
-                    gr.update(value=face.get("no_face_mode", "zoom")),
-                    gr.update(value=face.get("face_detect_interval", "0.17,1.0")),
-                    i18n("Template loaded: {} | Face: {} / {}").format(name, face.get("face_mode", "auto"), face.get("face_model", "insightface")),
-                ]
-
-            save_template_btn.click(save_settings_template, inputs=[template_name_input, editor_project_dropdown, use_custom_subs] + manual_inputs + [face_mode_input, face_model_input, no_face_mode_input, face_detect_interval_input], outputs=editor_status)
-            load_template_btn.click(load_settings_template, inputs=template_dropdown, outputs=[use_custom_subs] + manual_inputs + [face_mode_input, face_model_input, no_face_mode_input, face_detect_interval_input, editor_status])
 
             def update_file_list(proj_name):
                 if not proj_name:
-                    return gr.update(choices=[])
+                    return gr.update(choices=[], value=None)
                 proj_path = os.path.join(VIRALS_DIR, proj_name)
                 files = editor.list_editable_files(proj_path)
                 return gr.update(choices=files, value=files[0] if files else None)
 
-            editor_project_dropdown.change(update_file_list, inputs=editor_project_dropdown, outputs=editor_status)
+            # v6.8 fix: the file list used to be written into the status Textbox
+            # (a Dropdown update into a Textbox) and current_json_path was never
+            # set — "Render Selected" could never work. Now a real dropdown.
+            editor_project_dropdown.change(update_file_list, inputs=editor_project_dropdown, outputs=editor_file_dropdown)
 
-            def preview_row(json_path, dataframe):
-                if not json_path or not dataframe:
-                    return None, i18n("No row selected.")
-                row_index = 0
-                video_path, msg = editor.build_preview_clip(json_path, int(row_index))
-                return video_path, msg
-
-            def render_single(json_path, use_custom, font_name, font_size, font_color, highlight_color, 
+            def render_single(proj_name, json_file, use_custom, font_name, font_size, font_color, highlight_color, 
                               outline_color, outline_thickness, shadow_color, shadow_size, 
                               is_bold, is_italic, is_uppercase, 
                               h_size, w_block, gap, mode, under, strike, border_s, 
                               vertical_pos, alignment, remove_punc):
-                if not json_path:
+                if not proj_name:
+                    return i18n("No project selected.")
+                if not json_file:
                     return i18n("No file loaded.")
+                json_path = os.path.join(VIRALS_DIR, proj_name, "subs", json_file)
                 subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
                 if use_custom:
                     subtitle_config = _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc)
@@ -1157,7 +1153,7 @@ with gr.Blocks(title="ViralCutter", theme=gr.themes.Soft(primary_hue="orange", n
                         pass
                 return editor.render_specific_video(json_path)
 
-            editor_render_single_btn.click(render_single, inputs=[current_json_path, use_custom_subs] + manual_inputs, outputs=editor_status)
+            editor_render_single_btn.click(render_single, inputs=[editor_project_dropdown, editor_file_dropdown, use_custom_subs] + manual_inputs, outputs=editor_status)
 
             def render_all(proj_name, use_custom, font_name, font_size, font_color, highlight_color, 
                            outline_color, outline_thickness, shadow_color, shadow_size, 
@@ -1214,6 +1210,7 @@ if __name__ == "__main__":
     parser.add_argument("--colab", action="store_true", help="Run in Google Colab mode")
     args = parser.parse_args()
 
+
     if args.colab:
         print("Running in Colab mode. Generating public link with Static Mounts...")
         library.set_url_mode("fastapi")
@@ -1226,6 +1223,7 @@ if __name__ == "__main__":
             share=True,
             allowed_paths=allowed_dirs,
             prevent_thread_lock=True,
+            **_launch_theme_kwargs
         )
         app.mount("/virals", StaticFiles(directory=VIRALS_DIR), name="virals")
         demo.block_thread()
@@ -1274,6 +1272,7 @@ if __name__ == "__main__":
                 server_name="0.0.0.0",
                 server_port=7860,
                 prevent_thread_lock=True,
+                **_launch_theme_kwargs
             )
             attach_extra_routes(app)
             demo.block_thread()
@@ -1281,7 +1280,16 @@ if __name__ == "__main__":
             print("Running in Linux/Container environment (using Uvicorn for stability).")
             app = FastAPI()
             attach_extra_routes(app)
-            app = gr.mount_gradio_app(app, demo.queue(), path="/", allowed_paths=allowed_dirs, ssr_mode=False)
+            if _GRADIO_MAJOR >= 6:
+                # mount_gradio_app resets theme/css unless passed explicitly, and
+                # builds the page config BEFORE applying them — so pass them in
+                # and refresh the config afterwards.
+                app = gr.mount_gradio_app(app, demo.queue(), path="/", allowed_paths=allowed_dirs,
+                                          ssr_mode=False, theme=vc_theme, css=css, css_paths=[])
+                demo.config = demo.get_config_file()
+                demo.config["is_custom_theme"] = True
+            else:
+                app = gr.mount_gradio_app(app, demo.queue(), path="/", allowed_paths=allowed_dirs, ssr_mode=False)
             uvicorn.run(app,
                 host="0.0.0.0",
                 port=7860,

@@ -21,13 +21,18 @@ if sys.platform == "win32" and sys.stdout and hasattr(sys.stdout, 'buffer'):
 # google-generativeai) OR the new `google.genai` (pip install google-genai).
 # v6.4: previously only the legacy import existed while requirements.txt listed
 # the new package → runtime ImportError. Now either library works.
+# importlib.import_module is used instead of `import google.X` so a module
+# already present in sys.modules resolves even when the parent `google`
+# namespace package is not installed (keeps tests/hermetic envs working).
+import importlib
+
 try:
-    import google.generativeai as genai
+    genai = importlib.import_module("google.generativeai")
     HAS_GEMINI = True
     GEMINI_SDK = "legacy"
 except ImportError:
     try:
-        from google import genai as genai  # new unified SDK
+        genai = importlib.import_module("google.genai")  # new unified SDK
         HAS_GEMINI = True
         GEMINI_SDK = "new"
     except ImportError:
