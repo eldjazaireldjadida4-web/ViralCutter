@@ -49,16 +49,19 @@
 
 ## 🔴 أولويات حرجة — تمنع اكتمال "الحلقة"
 
-### 1. تفعيل GitHub Actions + صلاحية Workflows (إجراء من المالك)
-- المشكلة: بعد كل push لا تظهر أي check runs — Actions غير مفعّلة أو تطبيق
-  `moclaw-ai` بلا صلاحية **Workflows** (الجولة السابقة وثّقت رفض GitHub للرفع،
-  وv6.9.1 رُفض دفعها بنفس الرسالة حرفياً).
-- الحل (دقيقة واحدة):
-  1. GitHub ← repo ← **Settings ← Actions ← General ← Enable**.
-  2. GitHub ← avatar ← **Settings ← Applications** ← moclaw-ai ←
-     أعطِ **Read and write** لصلاحية **Workflows** (المطلوبة لرفع/تشغيل
-     `.github/workflows/*`).
-  3. بعدها ارفع ملف `ci.yml` التالي (جاهز) — أو أي تعديل مستقبلي عليه:
+### 1. تفعيل GitHub Actions + صلاحية Workflows — ✅ تم من جهة المالك
+- **المالك فعّل Actions وعدّل `ci.yml` يدوياً** (Commit `803ba18` — خطوة ffmpeg)
+  → أول تشغيلة CI حقيقية حدثت وكشفت مشكلة قديمة:
+- **`test_visual_check` كان يحتاج numpy وCI يثبّت pytest فقط** → 2 فشل.
+  أُصلح: `requirements-dev.txt` أضيف له `numpy<2` (Commit `923274a`).
+- **بقي خطوة واحدة من المالك**: تحديث سطر تثبيت الحزم في `ci.yml` إلى
+  `pip install -r requirements-dev.txt` (بدل `pip install pytest`) — المحتوى
+  النهائي في نهاية هذا البند. بمجرد الرفع تبدأ تشغيلة جديدة خضراء.
+- ملاحظة: أي تعديل مستقبلي على `.github/workflows/*` من تطبيق `moclaw-ai`
+  يُرفض (بلا صلاحية Workflows) — يرفعه المالك من واجهة الويب. الكتالوج لا يملك
+  إجراءً لتفعيل ذلك برمجياً.
+
+- **`ci.yml` النهائي الجاهز للصق:**
 - **محتوى `ci.yml` الجاهز (مع خطوة ffmpeg):**
   ```yaml
   name: CI
