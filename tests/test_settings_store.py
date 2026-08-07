@@ -302,3 +302,38 @@ def test_summarize_error_permission_hint():
     from webui.utils import summarize_error
     _, _, hint = summarize_error("403 PERMISSION_DENIED: Generative Language API has not been used")
     assert "Gemini" in hint
+
+
+# ---------------------------------------------------------------------------
+# v6.9.2 — full WebUI preferences persistence
+# ---------------------------------------------------------------------------
+
+def test_webui_prefs_roundtrip(tmp_path):
+    ok, err = settings_store.save_webui_prefs(
+        {"platform": "yt_shorts", "polish": True, "safety_mode": "block",
+         "video_quality": "1080p", "translate_target": "None"},
+        base_dir=str(tmp_path))
+    assert ok, err
+    loaded = settings_store.load_webui_prefs(base_dir=str(tmp_path))
+    assert loaded["platform"] == "yt_shorts"
+    assert loaded["polish"] is True
+    assert loaded["safety_mode"] == "block"
+
+
+def test_webui_prefs_skips_none(tmp_path):
+    ok, _ = settings_store.save_webui_prefs(
+        {"platform": None, "music": None, "logo": ""}, base_dir=str(tmp_path))
+    assert ok
+    loaded = settings_store.load_webui_prefs(base_dir=str(tmp_path))
+    assert "platform" not in loaded
+    assert "music" not in loaded
+    assert loaded.get("logo") == ""
+
+
+def test_webui_prefs_corrupt_file_returns_empty(tmp_path):
+    (tmp_path / settings_store.WEBUI_PREFS_FILE).write_text("{not json", encoding="utf-8")
+    assert settings_store.load_webui_prefs(base_dir=str(tmp_path)) == {}
+
+
+def test_webui_prefs_missing_file_returns_empty(tmp_path):
+    assert settings_store.load_webui_prefs(base_dir=str(tmp_path)) == {}

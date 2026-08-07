@@ -52,3 +52,6 @@ temp_subtitle_config.json
 client_secrets.json
 yt_token.json
 *.zip
+
+# Local WebUI form preferences (machine-specific, not shared)
+webui_settings.json

@@ -294,6 +294,45 @@ def test_api_connection(backend, api_key, model):
     return "❌ " + i18n("Connection failed:") + " " + str(msg)[:300]
 
 
+# ---------------------------------------------------------------------------
+# v6.9.2 — remember EVERY WebUI form field (not just the API key). The list
+# below is filled with the real components once the UI is built, then wired
+# with a single autosave + a demo.load restore.
+# ---------------------------------------------------------------------------
+
+PREF_FIELDS = []  # [(component, key), ...] — populated after the UI is built
+
+# keys → i18n label for the restore-status line (optional; None hides it)
+_PREF_SAVE_KEYS = {"platform": "Platform template", "safety_mode": "Safety filter"}
+
+
+def _collect_prefs():
+    """Read current values of every persisted form field."""
+    prefs = {}
+    for comp, key in PREF_FIELDS:
+        try:
+            prefs[key] = comp.value
+        except Exception:
+            pass
+    return prefs
+
+
+def autosave_webui_prefs():
+    """Persist the whole form (called on every field change / run start)."""
+    ok, err = settings_store.save_webui_prefs(_collect_prefs())
+    if ok:
+        return ""
+    return "❌ {}: {}".format(i18n("Error saving settings"), err)
+
+
+def restore_webui_prefs():
+    """Apply saved form preferences on UI load."""
+    prefs = settings_store.load_webui_prefs()
+    if not prefs:
+        return [gr.update() for _ in PREF_FIELDS]
+    return [gr.update(value=prefs.get(key)) for _, key in PREF_FIELDS]
+
+
 def kill_process():
     global current_process
     if current_process:
@@ -1336,6 +1375,27 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             clear_log_btn = gr.Button("🗑️ مسح السجل", size="sm")
     logs_output.change(fn=None, inputs=[], outputs=[], js="function() { var ta = document.querySelector('#logs_output textarea'); if (ta) { if (!ta._scrollerSetup) { ta._isSticky = true; ta.addEventListener('scroll', function() { var diff = ta.scrollHeight - ta.scrollTop - ta.clientHeight; ta._isSticky = diff <= 50; }); ta._scrollerSetup = true; } if (ta._isSticky === undefined || ta._isSticky === true) { ta.scrollTop = ta.scrollHeight; } } }")
     clear_log_btn.click(lambda: "", outputs=logs_output)
+
+    # --- v6.9.2: remember EVERY form field (set once, stays forever) ---
+    PREF_FIELDS.extend([
+        (video_quality_input, "video_quality"),
+        (translate_input, "translate_target"),
+        (use_youtube_subs_input, "use_youtube_subs"),
+        (safety_mode_input, "safety_mode"),
+        (safety_ai_input, "safety_ai"),
+        (platform_input, "platform"),
+        (metadata_gate_input, "metadata_gate"),
+        (title_language_input, "title_language"),
+        (polish_input, "polish"),
+        (music_input, "music"),
+        (logo_input, "logo"),
+        (cookies_input, "cookies"),
+        (model_input, "whisper_model"),
+        (workflow_input, "workflow"),
+    ])
+    for comp, _key in PREF_FIELDS:
+        comp.change(autosave_webui_prefs, outputs=[])
+    demo.load(restore_webui_prefs, outputs=[comp for comp, _ in PREF_FIELDS])
 
     # kill_process returns 6 values (logs, start, stop, progress, tasks, errors)
     stop_btn.click(kill_process, outputs=[logs_output, start_btn, stop_btn, progress_panel, tasks_panel, errors_panel])

@@ -25,6 +25,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.secure_config import load_api_config, legacy_config_path
 
+# Local UI-preferences file (user-machine state, NOT tracked by git).
+WEBUI_PREFS_FILE = "webui_settings.json"
+
 # Fields the WebUI persists. Keys match api_config.json.
 PERSISTED_KEYS = ("ai_backend", "ai_model", "chunk_size")
 
@@ -244,3 +247,44 @@ def test_gemini_connection(api_key, model_name="gemini-2.5-flash", timeout=10):
         if "PERMISSION_DENIED" in err:
             return False, "permission denied"
         return False, err
+
+
+# ---------------------------------------------------------------------------
+# Full WebUI preferences (v6.9.2) — remember EVERY form field, not just the
+# API key. Same spirit as the headline v6.9 feature: set it once, it stays.
+# ---------------------------------------------------------------------------
+
+def webui_prefs_path(base_dir=None):
+    """Path of the local prefs file (default: repo root)."""
+    return os.path.join(base_dir or _repo_root(), WEBUI_PREFS_FILE)
+
+
+def _repo_root():
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load_webui_prefs(base_dir=None):
+    """All saved WebUI form preferences ({} when none / corrupt)."""
+    path = webui_prefs_path(base_dir)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_webui_prefs(prefs, base_dir=None):
+    """Persist form preferences atomically. Returns (ok, error_msg)."""
+    prefs = {k: v for k, v in (prefs or {}).items() if v is not None}
+    path = webui_prefs_path(base_dir)
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(prefs, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+        return True, ""
+    except Exception as e:
+        return False, str(e)
