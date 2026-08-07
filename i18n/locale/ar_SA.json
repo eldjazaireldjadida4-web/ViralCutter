@@ -583,5 +583,22 @@
     "Português": "البرتغالية",
     "Türkçe": "التركية",
     "🌐 Titles & captions language": "🌐 لغة العناوين والكابشن",
-    "Arabic": "العربية"
+    "Arabic": "العربية",
+    "Save Settings": "حفظ الإعدادات",
+    "Test Connection": "اختبار الاتصال",
+    "The key is saved automatically — no need to re-enter it each time.": "المفتاح يُحفظ تلقائياً — لا حاجة لإعادة كتابته في كل مرة.",
+    "saved": "محفوظ",
+    "not saved yet": "لم يُحفظ بعد",
+    "not set — paste your key once and it will be remembered": "غير مضبوط — الصق مفتاحك مرة واحدة وسيُتذكَّر",
+    "Settings saved automatically": "تم حفظ الإعدادات تلقائياً",
+    "Error saving settings": "خطأ في حفظ الإعدادات",
+    "Settings saved": "تم حفظ الإعدادات",
+    "Connection test is only available for Gemini.": "اختبار الاتصال متاح فقط لـ Gemini.",
+    "Connection OK — the key works.": "الاتصال ناجح — المفتاح يعمل.",
+    "Connection failed:": "فشل الاتصال:",
+    "from environment variable": "من المتغير البيئي",
+    "from encrypted store": "من التخزين المشفّر",
+    "saved in api_config.json": "محفوظ في api_config.json",
+    "Error: Gemini API key is missing. Paste it in the AI settings (saved automatically) or set the GEMINI_API_KEY environment variable.": "خطأ: مفتاح Gemini API مفقود. الصقه في إعدادات الذكاء الاصطناعي (يُحفظ تلقائياً) أو اضبط المتغير البيئي GEMINI_API_KEY.",
+    "Warning: the API key does not look like a Gemini key (usually starts with 'AIza'). Continuing anyway.": "تحذير: المفتاح لا يشبه مفاتيح Gemini (تبدأ عادة بـ 'AIza'). سنكمل على أي حال."
 }
