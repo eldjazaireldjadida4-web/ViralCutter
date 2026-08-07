@@ -1,5 +1,27 @@
 # Changelog
 
+## 🛠️ v6.9.1 — mediapipe اختياري + خطوط Montserrat مضمّنة + CI ffmpeg (2026-08-07)
+
+### Fixes
+- **mediapipe أصبح اختيارياً** في `scripts/edit_video.py` / `one_face.py` /
+  `two_face.py`: كان `import mediapipe` مكشوفاً فتنهار المعالجة في منتصفها على
+  أي جهاز بلا الحزمة. الآن انحدار تلقائي إلى OpenCV Haar Cascade (كان جاهزاً
+  في موقع الاستخدام — فقط الاستيراد كان يقتل الوحدة).
+- **خطوط Montserrat مضمّنة** في `fonts/` (Regular/Bold/ExtraBold + OFL):
+  `burn_subtitles.py` يمرّر `:fontsdir=` لـ ffmpeg فتُحفظ ترجمات "Hormozi" بخطها
+  الصحيح حتى بدون تثبيت الخط على النظام (كان ffmpeg يستبدله بصمت). أُضيفت
+  الخطوط إلى `packaging/viralcutter.spec` أيضاً.
+- **CI**: خطوة `apt-get install ffmpeg` في `.github/workflows/ci.yml` جاهزة
+  لكنها **محجوبة بالصلاحيات**: GitHub يرفض دفع تعديلات workflows من تطبيق
+  moclaw-ai بلا صلاحية Workflows. المحتوى كاملاً موثّق في
+  `docs/REMAINING_AFTER_V6_9.md` البند 1 ليُرفع بعد منح الصلاحية.
+- **تقرير تسليم جديد**: `docs/REMAINING_AFTER_V6_9.md` — ما أنجزناه وما تبقى
+  وكيف يُنفَّذ كل بند (تفعيل Actions، أول Release، OAuth، Chromaprint...).
+
+### Tests
+- `tests/test_mediapipe_optional.py` (2) + `tests/test_fonts.py` (4).
+- الإجمالي: **373** (367 + 6).
+
 ## 💾 v6.9 — Persistent AI settings: save the Gemini key once, never retype it (2026-08)
 
 ### New

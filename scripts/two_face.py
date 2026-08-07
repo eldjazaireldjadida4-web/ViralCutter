@@ -1,5 +1,10 @@
 import cv2
-import mediapipe as mp
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    mp = None
+    MEDIAPIPE_AVAILABLE = False
 import numpy as np
 
 def crop_and_maintain_ar(frame, face_box, target_w, target_h, zoom_out_factor=2.2):

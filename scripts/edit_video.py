@@ -2,7 +2,17 @@ import cv2
 import numpy as np
 import os
 import subprocess
-import mediapipe as mp
+# v6.9.1: mediapipe is optional — a missing/broken install must not kill the
+# module import (the pipeline crashed mid-run with a bare ModuleNotFoundError
+# before). The usage site below already falls back to OpenCV Haar Cascade
+# when `mp` lacks `solutions`.
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    mp = None
+    MEDIAPIPE_AVAILABLE = False
+    print("MediaPipe not found. Install with: pip install mediapipe — will fall back to OpenCV Haar Cascade if needed.")
 from scripts.one_face import crop_and_resize_single_face, resize_with_padding, detect_face_or_body, crop_center_zoom
 from scripts.two_face import crop_and_resize_two_faces, detect_face_or_body_two_faces
 try:
