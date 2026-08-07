@@ -20,16 +20,38 @@ def _detect_best_encoder():
     return "libx264", "ultrafast"
 
 
+def _fonts_dir():
+    """Absolute path of the bundled fonts/ dir (repo root), or None."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    fonts_dir = os.path.join(root, "fonts")
+    return fonts_dir if os.path.isdir(fonts_dir) else None
+
+
+def _subtitles_filter(subtitle_path):
+    """Build the ffmpeg `subtitles=` filter string.
+
+    Adds `:fontsdir=<fonts/>` when the bundled Montserrat fonts are
+    present, so the Hormozi-style subtitle font resolves even when the
+    font is NOT installed system-wide (v6.9.1 — before, ffmpeg silently
+    substituted a default font and the videos looked off-brand).
+    """
+    subtitle_file_ffmpeg = subtitle_path.replace('\\', '/').replace(':', '\\:')
+    vf = "subtitles='{}'".format(subtitle_file_ffmpeg)
+    fonts_dir = _fonts_dir()
+    if fonts_dir:
+        fonts_dir_ffmpeg = fonts_dir.replace('\\', '/').replace(':', '\\:')
+        vf += ":fontsdir='{}'".format(fonts_dir_ffmpeg)
+    return vf
+
+
 def burn_video_file(video_path, subtitle_path, output_path, prefer_hardware_acceleration=None):
     """Burn subtitles into a single video file with safe fallback handling."""
-    subtitle_file_ffmpeg = subtitle_path.replace('\\', '/').replace(':', '\\:')
-
     def run_ffmpeg(encoder, preset, additional_args=None):
         additional_args = additional_args or []
         cmd = [
             "ffmpeg", "-y", "-loglevel", "error", "-hide_banner",
             "-i", video_path,
-            "-vf", f"subtitles='{subtitle_file_ffmpeg}'",
+            "-vf", _subtitles_filter(subtitle_path),
             "-c:v", encoder,
             "-preset", preset,
             "-b:v", "5M",

@@ -24,6 +24,7 @@ ROOT = Path(SPECPATH).parent  # packaging/ → repo root
 datas = [
     (str(ROOT / "i18n"), "i18n"),
     (str(ROOT / "models"), "models"),
+    (str(ROOT / "fonts"), "fonts"),
     (str(ROOT / "prompt.txt"), "."),
     (str(ROOT / "api_config.json"), "."),
     (str(ROOT / "safety_blocklist.json"), "."),

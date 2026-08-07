@@ -2,7 +2,12 @@ import cv2
 import numpy as np
 import os
 import subprocess
-import mediapipe as mp
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    mp = None
+    MEDIAPIPE_AVAILABLE = False
 
 def crop_and_resize_single_face(frame, face):
         frame_height, frame_width = frame.shape[:2]
