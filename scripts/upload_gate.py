@@ -18,9 +18,12 @@ Design notes
 * Pure stdlib, no network calls inside the gate itself → unit-testable.
 * `check_clip()` returns a structured verdict; `gate_upload()` is the
   enforcement wrapper (raises `UploadGateError`).
-* Platform uploaders are thin adapters that MUST call `gate_upload()` first;
-  their actual API calls live behind `--dry-run` stubs so the scaffold is
-  honest and safe until OAuth credentials are configured.
+* Platform uploaders are thin adapters that MUST call `gate_upload()` first.
+* YouTube (OAuth + Data API v3), TikTok (OAuth2 + Content Posting API) and
+  Instagram (Graph API Reels) are fully implemented; run the OAuth flow once
+  with `--auth <platform>` to obtain/store tokens (see --auth below).
+* The optional music_fingerprint.json report (Roadmap 2.3) is consulted via
+  `music_gate`: "warn" flags matched audio, "block" refuses the upload.
 """
 
 import json
