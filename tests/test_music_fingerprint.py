@@ -13,6 +13,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import base64  # noqa: E402
 from scripts import music_fingerprint as mf  # noqa: E402
 
 
@@ -120,8 +121,39 @@ class TestLocalMatch:
 
 
 class TestIdentifyAcoustid:
-    def test_raw_fingerprint_skips_lookup(self):
+    def test_raw_fingerprint_is_encoded_and_queried(self, monkeypatch):
+        """fpcalc raw ints now reach AcoustID (no pyacoustid needed)."""
+        import urllib.request
+        captured = {}
+
+        class FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return json.dumps({"status": "ok", "results": []}).encode()
+
+        def fake_urlopen(url, timeout=60):
+            captured["url"] = url
+            return FakeResp()
+
+        monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
         assert mf.identify_acoustid([1, 2, 3], 30) == []
+        assert "fingerprint=" in captured["url"]
+        assert "duration=30" in captured["url"]
+        assert "client=8XaBELgH" in captured["url"]
+
+    def test_unencodable_raw_returns_empty(self, monkeypatch):
+        def boom(url, timeout=60):
+            raise AssertionError("must not hit the network")
+
+        monkeypatch.setattr(mf.urllib.request, "urlopen", boom)
+        # A fingerprint that cannot be packed (e.g. non-int entries) →
+        # no request is made, [] returned.
+        assert mf.identify_acoustid(["x", "y"], 30) == []
 
     def test_lookup_parses_results(self, monkeypatch):
         payload = {
@@ -192,6 +224,8 @@ class TestAnalyzeProject:
                                                     "duration": 30.0,
                                                     "engine": "fpcalc",
                                                     "format": "raw"})
+        # No real network: AcoustID lookup is a no-op in this test.
+        monkeypatch.setattr(mf, "identify_acoustid", lambda *a, **k: [])
         db = {"songs": [{"title": "Licensed Track",
                          "fingerprint": list(clip_fp),
                          "format": "raw", "duration": 30.0}]}
@@ -200,6 +234,79 @@ class TestAnalyzeProject:
         assert report["summary"]["matched"] == 2
         assert report["clips"][0]["verdict"] == "local_match"
         assert report["clips"][0]["local_match"]["song"] == "Licensed Track"
+
+    def test_report_marks_backend_and_coverage_note(self, tmp_path, monkeypatch):
+        project = self._project(tmp_path, n=1)
+        monkeypatch.setattr(mf, "_import_acoustid", lambda: None)
+        monkeypatch.setattr(mf, "_fpcalc_candidates", lambda: ["/fake/fpcalc"])
+        monkeypatch.setattr(mf, "fingerprint_file",
+                            lambda p, timeout=600: {"fingerprint": [1, 2, 3],
+                                                    "duration": 1.0,
+                                                    "engine": "fpcalc",
+                                                    "format": "raw"})
+        monkeypatch.setattr(mf, "identify_acoustid", lambda *a, **k: [])
+        report = mf.analyze_project(project)
+        assert report["backend"] == "fpcalc"
+        assert "Arabic" in report["coverage_note"]
+        assert "local reference DB" in report["coverage_note"]
+
+
+class TestCompressFingerprint:
+    def test_known_vector(self):
+        # 1,2,3 → 3× little-endian uint32 → base64 (12 bytes → 16 chars).
+        assert mf.compress_fingerprint([1, 2, 3]) == "AQAAAAIAAAADAAAA"
+
+    def test_negative_ints_mask_to_32bit(self):
+        # fpcalc -raw prints signed values; -1 == 0xFFFFFFFF in 32-bit.
+        assert mf.compress_fingerprint([-1]) == mf.compress_fingerprint([2 ** 32 - 1])
+
+    def test_roundtrip(self):
+        import struct
+        ints = [123456, -7, 2 ** 31, 0]
+        enc = mf.compress_fingerprint(ints)
+        raw = base64.b64decode(enc)
+        vals = list(struct.unpack("<{}I".format(len(ints)), raw))
+        assert vals == [i & 0xFFFFFFFF for i in ints]
+
+    def test_empty_returns_none(self):
+        assert mf.compress_fingerprint([]) is None
+
+    def test_garbage_returns_none(self):
+        assert mf.compress_fingerprint(["a", None]) is None
+
+
+class TestFpcalcDiscovery:
+    def test_finds_bundled_fpcalc_next_to_exe(self, tmp_path, monkeypatch):
+        exe = tmp_path / "ViralCutter.exe"
+        exe.write_bytes(b"")
+        fpcalc = tmp_path / "fpcalc.exe"
+        fpcalc.write_bytes(b"")
+        monkeypatch.setattr(mf.sys, "executable", str(exe))
+        assert mf._fpcalc_candidates()[0] == str(fpcalc)
+
+    def test_finds_fpcalc_in_user_bin(self, tmp_path, monkeypatch):
+        fpcalc = tmp_path / "fpcalc.exe"
+        fpcalc.write_bytes(b"")
+        monkeypatch.setattr(mf, "USER_BIN_DIR", str(tmp_path))
+        assert str(fpcalc) in mf._fpcalc_candidates()
+
+    def test_available_with_fpcalc_only(self, monkeypatch):
+        monkeypatch.setattr(mf, "_import_acoustid", lambda: None)
+        monkeypatch.setattr(mf, "_fpcalc_candidates", lambda: ["/x/fpcalc"])
+        assert mf.fpcalc_available() is True
+
+
+class TestInstallFpcalc:
+    def test_all_downloads_fail_raises_clear(self, tmp_path, monkeypatch):
+        import urllib.request
+
+        def boom(req, *a, **k):
+            raise OSError("offline")
+
+        monkeypatch.setattr(urllib.request, "urlopen", boom)
+        monkeypatch.setattr(mf.sys, "frozen", False, raising=False)
+        with pytest.raises(RuntimeError, match="fpcalc download failed"):
+            mf.install_fpcalc(target_dir=str(tmp_path), timeout=10)
 
 
 class TestMusicGate:

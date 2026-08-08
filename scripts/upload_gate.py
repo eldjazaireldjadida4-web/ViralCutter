@@ -347,20 +347,31 @@ class YouTubeUploader(_BaseUploader):
 # Shared HTTP helpers (stdlib only — no extra pip deps for the upload stack)
 # ---------------------------------------------------------------------------
 
-def _http_json(url, data=None, headers=None, method=None, timeout=60, retries=3):
-    """JSON POST/PUT/GET via urllib with a simple 429/5xx retry loop.
+def _http_json(url, data=None, headers=None, method=None, timeout=60, retries=3,
+               form=False):
+    """JSON/form/raw-bytes HTTP request via urllib with a 429/5xx retry loop.
 
+    - data dict + form=False  → JSON body (Content-Type: application/json)
+    - data dict + form=True   → urlencoded body (application/x-www-form-urlencoded,
+                                what the Instagram Graph API expects)
+    - data bytes              → raw body sent as-is (TikTok video PUT)
     Returns the parsed JSON body. Raises RuntimeError with a readable message
     on transport errors and on API error payloads ({"error": {...}}).
     """
     body = None
     if data is not None:
-        body = json.dumps(data).encode("utf-8")
+        if isinstance(data, (bytes, bytearray)):
+            body = bytes(data)
+        elif form:
+            body = urllib.parse.urlencode(data).encode("utf-8")
+        else:
+            body = json.dumps(data).encode("utf-8")
     req_headers = {"Accept": "application/json"}
     if headers:
         req_headers.update(headers)
-    if body is not None:
-        req_headers.setdefault("Content-Type", "application/json")
+    if body is not None and "Content-Type" not in req_headers:
+        req_headers["Content-Type"] = (
+            "application/x-www-form-urlencoded" if form else "application/json")
 
     last_err = None
     for attempt in range(1, retries + 1):
@@ -410,6 +421,24 @@ def _api_error_message(status, raw):
     return "API error {}: {}".format(status, raw[:200])
 
 
+TIKTOK_APPROVAL_HINT = (
+    "TikTok only lets an app upload AFTER its Content Posting API permission "
+    "(scope video.publish) is APPROVED — app review typically takes days to "
+    "weeks. Check https://developers.tiktok.com → your app → Permissions."
+)
+
+
+def _with_tiktok_hint(msg):
+    """Append the app-approval hint when a TikTok error smells like permissions."""
+    lower = msg.lower()
+    if any(k in lower for k in (
+            "permission", "approve", "approval", "scope", "unauthorized",
+            "forbidden", "not allowed", "no permission", "40100", "43201",
+            "access_token")):
+        return msg + "\n" + TIKTOK_APPROVAL_HINT
+    return msg
+
+
 def _token_file(platform):
     env_map = {
         "tiktok": "TIKTOK_TOKEN_FILE",
@@ -439,6 +468,91 @@ def _load_token(platform):
             return json.load(f), path
     except Exception:
         return None, path
+
+
+# ---------------------------------------------------------------------------
+# Anonymous video hosting (bridges the Instagram Graph API "public URL" gap)
+# ---------------------------------------------------------------------------
+
+def _multipart_body(fields, file_path, file_field, boundary):
+    """Build a multipart/form-data body (stdlib only)."""
+    import uuid
+    lines = []
+    for k, v in (fields or {}).items():
+        lines.append("--" + boundary)
+        lines.append('Content-Disposition: form-data; name="{}"'.format(k))
+        lines.append("")
+        lines.append(str(v))
+    lines.append("--" + boundary)
+    lines.append('Content-Disposition: form-data; name="{}"; filename="{}"'.format(
+        file_field, os.path.basename(file_path)))
+    lines.append("Content-Type: video/mp4")
+    lines.append("")
+    head = "\r\n".join(lines).encode("utf-8") + b"\r\n"
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+    tail = "\r\n--{}--\r\n".format(boundary).encode("utf-8")
+    return head + file_data + tail
+
+
+def host_media_file(video_path, timeout=300):
+    """Upload a local video to a free anonymous host; return the public https URL.
+
+    Why: Instagram's Graph API has NO raw-file upload for Reels — it needs a
+    public HTTPS video_url. This closes that gap for desktop users: the clip
+    goes to catbox.moe (200 MB limit), falling back to 0x0.st, and the
+    returned URL is fed to the Graph API automatically.
+
+    Caveats (documented honestly):
+      * Hosted copies are anonymous and temporary — they may be removed later,
+        but the Instagram post keeps the video regardless.
+      * For sensitive content, host on your own server instead and pass
+        --video-url / IG_VIDEO_URL (or IG_HOST_DISABLE=1 to force that path).
+
+    Returns the https URL. Raises RuntimeError with a readable message.
+    """
+    import uuid
+    if not os.path.exists(video_path):
+        raise FileNotFoundError("video not found: {}".format(video_path))
+    size = os.path.getsize(video_path)
+    if size <= 0:
+        raise ValueError("video file is empty: {}".format(video_path))
+    if size > 200 * 1024 * 1024:
+        raise RuntimeError(
+            "auto-host supports files up to 200 MB (got {:.1f} MB). Host this "
+            "clip yourself and pass --video-url or IG_VIDEO_URL.".format(
+                size / (1024 * 1024)))
+
+    hosts = [
+        {"name": "catbox.moe", "url": "https://catbox.moe/user/api.php",
+         "fields": {"reqtype": "fileupload", "userhash": ""}},
+        {"name": "0x0.st", "url": "https://0x0.st",
+         "fields": {"secret": ""}},
+    ]
+    last_err = None
+    for host in hosts:
+        boundary = "----ViralCutter{}".format(uuid.uuid4().hex)
+        body = _multipart_body(host["fields"], video_path, "fileToUpload"
+                               if host["name"] == "catbox.moe" else "file",
+                               boundary)
+        req = urllib.request.Request(
+            host["url"], data=body, method="POST",
+            headers={"Content-Type": "multipart/form-data; boundary={}".format(boundary),
+                     "User-Agent": "ViralCutter/6.11 (desktop upload helper)"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                url = resp.read().decode("utf-8", errors="replace").strip()
+            if url and url.startswith("https://") and not any(
+                    token in url.lower() for token in ("error", "<html")):
+                return url
+            last_err = "host {} replied: {}".format(host["name"], url[:120] or "(empty)")
+        except Exception as e:
+            last_err = "host {} failed: {}".format(host["name"], e)
+            continue
+    raise RuntimeError(
+        "auto-hosting failed on all providers (catbox.moe, 0x0.st). "
+        "Last error: {}. Host the clip yourself and pass --video-url or "
+        "IG_VIDEO_URL.".format(last_err))
 
 
 class _OAuthCallbackServer:
@@ -667,17 +781,22 @@ class TikTokUploader(_BaseUploader):
                 "total_chunk_count": 1,
             },
         }
-        init = _http_json(self.VIDEO_INIT_URL, init_payload, headers=headers)
+        try:
+            init = _http_json(self.VIDEO_INIT_URL, init_payload, headers=headers)
+        except RuntimeError as e:
+            raise RuntimeError(_with_tiktok_hint(str(e))) from None
         publish_id = ((init.get("data") or {}).get("publish_id"))
         if not publish_id:
-            raise RuntimeError("TikTok init returned no publish_id: {}".format(init))
+            raise RuntimeError(_with_tiktok_hint(
+                "TikTok init returned no publish_id: {}".format(init)))
 
-        # Upload the file bytes (single chunk).
+        # Upload the file bytes (single chunk) — the actual PUT body. The
+        # endpoint returns an empty 2xx body, so we ignore the JSON result.
         with open(video_path, "rb") as f:
             blob = f.read()
         upload_url = "{}?video_size={}".format(
             self.VIDEO_UPLOAD_URL + str(publish_id) + "/", size)
-        _http_json(upload_url, data=None, headers={
+        _http_json(upload_url, data=blob, headers={
             "Authorization": "Bearer {}".format(access_token),
             "Content-Type": "video/mp4",
         }, method="PUT", timeout=600)
@@ -695,7 +814,8 @@ class TikTokUploader(_BaseUploader):
             if state == "FAILED":
                 fail = ((status.get("data") or {}).get("fail_reason")
                         or status.get("error") or "unknown")
-                raise RuntimeError("TikTok publish failed: {}".format(fail))
+                raise RuntimeError(_with_tiktok_hint(
+                    "TikTok publish failed: {}".format(fail)))
             time.sleep(5)
         raise RuntimeError(
             "TikTok publish is still processing (publish_id {}) — check later "
@@ -709,9 +829,11 @@ class InstagramUploader(_BaseUploader):
       * Two-step publish: POST /{ig-user-id}/media (media_type=REELS) →
         creation_id, then POST /{ig-user-id}/media_publish.
       * The API requires a **public HTTPS video_url** for the clip (there is
-        no raw-file upload endpoint for IG Reels). Host the final clip on any
-        public URL (your server / storage bucket) and pass it with
-        `--video-url` or the IG_VIDEO_URL env var.
+        no raw-file upload endpoint for IG Reels). ViralCutter closes that
+        gap automatically: with no --video-url / IG_VIDEO_URL, the local clip
+        is uploaded to a free anonymous host (catbox.moe, 0x0.st fallback)
+        and the resulting URL is used. Set IG_HOST_DISABLE=1 to force the
+        manual path (host on your own server, pass --video-url).
       * The account must be a Business/Creator account linked to a Facebook
         Page, and the Facebook app needs the `instagram_content_publish` and
         `pages_show_list` permissions.
@@ -780,10 +902,21 @@ class InstagramUploader(_BaseUploader):
 
         video_url = self.video_url or os.getenv("IG_VIDEO_URL", "")
         if not video_url:
-            raise RuntimeError(
-                "Instagram Graph API requires a PUBLIC https video_url for the "
-                "clip (no raw-file upload exists for IG Reels). Host the clip "
-                "and pass --video-url or set IG_VIDEO_URL.")
+            if os.getenv("IG_HOST_DISABLE", "").lower() in ("1", "true", "yes"):
+                raise RuntimeError(
+                    "Instagram Graph API requires a PUBLIC https video_url for "
+                    "the clip (no raw-file upload exists for IG Reels). Host "
+                    "the clip and pass --video-url or set IG_VIDEO_URL "
+                    "(IG_HOST_DISABLE=1 disabled auto-hosting).")
+            if not os.path.exists(video_path):
+                raise FileNotFoundError("video not found: {}".format(video_path))
+            print("[instagram] no IG_VIDEO_URL — auto-hosting the clip on a "
+                  "free anonymous host (catbox.moe, 0x0.st fallback)…")
+            video_url = host_media_file(video_path)
+            print("[instagram] hosted → {}".format(video_url))
+            print("[instagram] note: the hosted copy is temporary; the post "
+                  "keeps the video. Set IG_VIDEO_URL or IG_HOST_DISABLE=1 to "
+                  "control hosting yourself.")
 
         caption_text = (title or "").strip()
         if caption:
@@ -801,14 +934,16 @@ class InstagramUploader(_BaseUploader):
             "caption": caption_text,
             "share_to_feed": os.getenv("IG_SHARE_TO_FEED", "true").lower() in ("1", "true", "yes"),
         }
-        created = _http_json("{}/{}/media".format(base, ig_user_id), params)
+        # Graph API media/media_publish endpoints take FORM-encoded params.
+        created = _http_json("{}/{}/media".format(base, ig_user_id), params,
+                             form=True)
         creation_id = created.get("id")
         if not creation_id:
             raise RuntimeError("Instagram media creation failed: {}".format(created))
 
         published = _http_json("{}/{}/media_publish".format(base, ig_user_id),
                                {"creation_id": creation_id,
-                                "access_token": access_token})
+                                "access_token": access_token}, form=True)
         media_id = published.get("id")
         print("[instagram] uploaded '{}' (media_id {})".format(title, media_id))
         return {"status": "uploaded", "platform": "instagram",
@@ -822,6 +957,84 @@ UPLOADERS = {
 }
 
 
+def check_platform_setup(platform):
+    """Diagnose what's missing for a platform BEFORE any upload. No network.
+
+    Returns a list of {"ok": bool, "item": str, "detail": str}. Helps users
+    (and the support flow) see at a glance which barrier is theirs: missing
+    env vars, missing token, or an external approval we cannot verify.
+    """
+    checks = []
+    env = os.environ
+
+    if platform == "youtube":
+        secrets = env.get("YT_CLIENT_SECRETS_FILE") or os.path.join(
+            os.getcwd(), "client_secrets.json")
+        checks.append({
+            "ok": os.path.exists(secrets),
+            "item": "OAuth client secrets (client_secrets.json)",
+            "detail": secrets + (" — found" if os.path.exists(secrets)
+                                 else " — MISSING. Get one from Google Cloud "
+                                 "Console → APIs & Services → Credentials → "
+                                 "OAuth 2.0 Client ID (Desktop app).")})
+        token = _token_file("youtube")
+        checks.append({
+            "ok": os.path.exists(token),
+            "item": "Saved YouTube token",
+            "detail": token + (" — found" if os.path.exists(token)
+                               else " — missing. Run --auth youtube once.")})
+    elif platform == "tiktok":
+        ck, cs = env.get("TIKTOK_CLIENT_KEY"), env.get("TIKTOK_CLIENT_SECRET")
+        checks.append({
+            "ok": bool(ck and cs),
+            "item": "TikTok app credentials (TIKTOK_CLIENT_KEY/SECRET)",
+            "detail": "set" if ck and cs else
+                      "MISSING — create an app at developers.tiktok.com and "
+                      "set both env vars."})
+        token = _token_file("tiktok")
+        checks.append({
+            "ok": os.path.exists(token),
+            "item": "Saved TikTok token",
+            "detail": token + (" — found" if os.path.exists(token)
+                               else " — missing. Run --auth tiktok once "
+                               "(opens the browser consent).")})
+        checks.append({
+            "ok": None,
+            "item": "Content Posting API approval",
+            "detail": "CANNOT be verified from here — TikTok approves apps "
+                      "manually (days/weeks). Even with perfect code, uploads "
+                      "only work after approval. Check developers.tiktok.com "
+                      "→ your app → Permissions → video.publish."})
+    elif platform == "instagram":
+        token, path = _load_token("instagram")
+        env_tok = env.get("IG_ACCESS_TOKEN")
+        checks.append({
+            "ok": bool(token or env_tok),
+            "item": "Instagram access token",
+            "detail": path + (" — found" if token else
+                              " — missing. Set IG_ACCESS_TOKEN (long-lived "
+                              "user token) or run --auth instagram.")})
+        uid = env.get("IG_USER_ID")
+        checks.append({
+            "ok": bool(uid),
+            "item": "IG_USER_ID",
+            "detail": "set" if uid else "MISSING — set IG_USER_ID (your IG "
+                      "Business/Creator account id)."})
+        url = env.get("IG_VIDEO_URL")
+        checks.append({
+            "ok": None,
+            "item": "Video URL source",
+            "detail": ("IG_VIDEO_URL is set — Graph API will use it." if url
+                       else "not set — ViralCutter will AUTO-HOST the clip on "
+                       "a free anonymous host (catbox.moe / 0x0.st) at upload "
+                       "time. Set IG_VIDEO_URL or IG_HOST_DISABLE=1 to host "
+                       "yourself.")})
+    else:
+        checks.append({"ok": False, "item": "unknown platform",
+                       "detail": platform})
+    return checks
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -830,7 +1043,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(
         description="ViralCutter upload gate — refuses publishing blocked clips.")
-    parser.add_argument("--project", required=True, help="Project folder")
+    parser.add_argument("--project", default=None, help="Project folder (not needed for --check)")
     parser.add_argument("--index", type=int, default=None,
                         help="Clip index to check (default: audit all scored clips)")
     parser.add_argument("--title", default="", help="Title (checked live)")
@@ -848,11 +1061,26 @@ def main():
                         help="Actually call the platform SDK (needs credentials)")
     parser.add_argument("--auth", choices=list(UPLOADERS), default=None,
                         help="Run the OAuth consent flow for a platform and save the token (no upload)")
+    parser.add_argument("--check", choices=list(UPLOADERS), default=None,
+                        help="Diagnose a platform's setup (env vars, tokens, known external barriers) — no upload, no network")
     parser.add_argument("--music-gate", choices=["warn", "block", "off"], default=None,
                         help="How to treat music_fingerprint.json matches (default: warn)")
     args = parser.parse_args()
 
+    if args.check:
+        print("setup check for {}:".format(args.check))
+        ok = True
+        for c in check_platform_setup(args.check):
+            mark = "✅" if c["ok"] is True else ("ℹ️" if c["ok"] is None else "❌")
+            print("  {} {}".format(mark, c["item"]))
+            print("      {}".format(c["detail"]))
+            if c["ok"] is False:
+                ok = False
+        return 0 if ok else 1
+
     if args.auth:
+        if not args.project:
+            parser.error("--project is required with --auth")
         uploader = UPLOADERS[args.auth](args.project, dry_run=True,
                                         extra_rules_path=args.extra_rules,
                                         video_url=args.video_url,
@@ -865,6 +1093,8 @@ def main():
         return 0
 
     if args.upload:
+        if not args.project:
+            parser.error("--project is required with --upload")
         uploader = UPLOADERS[args.upload](args.project, dry_run=not args.no_dry_run,
                                           extra_rules_path=args.extra_rules,
                                           video_url=args.video_url,
@@ -878,6 +1108,9 @@ def main():
             print(str(e))
             return 3
         return 0
+
+    if not args.project:
+        parser.error("--project is required for gate checks/audits (or use --check)")
 
     if args.index is not None:
         verdict = check_clip(args.project, args.index, args.title, args.caption,

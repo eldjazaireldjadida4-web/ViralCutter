@@ -25,15 +25,26 @@ never raises on import, and `analyze_project()` reports `no_fpcalc` per
 clip instead of crashing the pipeline.
 """
 
+import base64
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.parse
 import urllib.request
 
 REPORT_NAME = "music_fingerprint.json"
+
+# Chromaprint release used by --install-fpcalc (auto-download). Kept on a
+# pinned release so builds are reproducible; the API fallback picks the
+# latest release automatically when this asset name pattern changes.
+FPCalc_RELEASE = "v1.5.1"
+FPCalc_GH_API = "https://api.github.com/repos/acoustid/chromaprint/releases/latest"
+
+# Extra folder we look for fpcalc in (also where --install-fpcalc puts it).
+USER_BIN_DIR = os.path.join(os.path.expanduser("~"), ".viralcutter", "bin")
 
 # Public default client key used by open-source Chromaprint tools.
 # Override with the ACOUSTID_API_KEY env var.
@@ -61,11 +72,37 @@ def _import_acoustid():
         return None
 
 
+def _fpcalc_candidates():
+    """Every plausible location of the fpcalc CLI, most specific first.
+
+    Order matters — later entries are fallbacks:
+      1. inside a PyInstaller onefile bundle (sys._MEIPASS),
+      2. next to the running exe (frozen app; where the CI build bundles it),
+      3. ~/.viralcutter/bin (where --install-fpcalc drops it),
+      4. anywhere on PATH.
+    """
+    cands = []
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle:
+        cands += [os.path.join(bundle, "fpcalc.exe"), os.path.join(bundle, "fpcalc")]
+    exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+    cands += [os.path.join(exe_dir, "fpcalc.exe"), os.path.join(exe_dir, "fpcalc")]
+    cands += [os.path.join(USER_BIN_DIR, "fpcalc.exe"), os.path.join(USER_BIN_DIR, "fpcalc")]
+    seen = []
+    for c in cands:
+        if c and os.path.isfile(c) and c not in seen:
+            seen.append(c)
+    on_path = shutil.which("fpcalc")
+    if on_path and on_path not in seen:
+        seen.append(on_path)
+    return seen
+
+
 def fpcalc_available():
     """True when we can fingerprint locally (pyacoustid lib or fpcalc CLI)."""
     if _import_acoustid() is not None:
         return True
-    return shutil.which("fpcalc") is not None
+    return len(_fpcalc_candidates()) > 0
 
 
 def fingerprint_file(video_path, timeout=600):
@@ -88,43 +125,51 @@ def fingerprint_file(video_path, timeout=600):
         except Exception:
             pass  # fall through to the fpcalc CLI
 
-    fpcalc = shutil.which("fpcalc")
-    if fpcalc is None:
+    fpcalc = _fpcalc_candidates()
+    if not fpcalc:
         raise FpcalcUnavailable(
-            "Chromaprint not found. Install it:\n"
-            "  • Windows: download fpcalc.exe from the chromaprint releases "
-            "(https://github.com/acoustid/chromaprint/releases) and put it in "
-            "the app folder or on PATH, OR\n"
-            "  • pip install pyacoustid  (also needs the native chromaprint lib), OR\n"
+            "Chromaprint not found. Fix it with one command:\n"
+            "  • python -m scripts.music_fingerprint --install-fpcalc\n"
+            "    (auto-downloads fpcalc.exe next to the app — bundled in the "
+            "official Windows build, so packaged users never see this), OR\n"
+            "  • pip install pyacoustid  (needs the native chromaprint lib), OR\n"
             "  • Linux: sudo apt-get install libchromaprint-tools")
 
-    cmd = [fpcalc, "-raw", str(video_path)]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    except Exception as e:
-        raise RuntimeError("fpcalc failed to start: {}".format(e)) from None
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "").strip()[:300]
-        raise RuntimeError("fpcalc failed ({}): {}".format(proc.returncode, detail))
-
-    duration = 0.0
-    ints = []
-    for line in (proc.stdout or "").splitlines():
-        if line.startswith("DURATION="):
-            try:
-                duration = float(line.split("=", 1)[1])
-            except ValueError:
-                pass
-        elif line.startswith("FINGERPRINT="):
-            raw = line.split("=", 1)[1].strip()
-            if raw and raw != "0":
-                ints = [int(x) for x in raw.split(",") if x.strip()]
-    if not ints:
-        raise RuntimeError(
-            "fpcalc produced no fingerprint ({}). Is the file a valid video "
-            "with audio?".format(video_path))
-    return {"fingerprint": ints, "duration": duration, "engine": "fpcalc",
-            "format": "raw"}
+    errors = []
+    for fpcalc in fpcalc:
+        cmd = [fpcalc, "-raw", str(video_path)]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except Exception as e:
+            errors.append("{}: {}".format(fpcalc, e))
+            continue
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()[:300]
+            errors.append("{} failed ({}): {}".format(fpcalc, proc.returncode, detail))
+            continue
+        duration = 0.0
+        ints = []
+        for line in (proc.stdout or "").splitlines():
+            if line.startswith("DURATION="):
+                try:
+                    duration = float(line.split("=", 1)[1])
+                except ValueError:
+                    pass
+            elif line.startswith("FINGERPRINT="):
+                raw = line.split("=", 1)[1].strip()
+                if raw and raw != "0":
+                    ints = [int(x) for x in raw.split(",") if x.strip()]
+        if not ints:
+            errors.append(
+                "{} produced no fingerprint — is the file a valid video with "
+                "audio?".format(fpcalc))
+            continue
+        return {"fingerprint": ints, "duration": duration, "engine": "fpcalc",
+                "format": "raw"}
+    if errors:
+        raise RuntimeError("fpcalc failed on every candidate:\n  " +
+                           "\n  ".join(errors[:5]))
+    raise RuntimeError("no fpcalc found")
 
 
 def decode_fingerprint(fingerprint, fmt="compressed"):
@@ -144,6 +189,26 @@ def decode_fingerprint(fingerprint, fmt="compressed"):
     return []
 
 
+def compress_fingerprint(ints):
+    """Encode raw 32-bit sub-fingerprints into AcoustID's compressed format.
+
+    `fpcalc -raw` prints signed 32-bit integers; AcoustID's web API takes the
+    base64 of those values serialized little-endian (exactly what pyacoustid's
+    chromaprint encoder produces). Encoding here means a plain fpcalc install
+    can query AcoustID with ZERO extra Python deps.
+
+    Returns the base64 str, or None when the input cannot be encoded.
+    """
+    try:
+        vals = [int(x) & 0xFFFFFFFF for x in ints]
+        buf = struct.pack("<{}I".format(len(vals)), *vals)
+    except (ValueError, TypeError, struct.error):
+        return None
+    if not buf:
+        return None
+    return base64.b64encode(buf).decode("ascii")
+
+
 # ---------------------------------------------------------------------------
 # AcoustID identification (network)
 # ---------------------------------------------------------------------------
@@ -151,12 +216,18 @@ def decode_fingerprint(fingerprint, fmt="compressed"):
 def identify_acoustid(fingerprint, duration, api_key=None, timeout=60):
     """Query the AcoustID lookup API.
 
-    Requires a COMPRESSED fingerprint (pyacoustid engine). Returns a list of
-    {"artist", "title", "score", "id", "sources"} sorted by score, or [] when
-    nothing matched or the lookup cannot run.
+    Accepts BOTH fingerprint formats: the compressed string from pyacoustid,
+    or raw ints from `fpcalc -raw` (encoded on the fly — no pyacoustid
+    required). Returns a list of {"artist", "title", "score", "id",
+    "sources"} sorted by score, or [] when nothing matched / the lookup
+    cannot run.
     """
     if isinstance(fingerprint, (list, tuple)):
-        return []  # raw ints — can't query without an encoder
+        fingerprint = compress_fingerprint(fingerprint)
+        if not fingerprint:
+            return []  # unencodable input — nothing we can send
+    if not fingerprint:
+        return []
     params = {
         "client": api_key or get_acoustid_key(),
         "fingerprint": fingerprint,
@@ -320,10 +391,28 @@ def analyze_project(project_folder, acoustid_key=None, local_db=None,
     if isinstance(local_db, str) or local_db is None:
         local_db = load_local_db(local_db) if local_db else {"songs": []}
 
+    # What backend are we running on? Reported honestly so users know how much
+    # of the check is real vs skipped.
+    acoustid_lib = _import_acoustid()
+    if acoustid_lib is not None:
+        backend = "pyacoustid"
+    elif _fpcalc_candidates():
+        backend = "fpcalc"
+    else:
+        backend = "none"
+    coverage_note = (
+        "AcoustID's database covers mostly commercially released music. "
+        "Arabic / regional / unreleased tracks are often MISSING — for those, "
+        "build a local reference DB of the songs you care about with "
+        "'python -m scripts.music_fingerprint --build-local-db <folder>'."
+    )
+
     report = {
         "gate": gate,
         "threshold": threshold or LOCAL_MATCH_THRESHOLD,
         "acoustid_key_configured": bool(os.getenv("ACOUSTID_API_KEY")),
+        "backend": backend,
+        "coverage_note": coverage_note,
         "clips": [],
         "summary": {"checked": 0, "matched": 0, "warned": 0,
                     "no_fpcalc": 0, "errors": 0},
@@ -361,9 +450,10 @@ def analyze_project(project_folder, acoustid_key=None, local_db=None,
                                        "'{}' ({:.0%})".format(
                                            local["song"], local["score"]))
 
-        # AcoustID lookup (needs compressed fingerprint → pyacoustid engine).
+        # AcoustID lookup — works with BOTH engines now: pyacoustid's
+        # compressed string, or raw fpcalc ints (encoded in identify_acoustid).
         acoustid_matches = []
-        if do_acoustid and fp["format"] == "compressed":
+        if do_acoustid:
             acoustid_matches = identify_acoustid(fp["fingerprint"],
                                                  fp["duration"],
                                                  api_key=acoustid_key)
@@ -425,6 +515,117 @@ def music_gate_reasons(project_folder, index=None, gate=None):
 
 
 # ---------------------------------------------------------------------------
+# fpcalc auto-install (--install-fpcalc)
+# ---------------------------------------------------------------------------
+
+def install_fpcalc(target_dir=None, timeout=300):
+    """Download and extract the Chromaprint fpcalc binary for this platform.
+
+    Windows → fpcalc.exe into `target_dir` (default: next to the app/exe, so
+    a frozen build finds it automatically); Linux/macOS → into
+    ~/.viralcutter/bin and prints the PATH hint. Uses the pinned
+    FPCalc_RELEASE asset; falls back to the latest release via the GitHub API.
+
+    Returns the installed fpcalc path. Raises RuntimeError with a readable
+    message when the download/extraction fails.
+    """
+    import platform as _platform
+    import tarfile
+    import tempfile
+    import zipfile
+
+    system = (_platform.system() or "").lower()
+    machine = (_platform.machine() or "").lower()
+    if machine in ("amd64", "x86_64"):
+        arch = "x86_64"
+    elif machine in ("aarch64", "arm64"):
+        arch = "arm64"  # best effort — not every release ships it
+    else:
+        arch = "i686"
+
+    if system.startswith("win"):
+        asset = "chromaprint-fpcalc-{}-windows-{}.zip".format(
+            FPCalc_RELEASE.lstrip("v"), arch)
+        exe_name = "fpcalc.exe"
+    elif system == "darwin":
+        asset = "chromaprint-fpcalc-{}-macos-{}.tar.gz".format(
+            FPCalc_RELEASE.lstrip("v"), arch)
+        exe_name = "fpcalc"
+    else:  # linux & friends
+        asset = "chromaprint-fpcalc-{}-linux-{}.tar.gz".format(
+            FPCalc_RELEASE.lstrip("v"), arch)
+        exe_name = "fpcalc"
+
+    # The packaged build of ViralCutter bundles fpcalc next to the exe, so a
+    # frozen app defaults to the exe dir. Source installs → ~/.viralcutter/bin.
+    if target_dir is None:
+        if getattr(sys, "frozen", False):
+            target_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            target_dir = USER_BIN_DIR
+    os.makedirs(target_dir, exist_ok=True)
+
+    download_urls = [
+        "https://github.com/acoustid/chromaprint/releases/download/{}/{}".format(
+            FPCalc_RELEASE, asset),
+    ]
+    req = urllib.request.Request(
+        FPCalc_GH_API, headers={"Accept": "application/vnd.github+json",
+                                "User-Agent": "ViralCutter"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            release = json.loads(resp.read().decode("utf-8", errors="replace"))
+        for a in release.get("assets", []):
+            if a.get("name") == asset:
+                download_urls.append(a.get("browser_download_url"))
+    except Exception:
+        pass  # pinned URL is the primary source; API is just a fallback
+
+    last_err = None
+    for url in dict.fromkeys(filter(None, download_urls)):
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                archive = os.path.join(td, os.path.basename(url))
+                dl = urllib.request.Request(url, headers={"User-Agent": "ViralCutter"})
+                with urllib.request.urlopen(dl, timeout=timeout) as resp:
+                    with open(archive, "wb") as f:
+                        shutil.copyfileobj(resp, f)
+                if archive.endswith(".zip"):
+                    with zipfile.ZipFile(archive) as z:
+                        members = [m for m in z.namelist()
+                                   if m.endswith(exe_name) and "/" not in m]
+                        z.extract(members[0], td) if members else z.extractall(td)
+                        extracted = os.path.join(td, members[0] if members else "")
+                else:
+                    with tarfile.open(archive, "r:gz") as t:
+                        members = [m for m in t.getmembers()
+                                   if m.name.endswith("/" + exe_name)]
+                        if members:
+                            t.extract(members[0], td)
+                            extracted = os.path.join(td, members[0].name)
+                        else:
+                            extracted = ""
+                if not extracted or not os.path.isfile(extracted):
+                    raise RuntimeError("no {} inside {}".format(exe_name, archive))
+                dest = os.path.join(target_dir, exe_name)
+                shutil.copy2(extracted, dest)
+                if system != "win32":
+                    os.chmod(dest, 0o755)
+                print("fpcalc installed → {}".format(dest))
+                if target_dir == USER_BIN_DIR:
+                    print("add it to PATH: export PATH=\"{}:$PATH\"".format(target_dir))
+                return dest
+        except Exception as e:
+            last_err = e
+            continue
+    raise RuntimeError(
+        "fpcalc download failed for {} ({}). Download it manually from "
+        "https://github.com/acoustid/chromaprint/releases and place {} next "
+        "to the app or on PATH. Last error: {}".format(
+            asset, system, exe_name, last_err))
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -439,9 +640,15 @@ def main(argv=None):
     parser.add_argument("--build-local-db", default=None,
                         help="Fingerprint a folder of songs into a JSON cache (no project needed)")
     parser.add_argument("--db-cache", default=None, help="Cache path for --build-local-db")
+    parser.add_argument("--install-fpcalc", action="store_true",
+                        help="Download Chromaprint's fpcalc binary for this platform (no project needed)")
     parser.add_argument("--gate", choices=["warn", "block", "off"], default="warn")
     parser.add_argument("--threshold", type=float, default=None)
     args = parser.parse_args(argv)
+
+    if args.install_fpcalc:
+        install_fpcalc()
+        return 0
 
     if args.build_local_db:
         cache = args.db_cache or os.path.join(
@@ -467,8 +674,15 @@ def main(argv=None):
                              local_db=local_db, gate=args.gate,
                              threshold=args.threshold)
     s = report["summary"]
-    print("music check: {} clips, {} matched, {} no_fpcalc, {} errors".format(
-        s["checked"], s["matched"], s["no_fpcalc"], s["errors"]))
+    print("music check: backend={} | {} clips, {} matched, {} no_fpcalc, {} errors".format(
+        report.get("backend", "?"), s["checked"], s["matched"],
+        s["no_fpcalc"], s["errors"]))
+    if s["no_fpcalc"]:
+        print("⚠️ Chromaprint (fpcalc) is missing — the check did NOT run for "
+              "{} clip(s). Install it with: python -m scripts.music_fingerprint "
+              "--install-fpcalc".format(s["no_fpcalc"]))
+    if report.get("coverage_note"):
+        print("ℹ️ " + report["coverage_note"])
     for clip in report["clips"]:
         verdict = clip["verdict"]
         mark = {"clean": "✅", "acoustid_match": "🎵⚠️", "local_match": "🎵⚠️",
