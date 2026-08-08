@@ -4,7 +4,28 @@
 > المشروع — **ماذا أُنجز، وماذا تبقّى، وكيف يُنفَّذ كل بند**. لا تُعِد تنفيذ ما
 > هو مُنجز، ولا تكتشف من جديد ما هو موثّق هنا.
 >
-> **التاريخ**: 2026-08-07 | **آخر إصدار**: v6.9.2 | **الاختبارات**: 377
+> **التاريخ**: 2026-08-08 | **آخر إصدار**: v6.10.0 | **الاختبارات**: 429
+
+---
+
+## ✅ ما أُنجز في v6.10.0 (جولة ربط المنصات + الموسيقى)
+
+- **ربط TikTok كاملاً** (Roadmap 2.2): OAuth2 (authorization-code + callback
+  محلي + refresh) ورفع حقيقي init → PUT upload → status polling عبر
+  Content Posting API. `--auth tiktok`؛ خصوصية آمنة افتراضياً SELF_ONLY.
+- **ربط Instagram كاملاً**: Reels بخطوتين (media → media_publish) بتوكن
+  طويل الأمد + تبادل توكن قصير؛ يتطلب `video_url` عاماً (قيد Graph API موثّق).
+- **بصمة الموسيقى Chromaprint** (Roadmap 2.3): `scripts/music_fingerprint.py`
+  — pyacoustid/fpcalc + AcoustID + قاعدة محلية دون إنترنت + تقرير
+  `music_fingerprint.json` + بوابة `--music-gate warn|block|off`.
+- **WebUI**: تبويب "🚀 رفع ونشر" — تشغيل مباشر لكل مقطع + ترجمة ترجماته +
+  رفع عبر بوابة الأمان مع dry-run، وزر فحص الموسيقى. `webui/publish_panel.py`.
+- `main_improved.py`: `--music-check auto|on|off`، `--music-gate`،
+  `--music-local-db`، `--acoustid-key`.
+- **اختبارات**: +53 → **429** (كلها خضراء على 3.10/3.11/3.12).
+- تفاصيل اختبار ويندوز/الـ exe: `docs/RELEASE_CHECKLIST_WINDOWS.md`.
+
+---
 
 ---
 
@@ -106,12 +127,12 @@
 
 | # | البند | الحالة | أين |
 |---|-------|--------|-----|
-| 1 | **ربط OAuth TikTok/Instagram** | يوتيوب مكتمل؛ TikTok/Insta TODOs في الكود | `scripts/upload_gate.py` |
-| 2 | **بصمة الموسيقى Chromaprint (2.3)** | غير منفّذ — فحص حقوق النشر الصوتية | جديد |
+| 1 | **ربط OAuth TikTok/Instagram** | ✅ مكتمل في v6.10.0 (اختبار حي يحتاج بياناتك) | `scripts/upload_gate.py` |
+| 2 | **بصمة الموسيقى Chromaprint (2.3)** | ✅ مكتمل في v6.10.0 | `scripts/music_fingerprint.py` |
 | 3 | **حلقة الضربات Strike Feedback (5.1)** | غير منفّذ | جديد |
 | 4 | **تحليلات الأداء (5.4)** | غير منفّذ — YouTube Analytics API | جديد |
 | 5 | **استبدال حلقة OpenCV بـ ffmpeg pipe** | A/V desync جذري على فيديوهات معينة | `scripts/edit_video.py` |
-| 6 | **WebUI: أزرار polish/gate لكل مشروع** | السباكة جاهزة؛ حقول v6 موجودة في الواجهة | `webui/app.py` |
+| 6 | **WebUI: أزرار polish/gate لكل مشروع** | ✅ تبويب "🚀 رفع ونشر" في v6.10.0 (تشغيل/ترجمة/رفع/موسيقى) | `webui/app.py` + `webui/publish_panel.py` |
 
 ## 🟢 ملاحظات تشغيلية
 
@@ -127,6 +148,6 @@
 
 ## 🧪 الاختبارات
 
-| قبل v6.9 | بعد v6.9 | بعد v6.9.2 |
-|---|---|---|
-| 343 | 367 | 377 |
+| قبل v6.9 | بعد v6.9 | بعد v6.9.2 | بعد v6.10.0 |
+|---|---|---|---|
+| 343 | 367 | 377 | 429 |

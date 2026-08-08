@@ -220,6 +220,13 @@ def main():
                         help="Per-clip YouTube risk scorecard (reused-content / monetization / visual warnings) after rendering. Default: on")
     parser.add_argument("--risk-gate", choices=["off", "warn", "block"], default="warn",
                         help="What to do when a clip fails the compliance gate: 'warn' prints warnings and writes publish_blocklist.json (default), 'block' stops the run, 'off' does nothing")
+    parser.add_argument("--music-check", choices=["on", "off", "auto"], default="auto",
+                        help="Chromaprint music fingerprint check (Roadmap 2.3): 'auto' runs it only when fpcalc/pyacoustid is installed. Default: auto")
+    parser.add_argument("--music-gate", choices=["warn", "block", "off"], default="warn",
+                        help="How to treat audio fingerprint matches in the upload gate: 'warn' flags (default), 'block' refuses publishing matched clips, 'off' ignores")
+    parser.add_argument("--music-local-db", default=None,
+                        help="Local reference-music DB: JSON cache from 'python -m scripts.music_fingerprint --build-local-db' or a folder of songs to fingerprint on the fly")
+    parser.add_argument("--acoustid-key", default=None, help="AcoustID API key (or ACOUSTID_API_KEY env) for the music check")
 
     # --- Sprint 3/4/5 features (added in v6) ---
     parser.add_argument("--checkpoint", choices=["on", "off"], default="on",
@@ -1011,6 +1018,54 @@ def main():
                         sys.exit(1)
             except Exception as e:
                 print(i18n("Risk scorecard failed (skipped): {}").format(e))
+        # 6.55. Music fingerprint check (Roadmap 2.3) — Chromaprint/AcoustID.
+        #       Runs after rendering, before the upload gate, so that
+        #       music_fingerprint.json is available to gate_upload().
+        if args.music_check != "off" and viral_segments and "segments" in viral_segments:
+            try:
+                from scripts import music_fingerprint
+                want_run = args.music_check == "on" or music_fingerprint.fpcalc_available()
+                if want_run:
+                    print(i18n("Running music fingerprint check (Chromaprint/AcoustID)..."))
+                    local_db = None
+                    if args.music_local_db:
+                        if os.path.isdir(args.music_local_db):
+                            cache = os.path.join(os.path.expanduser("~"),
+                                                 ".viralcutter", "music_db.json")
+                            local_db = music_fingerprint.build_local_db(
+                                args.music_local_db, cache_path=cache)
+                        else:
+                            local_db = music_fingerprint.load_local_db(args.music_local_db)
+                    report = tracker.run(
+                        "music_check",
+                        music_fingerprint.analyze_project,
+                        project_folder,
+                        acoustid_key=args.acoustid_key,
+                        local_db=local_db,
+                        gate=args.music_gate,
+                    )
+                    if report is None:
+                        report = music_fingerprint.analyze_project(
+                            project_folder, acoustid_key=args.acoustid_key,
+                            local_db=local_db, gate=args.music_gate)
+                    s = report.get("summary", {})
+                    print(i18n("[music] {} clip(s) checked, {} matched, {} no_fpcalc, {} errors").format(
+                        s.get("checked", 0), s.get("matched", 0),
+                        s.get("no_fpcalc", 0), s.get("errors", 0)))
+                    for clip in report.get("clips", []):
+                        if clip.get("verdict") in ("acoustid_match", "local_match"):
+                            print(i18n("[music] 🎵⚠️ #{} {} — {}").format(
+                                clip.get("index", "?"),
+                                os.path.basename(clip.get("video", "")),
+                                clip.get("suggestion", "")))
+                    if s.get("matched", 0) and args.music_gate == "block":
+                        print(i18n("[music] gate mode 'block' — stopping because {} clip(s) matched known audio.").format(s["matched"]))
+                        sys.exit(1)
+                elif args.music_check == "auto":
+                    print(i18n("Music check skipped (auto): Chromaprint not installed — see docs to enable."))
+            except Exception as e:
+                print(i18n("Music fingerprint check failed (skipped): {}").format(e))
+
 
         # 6.6. Metadata compliance gate (Roadmap 2.4) + upload-gate audit (2.2).
         #      Merges a `metadata` axis into the scorecard, then audits every

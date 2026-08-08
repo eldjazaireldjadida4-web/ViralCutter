@@ -17,6 +17,7 @@ import library # Module for Library Logic
 import subtitle_handler as subs # Module for Subtitles
 import subtitle_editor as editor # Module for Editor Logic
 import segments_review # Module for Segments Review Logic
+import publish_panel # Module for Publish & Upload Logic
 import batch_queue # Module for Batch Queue Logic
 import settings_store # Module for persistent AI settings (save/load Gemini key)
 
@@ -1217,6 +1218,103 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
             review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
             review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
+        with gr.Tab("🚀 " + i18n("Publish & Upload")):
+            gr.Markdown(f"### {i18n('Publish & Upload')}")
+            gr.Markdown(i18n("Play, translate, check music, then upload each clip through the safety gate."))
+            with gr.Row():
+                pub_project = gr.Dropdown(choices=library.get_existing_projects(), label=tr("Select Project"), value=None)
+                pub_refresh = gr.Button(tr("Refresh"), size="sm")
+            with gr.Row():
+                with gr.Column(scale=1, min_width=280):
+                    pub_clip = gr.Dropdown(choices=[], label=i18n("Select Clip"), value=None)
+                    pub_preview = gr.Video(label=i18n("Clip Preview"), interactive=False)
+                    pub_sub_preview = gr.Textbox(label="📝", lines=3, interactive=False)
+                with gr.Column(scale=1, min_width=320):
+                    pub_title = gr.Textbox(label=i18n("Title"), value="")
+                    pub_caption = gr.Textbox(label=i18n("Caption"), lines=3, value="")
+                    pub_hashtags = gr.Textbox(label=i18n("Hashtags (comma separated)"), value="")
+                    with gr.Row():
+                        pub_platform = gr.Radio(["youtube", "tiktok", "instagram"], label=i18n("Platform"), value="youtube")
+                        pub_music_gate = gr.Radio(["warn", "block", "off"], label=i18n("Music gate"), value="warn")
+                    with gr.Row():
+                        pub_dry = gr.Checkbox(label=i18n("Dry run (no real upload)"), value=True)
+                        pub_upload_btn = gr.Button(i18n("Upload"), variant="primary")
+                    pub_log = gr.Textbox(label=i18n("Upload Log"), lines=10, interactive=False)
+            with gr.Row():
+                with gr.Column(scale=1, min_width=280):
+                    with gr.Row():
+                        pub_lang = gr.Textbox(label=i18n("Target language"), value="en")
+                        pub_translate_btn = gr.Button(i18n("Translate Subtitles"), variant="secondary")
+                    pub_translate_out = gr.Textbox(label=i18n("Translation output"), lines=8, interactive=False)
+                with gr.Column(scale=1, min_width=280):
+                    with gr.Row():
+                        pub_music_db = gr.Textbox(label=i18n("Local music DB (JSON cache or folder)"), value="")
+                        pub_music_btn = gr.Button(i18n("Run Music Check"), variant="secondary")
+                    pub_music_out = gr.Textbox(label=i18n("Music check output"), lines=10, interactive=False)
+
+            def load_publish_clips(project_name):
+                if not project_name:
+                    return gr.update(choices=[], value=None), None, "", ""
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                clips = publish_panel.list_clips(project_path)
+                if not clips:
+                    return gr.update(choices=[], value=None), None, "", ""
+                title, caption = publish_panel.clip_suggestion(project_path, clips[0])
+                return (gr.update(choices=clips, value=clips[0]), clips[0],
+                        title, caption)
+
+            def select_publish_clip(project_name, clip_path):
+                if not project_name or not clip_path:
+                    return None, "", ""
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                title, caption = publish_panel.clip_suggestion(project_path, clip_path)
+                preview = publish_panel.clip_subtitle_preview(project_path, clip_path)
+                return clip_path, title, caption, preview
+
+            def translate_publish_clip(project_name, clip_path, lang):
+                if not project_name:
+                    return i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                ok, msg = publish_panel.translate_clip(project_path, clip_path, lang)
+                if ok:
+                    preview = publish_panel.clip_subtitle_preview(project_path, clip_path)
+                    return msg + "\n\n" + preview
+                return msg
+
+            def music_check_publish(project_name, db_path):
+                if not project_name:
+                    return i18n("Error: No project selected.")
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                return publish_panel.run_music_check(project_path, db_path or "")
+
+            def upload_publish_clip(project_name, platform, clip_path, title,
+                                    caption, hashtags, dry, music_gate):
+                if not project_name:
+                    yield i18n("Error: No project selected.")
+                    return
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                tags = [h.strip() for h in (hashtags or "").split(",") if h.strip()]
+                yield from publish_panel.stream_upload(
+                    project_path, platform, clip_path, title, caption,
+                    tags, dry, music_gate)
+
+            pub_refresh.click(library.refresh_projects, outputs=pub_project)
+            pub_project.change(load_publish_clips, inputs=pub_project,
+                               outputs=[pub_clip, pub_preview, pub_title, pub_caption])
+            pub_clip.change(select_publish_clip,
+                            inputs=[pub_project, pub_clip],
+                            outputs=[pub_preview, pub_title, pub_caption, pub_sub_preview])
+            pub_translate_btn.click(translate_publish_clip,
+                                    inputs=[pub_project, pub_clip, pub_lang],
+                                    outputs=pub_translate_out)
+            pub_music_btn.click(music_check_publish,
+                                inputs=[pub_project, pub_music_db],
+                                outputs=pub_music_out)
+            pub_upload_btn.click(upload_publish_clip,
+                                 inputs=[pub_project, pub_platform, pub_clip,
+                                         pub_title, pub_caption, pub_hashtags,
+                                         pub_dry, pub_music_gate],
+                                 outputs=pub_log)
         with gr.Tab("📋 " + i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
             gr.Markdown(i18n("One YouTube URL per line. The queue processes them one by one with the current settings."))

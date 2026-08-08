@@ -283,5 +283,5 @@ python -m scripts.upload_gate --project VIRALS/مشروعك --index 0 --title ".
 - **GitHub**: ضع ⭐ إذا أفادك المشروع!
 - المشروع في هذا المستودع تطوير مستمر — الملاحظات والمشاكل عبر Issues.
 
-**الإصدار الحالي**: 6.9.2 — حفظ كامل للإعدادات، أخطاء أذكى، خطوط مضمّنة (شاهد docs/REMAINING_AFTER_V6_9.md)
+**الإصدار الحالي**: 6.10.0 — ربط TikTok/Instagram، بصمة الموسيقى Chromaprint، وأزرار تشغيل/ترجمة/رفع لكل مقطع في الواجهة (شاهد docs/RELEASE_CHECKLIST_WINDOWS.md)
 *ViralCutter: لأن المقاطع الفيروسية لا يجب أن تكلّف ثروة.* 🚀

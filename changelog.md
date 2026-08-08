@@ -1,5 +1,58 @@
 # Changelog
 
+## 🚀 v6.10.0 — ربط TikTok/Instagram + بصمة الموسيقى Chromaprint + أزرار رفع من الواجهة (2026-08-08)
+
+### New — TikTok Content Posting API (Roadmap 2.2)
+- **رفع حقيقي لتيك توك** في `scripts/upload_gate.py`: OAuth2 كامل
+  (authorization-code + local callback + refresh token) عبر
+  `python -m scripts.upload_gate --auth tiktok`، ثم init → PUT upload →
+  status polling على `open.tiktokapis.com/v2/post/publish/...`.
+- الخصوصية الآمنة افتراضياً `SELF_ONLY` (مسودة خاصة)؛ غيّرها بـ `TIKTOK_PRIVACY`
+  عندما تقصد النشر فعلاً. المتطلبات: تطبيق مطوّر TikTok مع صلاحية
+  Content Posting API + `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET`.
+- التوكن يُحفظ في `~/.viralcutter/tiktok_token.json` ويُجدَّد تلقائياً.
+
+### New — Instagram Graph API Reels (Roadmap 2.2)
+- رفع Reels بخطوتين (`/media` → `/media_publish`) مع توكن طويل الأمد
+  (`IG_ACCESS_TOKEN` + `IG_USER_ID`) ودعم تبادل التوكن القصير
+  (`--auth instagram` مع `IG_CLIENT_ID/SECRET`).
+- ملاحظة صريحة في الكود: Graph API يتطلب **رابطاً عاماً HTTPS** للفيديو
+  (لا يوجد رفع ملفات خام لـ Reels) — مرّر `--video-url` أو `IG_VIDEO_URL`.
+
+### New — بصمة الموسيقى Chromaprint (Roadmap 2.3)
+- `scripts/music_fingerprint.py`: بصمة محلية عبر `pyacoustid` أو `fpcalc`,
+  كشف عبر AcoustID (مفتاح عام مدمج + `ACOUSTID_API_KEY`)، وقاعدة مرجعية
+  محلية دون إنترنت (`--build-local-db` + مطابقة n-gram).
+- النتيجة في `music_fingerprint.json` لكل مقطع + ملخص في النهاية.
+- بوابة الرفع تستهلك التقرير: `--music-gate warn` (افتراضي، تحذير لا يمنع) /
+  `block` (يرفض الرفع) / `off`. في الواجهة: زر "فحص بصمة الموسيقى".
+- انحدار كامل: بدون fpcalc/pyacoustid لا ينكسر شيء — يُكتب `no_fpcalc`.
+
+### New — WebUI: أزرار تشغيل/ترجمة/رفع لكل مقطع (بدل CLI فقط)
+- تبويب جديد **"🚀 رفع ونشر"**: اختر مشروعاً ثم مقطعاً من القائمة →
+  **تشغيل مباشر** في مشغّل فيديو، اقتراح عنوان/وصف من `viral_segments.txt`.
+- **ترجمة** ترجمات المقطع الواحد (deep-translator) مع معاينة النص.
+- **رفع** عبر بوابة الأمان (يوتيوب/تيك توك/انستغرام) مع تجربة (dry-run)
+  افتراضية، وسجل رفع حي في الواجهة، وخيار بوابة الموسيقى.
+- وحدة قابلة للاختبار `webui/publish_panel.py` (لا تعتمد على gradio).
+
+### Fixes
+- `check_clip`/`gate_upload` يدعمان `music_gate`؛ تحذيرات الموسيقى لا تمنع
+  الرفع وحدها (المانع يبقى للخطورة العالية).
+- `_BaseUploader` يقبل `video_url` و`music_gate` — واجهة موحدة لكل المنصات.
+
+### Tests
+- +53 اختباراً (TikTok flow/refresh/status، Instagram two-step، OAuth
+  URLs، Chromaprint decode/مطابقة محلية/AcoustID، بوابة الموسيقى،
+  publish_panel كاملاً). — يشمل الاختبارات السابقة.
+
+### ملاحظة Windows (المستخدم)
+- لا يمكن بناء `ViralCutter.exe` من لينكس (PyInstaller ليس cross-compiler) —
+  شغّل `packaging/build_windows.bat` على جهازك (الخطوات في
+  `docs/RELEASE_CHECKLIST_WINDOWS.md`).
+- للتحقق الكامل من الرفع والتيك توك: أنت وحدك تملك بيانات الحسابات —
+  كل الكود مكتوب ومُختبَر (mocks)؛ التشغيل الحي يتطلب مفاتيحك.
+
 ## 💾 v6.9.2 — كل إعدادات الواجهة تُحفظ تلقائياً (2026-08-07)
 
 ### New

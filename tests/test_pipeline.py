@@ -378,3 +378,15 @@ class TestBrokenWhisperxResilience:
             assert False, "should raise"
         except ImportError as e:
             assert "requirements-transcribe" in str(e) or "torch" in str(e) or "WhisperX" in str(e)
+
+
+class TestMusicFlags:
+    def test_music_flags_appended(self):
+        cmd = build_command(MAIN, ["--url", "x"], music_check="on", music_gate="block")
+        assert "--music-check" in cmd and "on" in cmd
+        assert "--music-gate" in cmd and "block" in cmd
+
+    def test_music_defaults_omitted(self):
+        cmd = build_command(MAIN, ["--url", "x"], music_check="auto", music_gate="warn")
+        assert "--music-check" not in cmd
+        assert "--music-gate" not in cmd

@@ -29,7 +29,7 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
                   # --- v6 features (Roadmap 5.2 / Sprint 3 / 4.2 / 2.4) ---
                   platform=None, polish=False, music=None, logo=None,
                   checkpoint=None, metadata_gate=None, cookies_browser=None,
-                  title_language=None):
+                  title_language=None, music_check=None, music_gate=None):
     """Assemble the full CLI command for main_improved.py.
 
     `source_args` holds the input-source-specific flags already resolved by
@@ -127,5 +127,12 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
 
     if title_language and title_language != "auto":
         cmd.extend(["--title-language", str(title_language)])
+
+    if music_check and music_check != "auto":
+        # "auto" is the CLI default; only pass explicit overrides
+        cmd.extend(["--music-check", str(music_check)])
+    if music_gate and music_gate != "warn":
+        # "warn" is the CLI default; only pass explicit overrides
+        cmd.extend(["--music-gate", str(music_gate)])
 
     return cmd

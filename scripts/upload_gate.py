@@ -26,6 +26,11 @@ Design notes
 import json
 import os
 import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from scripts.metadata_compliance import check_metadata, summarize_metadata
 
@@ -106,15 +111,25 @@ def _safety_report_reasons(project_folder, index):
 # ---------------------------------------------------------------------------
 
 def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
-               extra_rules_path=None, require_video=False):
+               extra_rules_path=None, require_video=False, music_gate=None):
     """Evaluate one clip against every safety barrier.
 
     Returns {"allowed": bool, "reasons": [...], "metadata": {...}}.
     Never raises — callers decide what to do with the verdict.
+
+    `music_gate`: "warn" (default, flagged), "block" (refused) or "off"
+    (ignored) — controls how music_fingerprint.json matches are treated.
     """
     reasons = []
     reasons += _blocklist_reasons(project_folder, index)
     reasons += _safety_report_reasons(project_folder, index)
+
+    # Audio copyright fingerprint report (Roadmap 2.3) — optional module.
+    try:
+        from scripts.music_fingerprint import music_gate_reasons
+        reasons += music_gate_reasons(project_folder, index, gate=music_gate)
+    except Exception:
+        pass  # never let an optional check crash the gate
 
     meta = check_metadata(title, caption, hashtags or [], extra_rules_path)
     if not meta["ok"]:
@@ -133,7 +148,13 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
                 "severity": "high",
             })
 
-    return {"allowed": not reasons, "reasons": reasons, "metadata": meta}
+    # Only high-severity reasons block; music "warn" flags are advisory and
+    # never stop an upload on their own (metadata/safety/blocklist unchanged).
+    blocking = [r for r in reasons
+                if r["severity"] == "high"
+                or (r["severity"] == "medium" and r["source"] != "music_fingerprint")]
+
+    return {"allowed": not blocking, "reasons": reasons, "metadata": meta}
 
 
 def _find_clip_video(project_folder, index):
@@ -151,10 +172,10 @@ def _find_clip_video(project_folder, index):
 
 
 def gate_upload(project_folder, index=None, title="", caption="", hashtags=None,
-                extra_rules_path=None, require_video=False):
+                extra_rules_path=None, require_video=False, music_gate=None):
     """Enforcement wrapper: raises UploadGateError when the clip must not go out."""
     verdict = check_clip(project_folder, index, title, caption, hashtags,
-                         extra_rules_path, require_video)
+                         extra_rules_path, require_video, music_gate)
     if not verdict["allowed"]:
         raise UploadGateError(verdict["reasons"])
     return verdict
@@ -188,15 +209,19 @@ class _BaseUploader:
 
     platform = "base"
 
-    def __init__(self, project_folder, dry_run=False, extra_rules_path=None):
+    def __init__(self, project_folder, dry_run=False, extra_rules_path=None,
+                 video_url=None, music_gate=None):
         self.project_folder = project_folder
         self.dry_run = dry_run
         self.extra_rules_path = extra_rules_path
+        self.video_url = video_url
+        self.music_gate = music_gate
 
     def upload(self, video_path, title, caption="", hashtags=None, index=None):
         """Gate first, then upload. Raises UploadGateError when blocked."""
         gate_upload(self.project_folder, index, title, caption, hashtags,
-                    self.extra_rules_path, require_video=False)
+                    self.extra_rules_path, require_video=False,
+                    music_gate=self.music_gate)
         if self.dry_run:
             print("[{}] DRY-RUN would upload '{}' → {}".format(
                 self.platform, title, video_path))
@@ -230,6 +255,12 @@ class YouTubeUploader(_BaseUploader):
     """
     platform = "youtube"
     SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
+    def auth(self):
+        """Run the OAuth consent flow and save the token (no upload)."""
+        creds = self._load_or_create_token()
+        print("[youtube] ✅ token saved → {}".format(self._token_path()))
+        return self._token_path()
 
     def _token_path(self):
         return os.getenv("YT_TOKEN_FILE") or os.path.join(
@@ -309,28 +340,476 @@ class YouTubeUploader(_BaseUploader):
                 "video_id": video_id, "url": "https://youtu.be/{}".format(video_id)}
 
 
-class TikTokUploader(_BaseUploader):
-    """TikTok Content Posting API adapter (scaffold — needs OAuth2 token).
+# ---------------------------------------------------------------------------
+# Shared HTTP helpers (stdlib only — no extra pip deps for the upload stack)
+# ---------------------------------------------------------------------------
 
-    TODO(2.2): POST https://open.tiktokapis.com/v2/post/publish/video/upload/
-    with the access token from the Content Posting API scope.
+def _http_json(url, data=None, headers=None, method=None, timeout=60, retries=3):
+    """JSON POST/PUT/GET via urllib with a simple 429/5xx retry loop.
+
+    Returns the parsed JSON body. Raises RuntimeError with a readable message
+    on transport errors and on API error payloads ({"error": {...}}).
+    """
+    body = None
+    if data is not None:
+        body = json.dumps(data).encode("utf-8")
+    req_headers = {"Accept": "application/json"}
+    if headers:
+        req_headers.update(headers)
+    if body is not None:
+        req_headers.setdefault("Content-Type", "application/json")
+
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            req = urllib.request.Request(url, data=body, headers=req_headers, method=method)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+                try:
+                    return json.loads(raw) if raw else {}
+                except ValueError:
+                    return {"raw": raw}
+        except urllib.error.HTTPError as e:
+            raw = ""
+            try:
+                raw = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            last_err = _api_error_message(e.code, raw)
+            if e.code in (429, 500, 502, 503, 504) and attempt < retries:
+                time.sleep(2 * attempt)
+                continue
+            raise RuntimeError(last_err) from None
+        except Exception as e:  # network errors, timeouts
+            last_err = str(e)
+            if attempt < retries:
+                time.sleep(2 * attempt)
+                continue
+            raise RuntimeError("network error talking to {}: {}".format(url, e)) from None
+    raise RuntimeError("request failed: {}".format(last_err))
+
+
+def _api_error_message(status, raw):
+    """Best-effort extraction of a human-readable API error message."""
+    try:
+        payload = json.loads(raw or "{}")
+    except ValueError:
+        payload = {}
+    err = payload.get("error") or {}
+    if isinstance(err, dict):
+        code = err.get("code") or err.get("status")
+        msg = err.get("message") or err.get("description") or err.get("detail")
+        if msg:
+            return "API error {}: {}".format(code or status, msg)
+    msg = payload.get("message") or payload.get("error_description") or payload.get("reason")
+    if msg:
+        return "API error {}: {}".format(status, msg)
+    return "API error {}: {}".format(status, raw[:200])
+
+
+def _token_file(platform):
+    env_map = {
+        "tiktok": "TIKTOK_TOKEN_FILE",
+        "instagram": "IG_TOKEN_FILE",
+        "youtube": "YT_TOKEN_FILE",
+    }
+    return os.getenv(env_map[platform]) or os.path.join(
+        os.path.expanduser("~"), ".viralcutter", "{}_token.json".format(platform))
+
+
+def _save_token(platform, payload):
+    path = _token_file(platform)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+    return path
+
+
+def _load_token(platform):
+    path = _token_file(platform)
+    if not os.path.exists(path):
+        return None, path
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f), path
+    except Exception:
+        return None, path
+
+
+class _OAuthCallbackServer:
+    """Tiny local HTTP server that captures one OAuth redirect (?code=...).
+
+    Used by the TikTok authorization-code flow: we open the browser, the
+    platform redirects to http://localhost:<port>/?code=...&state=..., and
+    this server hands the code back to the caller.
+    """
+
+    def __init__(self, port, expected_state, timeout=180):
+        self.port = port
+        self.expected_state = expected_state
+        self.timeout = timeout
+        self.code = None
+        self.error = None
+        self.state_ok = False
+
+    def _handler(self):
+        expected_state = self.expected_state
+        holder = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_a):
+                pass
+
+            def do_GET(self):
+                parsed = urllib.parse.urlparse(self.path)
+                query = urllib.parse.parse_qs(parsed.query)
+                if query.get("error"):
+                    holder.error = query.get("error_description", query.get("error"))[0]
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"ViralCutter: OAuth error received. You may close this tab.")
+                    return
+                code = (query.get("code") or [None])[0]
+                state = (query.get("state") or [None])[0]
+                if not code:
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"ViralCutter: no code in redirect. You may close this tab.")
+                    return
+                holder.code = code
+                holder.state_ok = state == expected_state
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(
+                    b"ViralCutter: authorization received. You may close this tab and return to the app.")
+
+            def do_HEAD(self):
+                self.send_response(200)
+                self.end_headers()
+
+        return Handler
+
+    def run(self):
+        server = HTTPServer(("127.0.0.1", self.port), self._handler())
+        deadline = time.time() + self.timeout
+        while self.code is None and self.error is None and time.time() < deadline:
+            server.handle_request()
+        server.server_close()
+        if self.error:
+            raise RuntimeError("OAuth denied: {}".format(self.error))
+        if self.code is None:
+            raise RuntimeError(
+                "OAuth timed out after {}s — no redirect received on http://localhost:{}/".format(
+                    self.timeout, self.port))
+        if not self.state_ok:
+            raise RuntimeError("OAuth state mismatch (CSRF guard) — please retry.")
+        return self.code
+
+
+class TikTokUploader(_BaseUploader):
+    """TikTok Content Posting API adapter with real OAuth2 (Roadmap 2.2).
+
+    Setup (once) — requires a TikTok Developer app:
+      1. https://developers.tiktok.com → create an app → enable the
+         "Content Posting API" permission (scope `video.publish`).
+      2. Add the redirect URI (default http://localhost:8431/) to the app.
+      3. Set env vars TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET, then run
+         `python -m scripts.upload_gate --auth tiktok` — a browser opens,
+         you approve, and the token is stored in ~/.viralcutter/tiktok_token.json.
+
+    The safety gate runs BEFORE any API call (see _BaseUploader.upload).
+    Privacy: default privacyLevel is SELF_ONLY (draft, safe) — set
+    TIKTOK_PRIVACY=PUBLIC_TO_EVERYONE only when you intend to publish.
     """
     platform = "tiktok"
+    AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
+    TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
+    VIDEO_INIT_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    VIDEO_UPLOAD_URL = "https://open.tiktokapis.com/v2/post/publish/video/upload/"
+    STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+    SCOPES = "user.info.basic,video.publish"
+    CALLBACK_PORT = 8431
+
+    def __init__(self, project_folder, dry_run=False, extra_rules_path=None,
+                 video_url=None):
+        super().__init__(project_folder, dry_run=dry_run, extra_rules_path=extra_rules_path)
+        self.video_url = video_url
+
+    # -- OAuth -----------------------------------------------------------------
+
+    def _redirect_uri(self):
+        return os.getenv("TIKTOK_REDIRECT_URI", "http://localhost:{}/".format(self.CALLBACK_PORT))
+
+    def auth(self):
+        """Run the full OAuth consent flow (browser + local callback). No upload."""
+        client_key = os.getenv("TIKTOK_CLIENT_KEY", "")
+        client_secret = os.getenv("TIKTOK_CLIENT_SECRET", "")
+        if not client_key or not client_secret:
+            self._missing_credentials(
+                self.platform, ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"])
+        redirect_uri = self._redirect_uri()
+        import secrets
+        state = secrets.token_urlsafe(16)
+        params = {
+            "client_key": client_key,
+            "scope": self.SCOPES,
+            "response_type": "code",
+            "redirect_uri": redirect_uri,
+            "state": state,
+        }
+        auth_url = "{}?{}".format(self.AUTH_URL, urllib.parse.urlencode(params))
+        print("[tiktok] opening browser for consent…")
+        print("[tiktok] if the browser does not open, visit:\n  {}".format(auth_url))
+        try:
+            import webbrowser
+            webbrowser.open(auth_url)
+        except Exception:
+            pass
+        code = _OAuthCallbackServer(self.CALLBACK_PORT, state).run()
+        token = self._exchange_code(code, redirect_uri, client_key, client_secret)
+        path = _save_token("tiktok", token)
+        print("[tiktok] ✅ token saved → {}".format(path))
+        return path
+
+    def _exchange_code(self, code, redirect_uri, client_key, client_secret):
+        form = urllib.parse.urlencode({
+            "client_key": client_key,
+            "client_secret": client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        }).encode("utf-8")
+        req = urllib.request.Request(self.TOKEN_URL, data=form, method="POST")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(_api_error_message(e.code, raw)) from None
+        if payload.get("error"):
+            raise RuntimeError("TikTok OAuth failed: {}".format(
+                payload.get("error_description") or payload.get("error")))
+        payload["expires_at"] = time.time() + int(payload.get("expires_in", 0) or 0)
+        return payload
+
+    def _refresh_token(self, token):
+        client_key = os.getenv("TIKTOK_CLIENT_KEY", "")
+        client_secret = os.getenv("TIKTOK_CLIENT_SECRET", "")
+        if not client_key or not client_secret or not token.get("refresh_token"):
+            self._missing_credentials(
+                self.platform, ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"])
+        form = urllib.parse.urlencode({
+            "client_key": client_key,
+            "client_secret": client_secret,
+            "grant_type": "refresh_token",
+            "refresh_token": token["refresh_token"],
+        }).encode("utf-8")
+        req = urllib.request.Request(self.TOKEN_URL, data=form, method="POST")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        if payload.get("error"):
+            raise RuntimeError("TikTok token refresh failed: {}".format(payload.get("error")))
+        new_token = dict(token)
+        for key in ("access_token", "refresh_token", "expires_in", "scope", "open_id"):
+            if payload.get(key) is not None:
+                new_token[key] = payload[key]
+        if payload.get("expires_in"):
+            new_token["expires_at"] = time.time() + int(payload["expires_in"])
+        _save_token("tiktok", new_token)
+        return new_token
+
+    def _ensure_token(self):
+        """Return a valid access token; run OAuth on first use; refresh if expired."""
+        token, path = _load_token("tiktok")
+        if not token:
+            self._missing_credentials(
+                self.platform, ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"])
+        expires_at = token.get("expires_at") or 0
+        if expires_at and time.time() > expires_at - 60:
+            if not token.get("refresh_token"):
+                self._missing_credentials(
+                    self.platform, ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"])
+            token = self._refresh_token(token)
+        return token["access_token"]
+
+    # -- Upload ----------------------------------------------------------------
 
     def _do_upload(self, video_path, title, caption, hashtags):
-        self._missing_credentials(self.platform, ["TIKTOK_ACCESS_TOKEN"])
+        # Credentials first (keeps the "clear setup hint" contract), then file.
+        access_token = self._ensure_token()
+        if not os.path.exists(video_path):
+            raise FileNotFoundError("video not found: {}".format(video_path))
+        size = os.path.getsize(video_path)
+        if size <= 0:
+            raise ValueError("video file is empty: {}".format(video_path))
+
+        headers = {"Authorization": "Bearer {}".format(access_token)}
+        display_title = (title or caption or "ViralCutter clip")[:150]
+        init_payload = {
+            "post_info": {
+                "title": display_title,
+                "privacy_level": os.getenv("TIKTOK_PRIVACY", "SELF_ONLY"),
+                "disable_duet": False,
+                "disable_comment": False,
+                "disable_stitch": False,
+            },
+            "source_info": {
+                "source": "FILE_UPLOAD",
+                "video_size": size,
+                "chunk_size": size,
+                "total_chunk_count": 1,
+            },
+        }
+        init = _http_json(self.VIDEO_INIT_URL, init_payload, headers=headers)
+        publish_id = ((init.get("data") or {}).get("publish_id"))
+        if not publish_id:
+            raise RuntimeError("TikTok init returned no publish_id: {}".format(init))
+
+        # Upload the file bytes (single chunk).
+        with open(video_path, "rb") as f:
+            blob = f.read()
+        upload_url = "{}?video_size={}".format(
+            self.VIDEO_UPLOAD_URL + str(publish_id) + "/", size)
+        _http_json(upload_url, data=None, headers={
+            "Authorization": "Bearer {}".format(access_token),
+            "Content-Type": "video/mp4",
+        }, method="PUT", timeout=600)
+
+        # Poll publish status (PUBLISH_COMPLETE / FAILED / PROCESSING...).
+        for _ in range(30):
+            status = _http_json(self.STATUS_URL, {"publish_id": publish_id},
+                                headers=headers)
+            state = ((status.get("data") or {}).get("status") or "").upper()
+            if state == "PUBLISH_COMPLETE":
+                print("[tiktok] uploaded '{}' (publish_id {})".format(
+                    display_title, publish_id))
+                return {"status": "uploaded", "platform": "tiktok",
+                        "publish_id": publish_id, "url": "https://www.tiktok.com/"}
+            if state == "FAILED":
+                fail = ((status.get("data") or {}).get("fail_reason")
+                        or status.get("error") or "unknown")
+                raise RuntimeError("TikTok publish failed: {}".format(fail))
+            time.sleep(5)
+        raise RuntimeError(
+            "TikTok publish is still processing (publish_id {}) — check later "
+            "on tiktok.com".format(publish_id))
 
 
 class InstagramUploader(_BaseUploader):
-    """Instagram Graph API Reels adapter (scaffold — needs IG user token).
+    """Instagram Graph API Reels adapter with real tokens (Roadmap 2.2).
 
-    TODO(2.2): POST /{ig-user-id}/media with media_type=REELS + video_url,
-    then POST /{ig-user-id}/media_publish.
+    How it works (Instagram Graph API, documented constraints):
+      * Two-step publish: POST /{ig-user-id}/media (media_type=REELS) →
+        creation_id, then POST /{ig-user-id}/media_publish.
+      * The API requires a **public HTTPS video_url** for the clip (there is
+        no raw-file upload endpoint for IG Reels). Host the final clip on any
+        public URL (your server / storage bucket) and pass it with
+        `--video-url` or the IG_VIDEO_URL env var.
+      * The account must be a Business/Creator account linked to a Facebook
+        Page, and the Facebook app needs the `instagram_content_publish` and
+        `pages_show_list` permissions.
+
+    Token setup (once):
+      1. Create a Facebook app → add Instagram Graph API.
+      2. Get a short-lived user token, then exchange it for a long-lived one:
+         `python -m scripts.upload_gate --auth instagram` (or set
+         IG_ACCESS_TOKEN + IG_USER_ID env vars directly).
+      3. Token is stored in ~/.viralcutter/ig_token.json.
+
+    The safety gate runs BEFORE any API call (see _BaseUploader.upload).
     """
     platform = "instagram"
+    GRAPH = "https://graph.facebook.com/v21.0"
+    TOKEN_EXCHANGE = "https://graph.facebook.com/v21.0/oauth/access_token"
+
+    def __init__(self, project_folder, dry_run=False, extra_rules_path=None,
+                 video_url=None):
+        super().__init__(project_folder, dry_run=dry_run, extra_rules_path=extra_rules_path)
+        self.video_url = video_url
+
+    def auth(self):
+        """Print how to get a long-lived IG token (no browser flow needed)."""
+        token = os.getenv("IG_ACCESS_TOKEN")
+        if token:
+            # Exchange a short-lived user token for a long-lived one.
+            client_id = os.getenv("IG_CLIENT_ID")
+            client_secret = os.getenv("IG_CLIENT_SECRET")
+            if client_id and client_secret:
+                url = "{}?grant_type=fb_exchange_token&client_id={}&client_secret={}&fb_exchange_token={}".format(
+                    self.TOKEN_EXCHANGE, urllib.parse.quote(client_id),
+                    urllib.parse.quote(client_secret), urllib.parse.quote(token))
+                try:
+                    payload = _http_json(url)
+                except RuntimeError as e:
+                    raise RuntimeError(
+                        "IG long-lived exchange failed ({}). Set IG_ACCESS_TOKEN "
+                        "directly to the long-lived token instead.".format(e)) from None
+                token = payload.get("access_token", token)
+            path = _save_token("instagram", {
+                "access_token": token, "expires_at": 0})
+            print("[instagram] ✅ token saved → {}".format(path))
+            return path
+        raise RuntimeError(
+            "Instagram token setup: 1) generate a long-lived IG user access "
+            "token (Graph API explorer) and set IG_ACCESS_TOKEN + IG_USER_ID, "
+            "or 2) set IG_CLIENT_ID + IG_CLIENT_SECRET and run "
+            "`--auth instagram` with a short-lived token to exchange it.")
+
+    def _ensure_token(self):
+        token, _path = _load_token("instagram")
+        if not token:
+            env_token = os.getenv("IG_ACCESS_TOKEN")
+            if not env_token:
+                self._missing_credentials(
+                    self.platform, ["IG_ACCESS_TOKEN", "IG_USER_ID"])
+            token = {"access_token": env_token, "expires_at": 0}
+        return token["access_token"]
 
     def _do_upload(self, video_path, title, caption, hashtags):
-        self._missing_credentials(self.platform, ["IG_ACCESS_TOKEN", "IG_USER_ID"])
+        access_token = self._ensure_token()
+        ig_user_id = os.getenv("IG_USER_ID") or ""
+        if not ig_user_id:
+            self._missing_credentials(self.platform, ["IG_USER_ID"])
+
+        video_url = self.video_url or os.getenv("IG_VIDEO_URL", "")
+        if not video_url:
+            raise RuntimeError(
+                "Instagram Graph API requires a PUBLIC https video_url for the "
+                "clip (no raw-file upload exists for IG Reels). Host the clip "
+                "and pass --video-url or set IG_VIDEO_URL.")
+
+        caption_text = (title or "").strip()
+        if caption:
+            caption_text = (caption_text + "\n\n" + caption).strip()
+        if hashtags:
+            tags = " ".join("#" + str(h).lstrip("#") for h in hashtags if str(h).strip())
+            caption_text = (caption_text + "\n\n" + tags).strip()
+        caption_text = caption_text[:2200]  # IG caption limit
+
+        base = self.GRAPH
+        params = {
+            "access_token": access_token,
+            "media_type": "REELS",
+            "video_url": video_url,
+            "caption": caption_text,
+            "share_to_feed": os.getenv("IG_SHARE_TO_FEED", "true").lower() in ("1", "true", "yes"),
+        }
+        created = _http_json("{}/{}/media".format(base, ig_user_id), params)
+        creation_id = created.get("id")
+        if not creation_id:
+            raise RuntimeError("Instagram media creation failed: {}".format(created))
+
+        published = _http_json("{}/{}/media_publish".format(base, ig_user_id),
+                               {"creation_id": creation_id,
+                                "access_token": access_token})
+        media_id = published.get("id")
+        print("[instagram] uploaded '{}' (media_id {})".format(title, media_id))
+        return {"status": "uploaded", "platform": "instagram",
+                "media_id": media_id, "url": "https://www.instagram.com/"}
 
 
 UPLOADERS = {
@@ -360,13 +839,33 @@ def main():
     parser.add_argument("--upload", choices=list(UPLOADERS), default=None,
                         help="Platform to upload to (dry-run by default)")
     parser.add_argument("--video", default=None, help="Video file to upload (with --upload)")
+    parser.add_argument("--video-url", default=None,
+                        help="Public HTTPS video URL (required by Instagram Graph API for Reels)")
     parser.add_argument("--no-dry-run", action="store_true",
                         help="Actually call the platform SDK (needs credentials)")
+    parser.add_argument("--auth", choices=list(UPLOADERS), default=None,
+                        help="Run the OAuth consent flow for a platform and save the token (no upload)")
+    parser.add_argument("--music-gate", choices=["warn", "block", "off"], default=None,
+                        help="How to treat music_fingerprint.json matches (default: warn)")
     args = parser.parse_args()
+
+    if args.auth:
+        uploader = UPLOADERS[args.auth](args.project, dry_run=True,
+                                        extra_rules_path=args.extra_rules,
+                                        video_url=args.video_url,
+                                        music_gate=args.music_gate)
+        try:
+            uploader.auth()
+        except UploadGateError as e:
+            print(str(e))
+            return 3
+        return 0
 
     if args.upload:
         uploader = UPLOADERS[args.upload](args.project, dry_run=not args.no_dry_run,
-                                          extra_rules_path=args.extra_rules)
+                                          extra_rules_path=args.extra_rules,
+                                          video_url=args.video_url,
+                                          music_gate=args.music_gate)
         try:
             uploader.upload(args.video or _find_clip_video(args.project, args.index) or "",
                             args.title, args.caption,

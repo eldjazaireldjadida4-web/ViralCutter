@@ -16,3 +16,8 @@
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
+
+# Music fingerprint check (Roadmap 2.3) — OPTIONAL:
+#   pip install pyacoustid        # Python Chromaprint bindings (needs native lib)
+#   OR drop fpcalc.exe on PATH    # https://github.com/acoustid/chromaprint/releases
+pyacoustid

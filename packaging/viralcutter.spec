@@ -59,6 +59,7 @@ a = Analysis(
         "llama_cpp",
         "mediapipe",
         "insightface",
+        "acoustid",  # optional music fingerprint check (2.3)
         "gradio",
     ],
     hookspath=[],

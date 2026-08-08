@@ -135,5 +135,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Give us a ⭐ star if this project helped you!
 
-**Current Version**: 6.9.2 — full settings persistence, smarter errors, bundled fonts (see docs/REMAINING_AFTER_V6_9.md)
+**Current Version**: 6.10.0 — TikTok/Instagram upload, Chromaprint music check, per-clip play/translate/upload in the WebUI (see docs/RELEASE_CHECKLIST_WINDOWS.md)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀
