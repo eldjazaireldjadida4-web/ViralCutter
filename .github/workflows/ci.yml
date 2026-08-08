@@ -20,6 +20,6 @@ jobs:
       - name: Install ffmpeg (real-video smoke tests)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install test dependencies
-        run: pip install pytest
+        run: pip install -r requirements-dev.txt
       - name: Run unit tests
         run: pytest -v
