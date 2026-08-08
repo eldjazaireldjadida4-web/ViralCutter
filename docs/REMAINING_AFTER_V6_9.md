@@ -49,17 +49,14 @@
 
 ## 🔴 أولويات حرجة — تمنع اكتمال "الحلقة"
 
-### 1. تفعيل GitHub Actions + صلاحية Workflows — ✅ تم من جهة المالك
-- **المالك فعّل Actions وعدّل `ci.yml` يدوياً** (Commit `803ba18` — خطوة ffmpeg)
-  → أول تشغيلة CI حقيقية حدثت وكشفت مشكلة قديمة:
-- **`test_visual_check` كان يحتاج numpy وCI يثبّت pytest فقط** → 2 فشل.
-  أُصلح: `requirements-dev.txt` أضيف له `numpy<2` (Commit `923274a`).
-- **بقي خطوة واحدة من المالك**: تحديث سطر تثبيت الحزم في `ci.yml` إلى
-  `pip install -r requirements-dev.txt` (بدل `pip install pytest`) — المحتوى
-  النهائي في نهاية هذا البند. بمجرد الرفع تبدأ تشغيلة جديدة خضراء.
-- ملاحظة: أي تعديل مستقبلي على `.github/workflows/*` من تطبيق `moclaw-ai`
-  يُرفض (بلا صلاحية Workflows) — يرفعه المالك من واجهة الويب. الكتالوج لا يملك
-  إجراءً لتفعيل ذلك برمجياً.
+### 1. تفعيل GitHub Actions + صلاحية Workflows — ✅ مكتمل (أخضر)
+- المالك فعّل Actions وعدّل `ci.yml` (Commit `803ba18` خطوة ffmpeg ثم `2a2dca6`
+  سطر `pip install -r requirements-dev.txt`).
+- أول تشغيلة حقيقية كشفت نقص numpy في `test_visual_check` → أُصلح
+  (`requirements-dev.txt`: `numpy<2`, Commit `923274a`).
+- **النتيجة الآن**: CI أخضر على Python 3.10/3.11/3.12 (Run `31259166047`).
+- ملاحظة للمستقبل: أي تعديل على `.github/workflows/*` من تطبيق `moclaw-ai`
+  يُرفض (بلا صلاحية Workflows) — يرفعه المالك من واجهة الويب.
 
 - **`ci.yml` النهائي الجاهز للصق:**
 - **محتوى `ci.yml` الجاهز (مع خطوة ffmpeg):**
