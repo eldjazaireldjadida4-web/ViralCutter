@@ -112,6 +112,11 @@ class TestTikTokUploader:
         assert "video/init" in captures[0]["url"]
         assert "video/upload/PUB1" in captures[1]["url"]
         assert captures[1]["method"] == "PUT"
+        # The real bug this guards: the video BYTES must be the PUT body
+        # (previously blob was read into memory and never sent).
+        assert captures[1]["body"] == b"fake-video-bytes"
+        hdr = {k.lower(): v for k, v in captures[1]["headers"].items()}
+        assert hdr["content-type"] == "video/mp4"
 
     def test_init_payload_and_status_polling(self, tmp_path, monkeypatch):
         video = tmp_path / "clip.mp4"
@@ -226,6 +231,109 @@ class TestTikTokOAuth:
         assert saved["access_token"] == "NEW"
 
 
+class TestSetupCheck:
+    def test_tiktok_missing_keys(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("TIKTOK_CLIENT_KEY", raising=False)
+        monkeypatch.delenv("TIKTOK_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("TIKTOK_TOKEN_FILE", raising=False)
+        checks = ug.check_platform_setup("tiktok")
+        by_item = {c["item"]: c for c in checks}
+        assert by_item["TikTok app credentials (TIKTOK_CLIENT_KEY/SECRET)"]["ok"] is False
+        # approval cannot be verified locally — surfaced honestly
+        assert by_item["Content Posting API approval"]["ok"] is None
+        assert "days/weeks" in by_item["Content Posting API approval"]["detail"]
+
+    def test_instagram_reports_auto_host_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("IG_ACCESS_TOKEN", "T")
+        monkeypatch.setenv("IG_USER_ID", "7")
+        monkeypatch.delenv("IG_VIDEO_URL", raising=False)
+        checks = ug.check_platform_setup("instagram")
+        by_item = {c["item"]: c for c in checks}
+        assert by_item["Instagram access token"]["ok"] is True
+        assert "AUTO-HOST" in by_item["Video URL source"]["detail"]
+
+    def test_unknown_platform(self):
+        checks = ug.check_platform_setup("nope")
+        assert checks[0]["ok"] is False
+
+
+class TestTikTokHint:
+    def test_permission_error_gets_approval_hint(self):
+        msg = ug._with_tiktok_hint("API error 43201: no permission")
+        assert ug.TIKTOK_APPROVAL_HINT in msg
+
+    def test_clean_error_unchanged(self):
+        msg = ug._with_tiktok_hint("API error 400: bad request")
+        assert ug.TIKTOK_APPROVAL_HINT not in msg
+
+
+class TestHostMediaFile:
+    def test_missing_file_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            ug.host_media_file(str(tmp_path / "nope.mp4"))
+
+    def test_empty_file_raises(self, tmp_path):
+        video = tmp_path / "empty.mp4"
+        video.write_bytes(b"")
+        with pytest.raises(ValueError):
+            ug.host_media_file(str(video))
+
+    def test_too_large_raises(self, tmp_path, monkeypatch):
+        video = tmp_path / "big.mp4"
+        video.write_bytes(b"x" * (200 * 1024 * 1024 + 1))
+        with pytest.raises(RuntimeError, match="200 MB"):
+            ug.host_media_file(str(video))
+
+    def test_catbox_then_0x0_fallback(self, tmp_path, monkeypatch):
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"1234")
+        import urllib.request as urlreq
+        calls = []
+
+        class Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"<html>error page</html>"  # catbox replies garbage
+
+        def fake_urlopen(req, *a, **k):
+            calls.append(req.full_url)
+            if len(calls) == 1:
+                return Resp()          # catbox: bad body → not an https URL
+            raise OSError("0x0.st refused")  # 0x0.st: network error
+
+        monkeypatch.setattr(urlreq, "urlopen", fake_urlopen)
+        with pytest.raises(RuntimeError, match="auto-hosting failed"):
+            ug.host_media_file(str(video))
+        # Tried both providers before giving up.
+        assert len(calls) == 2
+        assert calls[0] == "https://catbox.moe/user/api.php"
+        assert calls[1] == "https://0x0.st"
+
+    def test_success_returns_https_url(self, tmp_path, monkeypatch):
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"1234")
+        import urllib.request as urlreq
+
+        class Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"https://catbox.moe/shorts/xyz.mp4"
+
+        monkeypatch.setattr(urlreq, "urlopen", lambda req, *a, **k: Resp())
+        url = ug.host_media_file(str(video))
+        assert url == "https://catbox.moe/shorts/xyz.mp4"
+
+
 def time_now_minus_1h():
     import time
     return time.time() - 3600
@@ -245,14 +353,37 @@ class TestInstagramUploader:
         with pytest.raises(RuntimeError, match="OAuth credentials"):
             uploader.upload(str(tmp_path / "clip.mp4"), "T", "C", [], index=0)
 
-    def test_missing_public_url_raises(self, tmp_path, monkeypatch):
+    def test_auto_host_closes_public_url_gap(self, tmp_path, monkeypatch):
+        """No IG_VIDEO_URL → the local clip is auto-hosted, then published."""
         monkeypatch.setenv("IG_ACCESS_TOKEN", "IGTOK")
         monkeypatch.setenv("IG_USER_ID", "12345")
         monkeypatch.delenv("IG_VIDEO_URL", raising=False)
+        monkeypatch.setattr(ug, "host_media_file",
+                            lambda p, timeout=300: "https://catbox.moe/auto1.mp4")
         uploader = ug.InstagramUploader(str(tmp_path), dry_run=False)
         video = tmp_path / "clip.mp4"
         video.write_bytes(b"x")
-        with pytest.raises(RuntimeError, match="(?i)public https video_url"):
+        queue = [
+            {"payload": {"id": "CREATION1"}},
+            {"payload": {"id": "MEDIA9"}},
+        ]
+        captures = _install_fake_urlopen(monkeypatch, queue)
+        result = uploader.upload(str(video), "T", "C", [], index=0)
+        assert result["status"] == "uploaded"
+        import urllib.parse as up
+        body = up.parse_qs(captures[0]["body"].decode())
+        assert body["media_type"] == ["REELS"]
+        assert body["video_url"] == ["https://catbox.moe/auto1.mp4"]
+
+    def test_auto_host_can_be_disabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("IG_ACCESS_TOKEN", "IGTOK")
+        monkeypatch.setenv("IG_USER_ID", "12345")
+        monkeypatch.delenv("IG_VIDEO_URL", raising=False)
+        monkeypatch.setenv("IG_HOST_DISABLE", "1")
+        uploader = ug.InstagramUploader(str(tmp_path), dry_run=False)
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"x")
+        with pytest.raises(RuntimeError, match="(?i)IG_HOST_DISABLE|public https"):
             uploader.upload(str(video), "T", "C", [], index=0)
 
     def test_two_step_publish(self, tmp_path, monkeypatch):
@@ -268,15 +399,20 @@ class TestInstagramUploader:
                                  ["#reels", "fyp"], index=0)
         assert result["status"] == "uploaded"
         assert result["media_id"] == "MEDIA9"
+        import urllib.parse as up
         media_call = captures[0]
-        body = json.loads(media_call["body"].decode())
-        assert body["media_type"] == "REELS"
-        assert body["video_url"].startswith("https://")
-        assert "Big Title" in body["caption"]
-        assert "#reels" in body["caption"]
+        # Graph API calls are form-encoded (application/x-www-form-urlencoded).
+        media_headers = {k.lower(): v for k, v in media_call["headers"].items()}
+        assert media_headers["content-type"] == \
+            "application/x-www-form-urlencoded"
+        body = up.parse_qs(media_call["body"].decode())
+        assert body["media_type"] == ["REELS"]
+        assert body["video_url"][0].startswith("https://")
+        assert "Big Title" in body["caption"][0]
+        assert "#reels" in body["caption"][0]
         publish_call = captures[1]
-        body2 = json.loads(publish_call["body"].decode())
-        assert body2["creation_id"] == "CREATION1"
+        body2 = up.parse_qs(publish_call["body"].decode())
+        assert body2["creation_id"] == ["CREATION1"]
         assert "12345/media_publish" in publish_call["url"]
 
     def test_video_url_override(self, tmp_path, monkeypatch):
@@ -291,5 +427,6 @@ class TestInstagramUploader:
         captures = _install_fake_urlopen(monkeypatch, queue)
         result = uploader.upload(str(video), "T", "C", [], index=0)
         assert result["status"] == "uploaded"
-        body = json.loads(captures[0]["body"].decode())
-        assert body["video_url"] == "https://cdn.example.com/x.mp4"
+        import urllib.parse as up
+        body = up.parse_qs(captures[0]["body"].decode())
+        assert body["video_url"] == ["https://cdn.example.com/x.mp4"]
