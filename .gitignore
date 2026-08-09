@@ -58,3 +58,8 @@ webui_settings.json
 
 # Local Gradio runtime cache (created by the WebUI on first boot)
 .gradio/
+
+# Strike-feedback user-local data (learned terms + journal)
+safety_terms.json
+strike_feedback.json
+analytics_report.json

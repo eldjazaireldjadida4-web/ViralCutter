@@ -116,7 +116,7 @@ Para rodar o ViralCutter em um computador novo, você precisa instalar os seguin
 - [x] Exportação de XML para Premiere Pro (Beta)
 - [x] Música de fundo automática (Auto-Duck) — via `--polish`
 - [x] Upload direto para TikTok/Instagram (+ YouTube via OAuth) — v6.10+
-- [ ] Mais formatos de enquadramento (além de 9:16)
+- [x] Mais formatos de enquadramento (4:5, 1:1, 16:9) — via `--output-aspect` (v6.13)
 - [x] Watermark opcional — via `--polish --logo`
 
 ## Pré-flight: tudo verificado antes de rodar (v6.12+)
@@ -144,5 +144,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Dê uma ⭐ estrela se este projeto te ajudou!
 
-**Versão Atual**: 6.12.0 — preflight automático (verifica e instala tudo antes de rodar)
+**Versão Atual**: 6.13.0 — preflight automático (verifica e instala tudo antes de rodar)
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀

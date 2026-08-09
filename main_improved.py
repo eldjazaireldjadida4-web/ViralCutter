@@ -388,6 +388,17 @@ def main():
                              "auto-installs missing core dependencies (default), 'check' only "
                              "reports, 'off' skips the check entirely "
                              "(env: VIRALCUTTER_SKIP_PREFLIGHT=1).")
+    parser.add_argument("--output-aspect", choices=["9:16", "4:5", "1:1", "16:9"], default=None,
+                        help="Reframe the FINAL clips to this aspect ratio after subtitle "
+                             "burning (9:16 is the native crop). 4:5/1:1 center-crop, 16:9 "
+                             "blur-pads. Auto-set to 16:9 with --platform yt_standard.")
+    parser.add_argument("--reframe-mode", choices=["crop", "pad"], default=None,
+                        help="Reframe method: crop=fill+center-crop (default for 4:5/1:1), "
+                             "pad=blurred bars (default for 16:9).")
+    parser.add_argument("--auto-learn-blocked", action="store_true",
+                        help="After the risk scorecard, automatically teach the safety terms "
+                             "the patterns that got clips blocked (strike-feedback loop, 5.1). "
+                             "See scripts/strike_feedback.py.")
 
     args = parser.parse_args()
 
@@ -426,6 +437,12 @@ def main():
                 args.platform, args.min_duration, args.max_duration)
             print(i18n("Platform template: {}").format(
                 platform_templates.describe(args.platform)))
+            # yt_standard means 16:9 — make the output actually match the
+            # template (unless the user already picked an explicit aspect).
+            if args.platform == "yt_standard" and not args.output_aspect:
+                args.output_aspect = "16:9"
+                print("[reframe] --platform yt_standard → reframing output to 16:9 "
+                      "(override with --output-aspect 9:16)")
         except Exception as e:
             debug("Platform template failed: {}".format(e))
     if args.min_duration is None:
@@ -1140,6 +1157,23 @@ def main():
         else:
             print(i18n("Subtitle burning skipped."))
 
+        # 6.4b. Output reframe (Roadmap "more framing formats", safe version):
+        #       convert the FINAL subtitled clips to the requested aspect ratio
+        #       in ONE ffmpeg pass. Runs after subtitle burning (the burned subs
+        #       are part of the deliverable) and before the risk scorecard (the
+        #       compliance report sees the true final file). 9:16 is a no-op.
+        if getattr(args, "output_aspect", None) and args.output_aspect != "9:16":
+            try:
+                from scripts import reframe
+                print("[reframe] Converting final clips to {} ...".format(args.output_aspect))
+                results = reframe.reframe_project(
+                    project_folder, args.output_aspect, args.reframe_mode)
+                ok_n = sum(1 for r in results if r.get("ok"))
+                print("[reframe] {}/{} clip(s) → {}".format(
+                    ok_n, len(results), args.output_aspect))
+            except Exception as e:
+                print("[reframe] failed (continuing with the original aspect): {}".format(e))
+
         # 6.5. Risk Scorecard — per-clip compliance report (reused content /
         #      monetization / visual) + optional publish gate
         if args.risk_scorecard == "on" and viral_segments and "segments" in viral_segments:
@@ -1159,6 +1193,33 @@ def main():
                 blocked = report.get("blocked", [])
                 if blocked:
                     print(i18n("[risk] ⛔ BLOCKED FOR PUBLISH: {} clip(s) — remove or re-edit before uploading. Details in risk_scorecard.json / publish_blocklist.json").format(len(blocked)))
+                    # Strike-feedback loop (Roadmap 5.1): teach the tool the
+                    # patterns that got clips blocked, so future runs block
+                    # them earlier — the tool learns from your channel.
+                    try:
+                        from scripts import strike_feedback
+                        patterns = strike_feedback.extract_terms_from_project(project_folder)
+                        if patterns:
+                            print("[learn] {} pattern(s) behind the blocked clip(s): {}".format(
+                                len(patterns), ", ".join(p["term"] for p in patterns[:5])))
+                            if args.auto_learn_blocked:
+                                added = 0
+                                for p in patterns:
+                                    try:
+                                        strike_feedback.cmd_add(
+                                            p["term"], lang="auto", severity=p["severity"],
+                                            category="learned", reason="auto-learn from blocked project",
+                                            source="scorecard", project=project_folder)
+                                        added += 1
+                                    except Exception:
+                                        pass
+                                print("[learn] ✅ auto-learned {} term(s) into safety_terms.json — "
+                                      "next runs will block them earlier.".format(added))
+                            else:
+                                print("[learn] teach the tool from this: python -m scripts.strike_feedback "
+                                      "from-scorecard --project <project> --apply")
+                    except Exception as e:
+                        debug("strike-feedback hint failed: {}".format(e))
                     if args.risk_gate == "block":
                         print(i18n("[risk] gate mode 'block' — stopping the run because {} clip(s) failed the compliance gate.").format(len(blocked)))
                         sys.exit(1)

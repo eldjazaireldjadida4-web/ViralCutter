@@ -4,7 +4,25 @@
 > المشروع — **ماذا أُنجز، وماذا تبقّى، وكيف يُنفَّذ كل بند**. لا تُعِد تنفيذ ما
 > هو مُنجز، ولا تكتشف من جديد ما هو موثّق هنا.
 >
-> **التاريخ**: 2026-08-09 | **آخر إصدار**: v6.12.0 | **الاختبارات**: 481
+> **التاريخ**: 2026-08-09 | **آخر إصدار**: v6.13.0 | **الاختبارات**: 515
+
+---
+
+## ✅ ما أُنجز في v6.13.0 (إكمال الخارطة: تعلم + أبعاد + تحليلات)
+
+- **5.1 حلقة الضربات Strike Feedback**: `scripts/strike_feedback.py` —
+  add/allow/remove/list/stats/export + `from-scorecard --project X [--apply]`
+  يستخرج أنماط المقاطع المحجوبة من safety_report + risk_scorecard ويعلّمها
+  للأداة (تكتب `safety_terms.json` التي يقرأها الفلتر تلقائياً). يوميات في
+  `strike_feedback.json`. تكامل في `main_improved.py`: تلميح تعلّم بعد أي حجب +
+  `--auto-learn-blocked`.
+- **أبعاد إخراج إضافية**: `scripts/reframe.py` — `--output-aspect
+  9:16|4:5|1:1|16:9` بعد الحرق وقبل بطاقة المخاطر (crop للـ 4:5/1:1، blur-pad
+  للـ 16:9). استبدال ذري + نسخة .orig.mp4. `--platform yt_standard` → 16:9
+  تلقائياً (كان يخرج 9:16 رغم قالب 16:9).
+- **5.4 تحليلات الأداء**: `scripts/analytics.py` — YouTube Analytics API
+  (قراءة فقط): summary/top/trends/export/check.
+- **الاختبارات**: +34 → **515** خضراء.
 
 ---
 
@@ -148,10 +166,11 @@
 |---|-------|--------|-----|
 | 1 | **ربط OAuth TikTok/Instagram** | ✅ مكتمل في v6.10.0 (اختبار حي يحتاج بياناتك) | `scripts/upload_gate.py` |
 | 2 | **بصمة الموسيقى Chromaprint (2.3)** | ✅ مكتمل في v6.10.0 | `scripts/music_fingerprint.py` |
-| 3 | **حلقة الضربات Strike Feedback (5.1)** | غير منفّذ | جديد |
-| 4 | **تحليلات الأداء (5.4)** | غير منفّذ — YouTube Analytics API | جديد |
+| 3 | **حلقة الضربات Strike Feedback (5.1)** | ✅ مكتمل في v6.13.0 | `scripts/strike_feedback.py` |
+| 4 | **تحليلات الأداء (5.4)** | ✅ مكتمل في v6.13.0 (يحتاج تفعيل Analytics API) | `scripts/analytics.py` |
 | 5 | **استبدال حلقة OpenCV بـ ffmpeg pipe** | A/V desync جذري على فيديوهات معينة | `scripts/edit_video.py` |
-| 6 | **WebUI: أزرار polish/gate لكل مشروع** | ✅ تبويب "🚀 رفع ونشر" في v6.10.0 (تشغيل/ترجمة/رفع/موسيقى) | `webui/app.py` + `webui/publish_panel.py` |
+| 6 | **أبعاد إخراج إضافية (غير 9:16)** | ✅ مكتمل في v6.13.0 (post-stage آمن: crop/pad) | `scripts/reframe.py` + `--output-aspect` |
+| 7 | **WebUI: أزرار polish/gate لكل مشروع** | ✅ تبويب "🚀 رفع ونشر" في v6.10.0 (تشغيل/ترجمة/رفع/موسيقى) | `webui/app.py` + `webui/publish_panel.py` |
 
 ## 🟢 ملاحظات تشغيلية
 

@@ -116,7 +116,7 @@ To run ViralCutter on a fresh computer, you need to install the following core t
 - [x] XML Export to Premiere Pro (Beta)
 - [x] Automatic background music (Auto-Duck) — via `--polish`
 - [x] Direct upload to TikTok/Instagram (+ YouTube via OAuth) — v6.10+
-- [ ] More framing formats (beyond 9:16)
+- [x] More framing formats (4:5, 1:1, 16:9) — via `--output-aspect` (v6.13)
 - [x] Optional Watermark — via `--polish --logo`
 
 ## Pre-flight: everything verified before running (v6.12+)
@@ -144,5 +144,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Give us a ⭐ star if this project helped you!
 
-**Current Version**: 6.12.0 — automatic pre-flight (checks and installs everything before running)
+**Current Version**: 6.13.0 — automatic pre-flight (checks and installs everything before running)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀
