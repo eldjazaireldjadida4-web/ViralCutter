@@ -39,7 +39,7 @@ jobs:
       - name: Install build dependencies
         shell: bash
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install pyinstaller
           # Runtime deps pulled into the bundle via hiddenimports in the spec.
           # Install the light core only; heavy optional stacks (whisperx,
