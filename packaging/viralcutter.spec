@@ -32,17 +32,14 @@ datas = [
 ]
 
 # Third-party binaries bundled automatically from packaging/third_party/.
-# The Windows CI build (build-exe.yml) drops fpcalc.exe and ffmpeg.exe there;
-# at runtime they appear next to the exe (onefile → sys._MEIPASS), where
-# scripts/music_fingerprint.py and the ffmpeg helpers find them. This makes
-# the music check and video processing work out of the box — no manual
-# downloads for the end user.
+# The Windows CI build (build-exe.yml) drops fpcalc.exe (and its runtime
+# DLLs) there; at runtime they appear next to the exe (onefile →
+# sys._MEIPASS), where scripts/music_fingerprint.py finds them. This makes
+# the music check work out of the box — no manual downloads for the user.
 binaries = []
 _tp = ROOT / "packaging" / "third_party"
 if _tp.is_dir():
-    for name in ("fpcalc.exe", "ffmpeg.exe", "ffprobe.exe",
-                 "fpcalc", "ffmpeg", "ffprobe"):
-        p = _tp / name
+    for p in sorted(_tp.iterdir()):
         if p.is_file():
             binaries.append((str(p), "."))
 
