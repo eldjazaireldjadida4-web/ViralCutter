@@ -135,5 +135,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Dê uma ⭐ estrela se este projeto te ajudou!
 
-**Versão Atual**: 6.10.0 — upload TikTok/Instagram, verificação musical Chromaprint, e botões de reproduzir/traduzir/enviar por clipe na interface (veja docs/RELEASE_CHECKLIST_WINDOWS.md)
+**Versão Atual**: 6.11.0 — exe Windows construído automaticamente no GitHub Actions, upload Instagram com auto-hosting (catbox/0x0.st), música sem instalação manual (fpcalc embutido + AcoustID direto), diagnóstico `--check` por plataforma
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀

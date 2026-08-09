@@ -31,13 +31,20 @@ datas = [
     (str(ROOT / "safety_terms.example.json"), "."),
 ]
 
-# Optional: bundle a local ffmpeg build. Drop ffmpeg.exe/ffprobe.exe (or the
-# Linux/macOS equivalents) into packaging/ffmpeg-bin/ and uncomment:
-# binaries = [
-#     (str(ROOT / "packaging" / "ffmpeg-bin" / "ffmpeg.exe"), "."),
-#     (str(ROOT / "packaging" / "ffmpeg-bin" / "ffprobe.exe"), "."),
-# ]
+# Third-party binaries bundled automatically from packaging/third_party/.
+# The Windows CI build (build-exe.yml) drops fpcalc.exe and ffmpeg.exe there;
+# at runtime they appear next to the exe (onefile → sys._MEIPASS), where
+# scripts/music_fingerprint.py and the ffmpeg helpers find them. This makes
+# the music check and video processing work out of the box — no manual
+# downloads for the end user.
 binaries = []
+_tp = ROOT / "packaging" / "third_party"
+if _tp.is_dir():
+    for name in ("fpcalc.exe", "ffmpeg.exe", "ffprobe.exe",
+                 "fpcalc", "ffmpeg", "ffprobe"):
+        p = _tp / name
+        if p.is_file():
+            binaries.append((str(p), "."))
 
 a = Analysis(
     [str(ROOT / "main_improved.py")],

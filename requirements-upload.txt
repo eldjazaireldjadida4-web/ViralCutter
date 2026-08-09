@@ -10,8 +10,14 @@
 #         --video clip.mp4 --title "..." --caption "..." --hashtags "#shorts"
 #      (first run opens a browser for the OAuth consent)
 #
-# TikTok / Instagram uploaders are documented scaffolds inside upload_gate.py
-# (they require platform app approval; code is ready to plug in).
+# YouTube uploader (OAuth + Data API v3) — see usage above.
+#
+# TikTok / Instagram uploaders are implemented in upload_gate.py with
+# real OAuth + the official APIs (stdlib transport, no extra pip deps).
+#   - TikTok: requires an app APPROVED for Content Posting API (video.publish).
+#   - Instagram: requires IG_ACCESS_TOKEN + IG_USER_ID; the clip is
+#     auto-hosted to a public URL (catbox/0x0.st) unless IG_VIDEO_URL is set.
+# Diagnose any platform with: python -m scripts.upload_gate --check <platform>
 
 google-api-python-client
 google-auth-oauthlib

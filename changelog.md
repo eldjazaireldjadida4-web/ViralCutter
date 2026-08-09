@@ -1,5 +1,55 @@
 # Changelog
 
+## 🚀 v6.11.0 — حواجز الاستخدام الواسع: exe مبني تلقائياً + فحص موسيقى يخدم فعلاً + رفع انستغرام يشتغل بدون استضافة يدوية (2026-08-08)
+
+### New — الـ exe يُبنى تلقائياً على GitHub Actions (يزيل أكبر حاجز)
+- PyInstaller لا يعمل cross-compile، فكان الـ Release يتطلب ويندوز يدوياً.
+  الآن `.github/workflows/build-exe.yml` يبني `ViralCutter.exe` على runner
+  ويندوز رسمي: على أي `tag v*` يُرفع الـ exe تلقائياً إلى Release، وعلى
+  `workflow_dispatch` يبني الفرع الحالي ويتركه artifact للاختبار.
+- الـ exe يأتي و **fpcalc.exe مدمج** بداخله — فحص الموسيقى يشتغل من أول تشغيل
+  (المستخدم العادي لا يحتاج تحميل أي شيء).
+
+### Fix — فحص الموسيقى لم يعد "بلا أسنان" بدون إعداد
+- **`--install-fpcalc`**: أمر واحد يحمّل fpcalc.exe تلقائياً (من
+  releases الرسمية لـ chromaprint) ويضعه بجانب التطبيق أو في
+  `~/.viralcutter/bin` — بدل إرشاد يدوي طويل.
+- **استعلام AcoustID بدون pyacoustid**: بصمة `fpcalc -raw` تُرمَّز الآن
+  تلقائياً (encode 32-bit) وتُرسل إلى `api.acoustid.org` — سابقاً كان
+  مسار fpcalc وحده لا يستطيع الاستعلام إطلاقاً.
+- `fpcalc_available()`/`fingerprint_file()` يبحثان الآن بجانب الـ exe
+  (sys._MEIPASS) ثم `~/.viralcutter/bin` ثم PATH — يعمل مع النسخة المعبأة
+  وبدونها.
+- **صدق في التقرير**: `music_fingerprint.json` يعلن `backend`
+  (pyacoustid/fpcalc/none) + `coverage_note` صريحة أن AcoustID لا يغطي
+  الموسيقى العربية/غير المسجّلة جيداً، ويوصي بقاعدة مرجعية محلية
+  (`--build-local-db`) لهذا النوع — فالمستخدم يعرف بالضبط قوة الفحص لا وهمه.
+- CLI يطبع تحذيراً واضحاً عندما يكون `no_fpcalc > 0` مع خطوة الإصلاح.
+
+### Fix — الرفع لانستغرام يشتغل بدون استضافة يدوية
+- Graph API لا يقبل ملفاً محلياً (يلزم رابط HTTPS عام) — كان هذا يقتل
+  الميزة للمستخدم العادي. الآن `host_media_file()` يرفع المقطع تلقائياً إلى
+  مضيف مجاني مجهول (catbox.moe، و0x0.st احتياطاً) ويمرر الرابط إلى
+  Graph API. عطّل ذلك بـ `IG_HOST_DISABLE=1` أو اربط `IG_VIDEO_URL` بنفسك.
+- مكالمات Graph API (media/media_publish) أصبحت form-encoded
+  (application/x-www-form-urlencoded) كما يتوقعها API فعلياً — كانت JSON.
+
+### Fix — باك حقيقي في رفع تيك توك
+- بايتات الفيديو كانت تُقرأ في الذاكرة و**لا تُرسل أبداً** في PUT
+  (`data=None`) — ينجح مع mock ولا ينجح ضد API الحقيقي. أُصلح: الـ body
+  الآن هو البايتات نفسها مع `Content-Type: video/mp4`.
+- أخطاء الأذونات/الموافقة في تيك توك تُرفق تلميحاً صريحاً
+  (الموافقة على Content Posting API تستغرق أياماً/أسابيع) بدل رسالة غامضة.
+
+### New — تشخيص قبل الرفع
+- `python -m scripts.upload_gate --check <youtube|tiktok|instagram>`: يفحص
+  بدون شبكة — المفاتيح، التوكنات، وما لا يمكن التحقق منه محلياً (موافقة
+  تيك توك) يُعلَن بوضوح. `--project` لم يعد مطلوباً لهذا الأمر.
+
+### Tests
+- +~74 اختباراً: باك الـ PUT، ترميز البصمة، تلقائي المضيف، `--check`،
+  اكتشاف fpcalc، إلخ. **451 passed** محلياً.
+
 ## 🚀 v6.10.0 — ربط TikTok/Instagram + بصمة الموسيقى Chromaprint + أزرار رفع من الواجهة (2026-08-08)
 
 ### New — TikTok Content Posting API (Roadmap 2.2)
