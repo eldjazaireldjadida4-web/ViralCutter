@@ -76,21 +76,25 @@ jobs:
           # Launch the exe in WebUI mode and wait until http://127.0.0.1:7860
           # answers 200. This catches frozen-bundle breakage (missing data
           # files, missing hidden imports) BEFORE anything is released.
-          ./dist/ViralCutter.exe --webui > webui_smoke.log 2>&1 &
-          EXE_PID=$!
-          for i in $(seq 1 40); do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7860/ 2>/dev/null || true)
-            if [ "$CODE" = "200" ]; then
-              echo "✅ WebUI responded HTTP 200 after ${i}x5s"
-              kill $EXE_PID 2>/dev/null || true
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "❌ WebUI did not respond in time — log tail:"
-          tail -60 webui_smoke.log || true
-          kill $EXE_PID 2>/dev/null || true
-          exit 1
+          # Every curl is time-bounded (--max-time) and the whole step is
+          # wrapped in `timeout` so it can never hang the job.
+          timeout 300 bash -c '
+            ./dist/ViralCutter.exe --webui > webui_smoke.log 2>&1 &
+            EXE_PID=$!
+            for i in $(seq 1 55); do
+              CODE=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://127.0.0.1:7860/ 2>/dev/null || echo 000)
+              if [ "$CODE" = "200" ]; then
+                echo "OK: WebUI responded HTTP 200 after ${i}x5s"
+                kill $EXE_PID 2>/dev/null || true
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "FAIL: WebUI did not respond in time — log tail:"
+            tail -60 webui_smoke.log || true
+            kill $EXE_PID 2>/dev/null || true
+            exit 1
+          '
 
       - name: Upload exe as workflow artifact
         uses: actions/upload-artifact@v4
