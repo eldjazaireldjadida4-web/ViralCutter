@@ -7,12 +7,12 @@ name: Build Windows EXE
 #
 # Triggers:
 #   * push of a v* tag   → builds AND creates/updates a GitHub Release with
-#                          ViralCutter.exe + fpcalc bundled inside
+#                          ViralCutter.exe (fpcalc + ffmpeg bundled inside)
 #   * manual dispatch    → builds the current branch and uploads the exe as a
 #                          workflow artifact (for testing) — no release created
 #
-# The exe ships with fpcalc.exe (music fingerprint check) bundled; ffmpeg is
-# NOT bundled (license/size) — see packaging/viralcutter.spec.
+# The exe ships with fpcalc.exe (music fingerprint check) and ffmpeg/ffprobe
+# (video processing) bundled, so it works out of the box on a clean Windows.
 
 on:
   push:
@@ -41,22 +41,27 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          # Runtime deps pulled into the bundle via hiddenimports in the spec.
-          # Install the light core only; heavy optional stacks (whisperx,
-          # insightface, gradio) are collected by the spec's hiddenimports —
-          # install them too so the bundle actually contains them.
           pip install -r requirements.txt || echo "WARN: some optional deps failed to install on this runner"
           pip install -r requirements-upload.txt || echo "WARN: upload stack incomplete"
 
-      - name: Download fpcalc.exe (chromaprint) for bundling
+      - name: Download fpcalc + ffmpeg for bundling
         shell: bash
         run: |
           mkdir -p packaging/third_party
-          # Pinned release; see scripts/music_fingerprint.py (FPCalc_RELEASE).
+          # Chromaprint fpcalc (music fingerprint check) — pinned release,
+          # see scripts/music_fingerprint.py (FPCalc_RELEASE).
           curl -L -o fpcalc.zip \
             "https://github.com/acoustid/chromaprint/releases/download/v1.5.1/chromaprint-fpcalc-1.5.1-windows-x86_64.zip"
           unzip -o fpcalc.zip -d fpcalc_tmp
-          find fpcalc_tmp -name "fpcalc.exe" -exec cp {} packaging/third_party/fpcalc.exe \;
+          find fpcalc_tmp -type f -exec cp {} packaging/third_party/ \;
+          # Static ffmpeg/ffprobe (GPL) — video processing works out of the
+          # box, no separate install for the end user. GitHub-hosted build
+          # (BtbN) — reliable; gyan.dev rate-limits and returns 503.
+          curl -L -o ffmpeg.zip \
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          unzip -o ffmpeg.zip -d ffmpeg_tmp
+          find ffmpeg_tmp -name "ffmpeg.exe" -exec cp {} packaging/third_party/ \;
+          find ffmpeg_tmp -name "ffprobe.exe" -exec cp {} packaging/third_party/ \;
           ls -lh packaging/third_party/
 
       - name: Build exe with PyInstaller
@@ -65,15 +70,27 @@ jobs:
           pyinstaller packaging/viralcutter.spec --noconfirm --clean
           ls -lh dist/
 
-      - name: Smoke-test the exe
+      - name: Smoke-test the exe (WebUI must boot)
         shell: bash
         run: |
-          # Boot the CLI long enough to prove the bundle works (help + version).
-          ./dist/ViralCutter.exe --help > exe_help.txt 2>&1 &
+          # Launch the exe in WebUI mode and wait until http://127.0.0.1:7860
+          # answers 200. This catches frozen-bundle breakage (missing data
+          # files, missing hidden imports) BEFORE anything is released.
+          ./dist/ViralCutter.exe --webui > webui_smoke.log 2>&1 &
           EXE_PID=$!
-          sleep 20
-          if kill -0 $EXE_PID 2>/dev/null; then kill $EXE_PID; fi
-          head -30 exe_help.txt || echo "smoke: exe started (no --help output expected for this entrypoint)"
+          for i in $(seq 1 40); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7860/ 2>/dev/null || true)
+            if [ "$CODE" = "200" ]; then
+              echo "✅ WebUI responded HTTP 200 after ${i}x5s"
+              kill $EXE_PID 2>/dev/null || true
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "❌ WebUI did not respond in time — log tail:"
+          tail -60 webui_smoke.log || true
+          kill $EXE_PID 2>/dev/null || true
+          exit 1
 
       - name: Upload exe as workflow artifact
         uses: actions/upload-artifact@v4
