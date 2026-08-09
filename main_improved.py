@@ -211,6 +211,40 @@ def _launch_webui():
         return 1
 
 
+def _self_check():
+    """Import the heavy optional stacks and report. Exit 0 when all present.
+
+    The CI build runs this on the packaged exe BEFORE releasing, so a broken
+    bundle (missing module / native lib) never reaches end users.
+    """
+    ok = True
+    checks = []
+    for label, mod in (
+            ("torch", "torch"),
+            ("torchaudio", "torchaudio"),
+            ("whisperx", "whisperx"),
+            ("faster_whisper", "faster_whisper"),
+            ("ctranslate2", "ctranslate2"),
+            ("gradio", "gradio"),
+            ("ffmpeg (bundled)", None)):  # checked separately below
+        if mod is None:
+            import shutil as _sh
+            found = _sh.which("ffmpeg") is not None
+            checks.append((label, found, "" if found else "not on PATH"))
+            ok = ok and found
+            continue
+        try:
+            __import__(mod)
+            checks.append((label, True, ""))
+        except Exception as e:
+            checks.append((label, False, str(e)[:120]))
+            ok = False
+    for label, good, detail in checks:
+        print("[self-check] {}: {}".format(label, "OK" if good else "FAIL — " + detail))
+    print("[self-check] overall: {}".format("PASS" if ok else "FAIL"))
+    return 0 if ok else 1
+
+
 def main():
     if not hasattr(main, "_retried"):
         main._retried = False
@@ -315,11 +349,18 @@ def main():
                         help="Launch the Gradio WebUI (GUI). This is also the default when "
                              "the app is opened with NO arguments (double-click) — both in "
                              "the packaged exe and from source.")
+    parser.add_argument("--self-check", action="store_true",
+                        help="Verify the packaged bundles: import the heavy optional stacks "
+                             "(whisperx/torch transcription, faster_whisper) and exit 0/1. "
+                             "Used by the CI smoke test before every release.")
 
     args = parser.parse_args()
 
     if args.webui:
         return _launch_webui()
+
+    if args.self_check:
+        return _self_check()
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
 

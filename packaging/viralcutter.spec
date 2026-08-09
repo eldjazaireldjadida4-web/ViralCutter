@@ -19,7 +19,8 @@
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import (collect_data_files, collect_dynamic_libs,
+                                     collect_submodules)
 
 ROOT = Path(SPECPATH).parent  # packaging/ → repo root
 
@@ -67,6 +68,13 @@ for _pkg in _packages_with_version_file():
 # FileNotFoundError .../gradio/blocks_events.py. include_py_files=True fixes
 # the whole class of "reads its own source at runtime".
 datas += collect_data_files("gradio", include_py_files=True)
+# faster-whisper / ctranslate2 ship native libraries (and tokenizer files) —
+# collect them explicitly so the bundled transcription stack actually works.
+binaries += collect_dynamic_libs("ctranslate2")
+binaries += collect_dynamic_libs("faster_whisper")
+binaries += collect_dynamic_libs("av")
+datas += collect_data_files("faster_whisper")
+datas += collect_data_files("ctranslate2")
 
 # Third-party binaries bundled automatically from packaging/third_party/.
 # The Windows CI build (build-exe.yml) drops fpcalc.exe (and its runtime
@@ -102,6 +110,14 @@ a = Analysis(
         "insightface",
         "acoustid",  # optional music fingerprint check (2.3)
         "gradio",
+        # Transcription stack (bundled in the full build — CPU torch):
+        "torch",
+        "whisperx",
+        "faster_whisper",
+        "ctranslate2",
+        "transformers",
+        "tokenizers",
+        "av",
         # WebUI (launched by default when the exe is double-clicked)
         "app", "library", "subtitle_handler", "subtitle_editor",
         "segments_review", "publish_panel", "batch_queue",
@@ -113,7 +129,9 @@ a = Analysis(
         "scripts.export_xml_lib.rendering",
         "scripts.export_xml_lib.xml_generator",
         "scripts.export_xml_lib.utils",
-    ],
+    ] + collect_submodules("whisperx")
+      + collect_submodules("faster_whisper")
+      + collect_submodules("pyannote.audio") + ["torchvision"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
