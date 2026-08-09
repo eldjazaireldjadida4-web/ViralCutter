@@ -5,6 +5,14 @@ import sys
 os.environ["ORT_LOGGING_LEVEL"] = "3" 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+# Frozen exe: bundled tools (ffmpeg.exe, ffprobe.exe, fpcalc.exe) live in the
+# onefile extraction dir (sys._MEIPASS). Put it on PATH so every subprocess
+# that calls "ffmpeg"/"ffprobe" by name resolves them — no external install.
+if getattr(sys, "frozen", False):
+    _bundle_dir = getattr(sys, "_MEIPASS", "") or os.path.dirname(os.path.abspath(sys.executable))
+    if _bundle_dir and _bundle_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _bundle_dir + os.pathsep + os.environ.get("PATH", "")
+
 import warnings
 warnings.filterwarnings("ignore")
 
