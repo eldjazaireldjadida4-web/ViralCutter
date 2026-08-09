@@ -1,5 +1,15 @@
 # Changelog
 
+## 🚀 v6.11.3 — حل عام لأخطاء version.txt في الـ exe (groovy + أي باقة مستقبلية) (2026-08-09)
+
+### Fix — WebUI يفشل في الـ exe: groovy/version.txt
+- بعد إصلاح safehttpx (v6.11.2) ظهر نفس النمط في باقة ثانية: `groovy`
+  تقرأ `version.txt` عند الاستيراد → FileNotFoundError.
+- **الحل العام**: `viralcutter.spec` يفحص الآن كل الباقات المثبتة و يجمع
+  بيانات أي باقة فيها `version.txt`/`VERSION` في جذرها — يغطي safehttpx و
+  groovy وأي باقة مستقبلية من هذا النوع دفعة واحدة (بدل حزمة-حزمة).
+- الإصدار 6.11.3.
+
 ## 🚀 v6.11.2 — إصلاح إقلاع الواجهة في الـ exe (ملف بيانات safehttpx مفقود) (2026-08-09)
 
 ### Fix — WebUI يفشل عند الإقلاع داخل الـ exe

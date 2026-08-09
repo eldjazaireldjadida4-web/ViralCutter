@@ -35,11 +35,31 @@ datas = [
     # (webui/subtitle_handler.py) → must sit at the bundle root.
     (str(ROOT / "webui" / "preview.json"), "."),
 ]
-# safehttpx (gradio dependency) reads version.txt from its package dir at
-# import time — PyInstaller has no hook for it, so collect it explicitly.
-# Without this the WebUI crashes on startup with
-# FileNotFoundError: .../safehttpx/version.txt
-datas += collect_data_files("safehttpx")
+# Several small packages in the gradio dependency chain (safehttpx, groovy,
+# …) read a version.txt from their package dir at import time. PyInstaller
+# has no hooks for them, so a frozen exe crashed on WebUI startup with
+# FileNotFoundError: .../<pkg>/version.txt. Fix it GENERICALLY: collect data
+# files for every installed package that ships such a version file at its
+# root — catches this whole class at once, not one package per release.
+import site as _site
+import os as _os
+
+def _packages_with_version_file():
+    pkgs = []
+    for _sp in _site.getsitepackages():
+        if not _os.path.isdir(_sp):
+            continue
+        for _name in _os.listdir(_sp):
+            _d = _os.path.join(_sp, _name)
+            if not _os.path.isdir(_d) or _name.endswith((".dist-info", ".egg-info")):
+                continue
+            if any(_os.path.isfile(_os.path.join(_d, _f))
+                   for _f in ("version.txt", "VERSION", "version")):
+                pkgs.append(_name)
+    return sorted(set(pkgs))
+
+for _pkg in _packages_with_version_file():
+    datas += collect_data_files(_pkg)
 # gradio also reads bundled frontend/template files at runtime — collect its
 # data explicitly in addition to the community hook, so a missing/older hook
 # cannot silently produce a broken exe.
