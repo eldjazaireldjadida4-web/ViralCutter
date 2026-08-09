@@ -20,10 +20,16 @@ import segments_review # Module for Segments Review Logic
 import publish_panel # Module for Publish & Upload Logic
 import batch_queue # Module for Batch Queue Logic
 import settings_store # Module for persistent AI settings (save/load Gemini key)
+import runtime  # frozen-exe helpers (sys.executable re-invocation)
 
-# Path to the main script
-MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main_improved.py")
-WORKING_DIR = os.path.dirname(MAIN_SCRIPT_PATH)
+# Path to the main script. Frozen exe: the exe itself (nothing on disk);
+# source run: main_improved.py. WORKING_DIR holds user projects (VIRALS).
+if runtime.is_frozen():
+    MAIN_SCRIPT_PATH = sys.executable
+    WORKING_DIR = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    MAIN_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main_improved.py")
+    WORKING_DIR = os.path.dirname(MAIN_SCRIPT_PATH)
 sys.path.append(WORKING_DIR)
 
 from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
@@ -1428,7 +1434,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     with open(subtitle_config_path, "w", encoding="utf-8") as f:
                         json.dump(subtitle_config, f, indent=4)
                 proj_path = os.path.join(VIRALS_DIR, proj_name)
-                cmd = [sys.executable, MAIN_SCRIPT_PATH, "--project-path", proj_path, "--workflow", "3", "--skip-prompts"]
+                cmd = runtime.python_cmd(MAIN_SCRIPT_PATH) + ["--project-path", proj_path, "--workflow", "3", "--skip-prompts"]
                 if use_custom and os.path.exists(os.path.join(WORKING_DIR, "temp_subtitle_config.json")):
                     cmd.extend(["--subtitle-config", os.path.join(WORKING_DIR, "temp_subtitle_config.json")])
                 try:
@@ -1587,15 +1593,19 @@ if __name__ == "__main__":
             def export_xml_api(project: str, segment: int, background_tasks: BackgroundTasks, format: str = "premiere"):
                 try:
                     project_path = os.path.join(VIRALS_DIR, project)
-                    script_path = os.path.join(WORKING_DIR, "scripts", "export_xml.py")
                     if not os.path.exists(project_path):
                         return {"error": "Project not found."}
-                    if not os.path.exists(script_path):
-                        return {"error": "Export script not found."}
-                    cmd = [sys.executable, script_path, "--project", project_path, "--segment", str(segment), "--format", format]
-                    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-                    if result.returncode != 0:
-                        return {"error": result.stderr.strip() or result.stdout.strip() or "Export failed."}
+                    # Run the exporter IN-PROCESS — the packaged exe has no
+                    # scripts/export_xml.py on disk, so a subprocess is
+                    # impossible there; in-process works in both modes.
+                    try:
+                        from scripts.export_xml_lib.exporter import export_pack
+                    except Exception as e:
+                        return {"error": "Export module unavailable in this build: {}".format(e)}
+                    try:
+                        export_pack(project_path, segment, format)
+                    except Exception as e:
+                        return {"error": "Export failed: {}".format(e)}
                     proj_name = os.path.basename(project_path)
                     zip_filename = f"export_{proj_name}_seg{segment}.zip"
                     file_path = os.path.join(project_path, zip_filename)

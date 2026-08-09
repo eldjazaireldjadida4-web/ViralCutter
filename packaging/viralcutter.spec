@@ -29,6 +29,9 @@ datas = [
     (str(ROOT / "api_config.json"), "."),
     (str(ROOT / "safety_blocklist.json"), "."),
     (str(ROOT / "safety_terms.example.json"), "."),
+    # webui/preview.json is read via the module's __file__-relative dir
+    # (webui/subtitle_handler.py) → must sit at the bundle root.
+    (str(ROOT / "webui" / "preview.json"), "."),
 ]
 
 # Third-party binaries bundled automatically from packaging/third_party/.
@@ -45,7 +48,7 @@ if _tp.is_dir():
 
 a = Analysis(
     [str(ROOT / "main_improved.py")],
-    pathex=[str(ROOT)],
+    pathex=[str(ROOT), str(ROOT / "webui")],
     binaries=binaries,
     datas=datas,
     hiddenimports=[
@@ -65,6 +68,17 @@ a = Analysis(
         "insightface",
         "acoustid",  # optional music fingerprint check (2.3)
         "gradio",
+        # WebUI (launched by default when the exe is double-clicked)
+        "app", "library", "subtitle_handler", "subtitle_editor",
+        "segments_review", "publish_panel", "batch_queue",
+        "settings_store", "header", "utils", "pipeline", "runtime",
+        # Premiere XML export (called in-process by the WebUI)
+        "scripts.export_xml_lib",
+        "scripts.export_xml_lib.exporter",
+        "scripts.export_xml_lib.face_detection",
+        "scripts.export_xml_lib.rendering",
+        "scripts.export_xml_lib.xml_generator",
+        "scripts.export_xml_lib.utils",
     ],
     hookspath=[],
     hooksconfig={},

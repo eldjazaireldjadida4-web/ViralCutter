@@ -8,6 +8,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from runtime import python_cmd
 from utils import safe_int
 
 WORKFLOW_MAP = {"Full": "1", "Cut Only": "2", "Subtitles Only": "3"}
@@ -40,7 +41,7 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
     face_mode = face_mode or "auto"
     no_face_mode = no_face_mode or "padding"
 
-    cmd = [sys.executable, main_script_path, *source_args]
+    cmd = python_cmd(main_script_path) + source_args
 
     if translate_target and translate_target != "None":
         cmd.extend(["--translate-target", translate_target])

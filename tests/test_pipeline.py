@@ -390,3 +390,21 @@ class TestMusicFlags:
         cmd = build_command(MAIN, ["--url", "x"], music_check="auto", music_gate="warn")
         assert "--music-check" not in cmd
         assert "--music-gate" not in cmd
+
+
+class TestFrozenExeCommands:
+    def test_frozen_skips_script_path(self, monkeypatch):
+        """Packaged exe re-invokes itself: no main_improved.py path on disk."""
+        from webui import runtime as rt
+        monkeypatch.setattr(rt.sys, "frozen", True, raising=False)
+        cmd = build_command(MAIN, ["--url", "https://youtu.be/x"])
+        # [exe, --url, ...] — the script path must NOT appear
+        assert cmd[0] == sys.executable
+        assert cmd[1] == "--url"
+        assert MAIN not in cmd
+
+    def test_source_keeps_script_path(self, monkeypatch):
+        from webui import runtime as rt
+        monkeypatch.setattr(rt.sys, "frozen", False, raising=False)
+        cmd = build_command(MAIN, ["--url", "https://youtu.be/x"])
+        assert cmd[1] == MAIN

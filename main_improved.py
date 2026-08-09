@@ -160,9 +160,53 @@ def interactive_input_int(prompt_text):
         except ValueError:
             print(i18n("\nError: The value you entered is not an integer. Please try again."))
 
+def _launch_webui():
+    """Launch the Gradio WebUI — the default action when the app is opened
+    without arguments (double-click), packaged or from source.
+
+    The WebUI runs a local server on http://localhost:7860 and opens the
+    browser. On failure (packaged exe) the console shows the error and stays
+    open so the user can read it, and a crash log is written next to the app.
+    """
+    try:
+        print(i18n("Launching ViralCutter WebUI → http://localhost:7860/ "
+                   "(keep this window open while using the app)"))
+        import threading
+        import webbrowser
+        threading.Timer(1.5, lambda: webbrowser.open("http://localhost:7860/")).start()
+        import os as _os
+        webui_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "webui")
+        if webui_dir not in sys.path:
+            sys.path.insert(0, webui_dir)
+        import app as _webui_app  # noqa: F401 — webui/app.py launches and blocks
+        return 0
+    except Exception as e:
+        print(i18n("ViralCutter WebUI failed to start: {}").format(e))
+        import traceback
+        traceback.print_exc()
+        try:
+            from scripts import crash_report
+            crash_report.report("webui", e, log_path=_os.path.join(
+                _os.path.dirname(_os.path.abspath(
+                    sys.executable if getattr(sys, "frozen", False) else __file__)),
+                "crash_report.log"))
+        except Exception:
+            pass
+        if getattr(sys, "frozen", False):
+            try:
+                input("Press Enter to close this window...")
+            except Exception:
+                pass
+        return 1
+
+
 def main():
     if not hasattr(main, "_retried"):
         main._retried = False
+    # Double-click UX: no arguments at all → open the WebUI (GUI), not the
+    # interactive CLI. Packaged users double-click the exe and expect a GUI.
+    if len(sys.argv) == 1:
+        return _launch_webui()
     # Configuração de Argumentos via Linha de Comando (CLI)
     parser = argparse.ArgumentParser(description="ViralCutter CLI")
     parser.add_argument("--url", help="YouTube Video URL")
@@ -256,8 +300,15 @@ def main():
                         help="Path to a Netscape-format cookies.txt file exported for yt-dlp (alternative to --cookies-from-browser)")
     parser.add_argument("--title-language", default="auto",
                         help="Output language for titles/captions: 'auto' (match the transcript, default) or a code like 'ar', 'en', 'fr', 'es', 'pt', 'de', 'tr', 'ru', 'hi'")
+    parser.add_argument("--webui", action="store_true",
+                        help="Launch the Gradio WebUI (GUI). This is also the default when "
+                             "the app is opened with NO arguments (double-click) — both in "
+                             "the packaged exe and from source.")
 
     args = parser.parse_args()
+
+    if args.webui:
+        return _launch_webui()
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
 

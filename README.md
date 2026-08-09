@@ -135,5 +135,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Dê uma ⭐ estrela se este projeto te ajudou!
 
-**Versão Atual**: 6.11.0 — exe Windows construído automaticamente no GitHub Actions, upload Instagram com auto-hosting (catbox/0x0.st), música sem instalação manual (fpcalc embutido + AcoustID direto), diagnóstico `--check` por plataforma
+**Versão Atual**: 6.11.1 — exe abre a interface gráfica ao dar duplo clique (WebUI no navegador)
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀
