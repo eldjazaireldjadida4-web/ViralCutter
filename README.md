@@ -114,10 +114,19 @@ Para rodar o ViralCutter em um computador novo, você precisa instalar os seguin
 - [x] Tradução automática de legendas
 - [x] Rastreamento dinâmico de rosto (O corte segue o movimento)
 - [x] Exportação de XML para Premiere Pro (Beta)
-- [ ] Música de fundo automática (Auto-Duck)
-- [ ] Upload direto para TikTok/YouTube/Instagram
+- [x] Música de fundo automática (Auto-Duck) — via `--polish`
+- [x] Upload direto para TikTok/Instagram (+ YouTube via OAuth) — v6.10+
 - [ ] Mais formatos de enquadramento (além de 9:16)
-- [ ] Watermark opcional
+- [x] Watermark opcional — via `--polish --logo`
+
+## Pré-flight: tudo verificado antes de rodar (v6.12+)
+
+Antes do programa iniciar (CLI ou WebUI), ele **verifica tudo** — Python,
+ffmpeg/ffprobe, todas as dependências, `api_config.json`, fontes, lista de
+segurança, traduções e pastas — e **instala/conserta automaticamente o que
+estiver faltando** (`scripts/preflight.py`). Nada de começar pela metade:
+`run.bat` / `run_webui.bat` / `run.sh` rodam a checagem primeiro; opcional
+`--preflight off` ou `VIRALCUTTER_SKIP_PREFLIGHT=1` pula a checagem.
 
 ---
 
@@ -135,5 +144,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Dê uma ⭐ estrela se este projeto te ajudou!
 
-**Versão Atual**: 6.11.1 — exe abre a interface gráfica ao dar duplo clique (WebUI no navegador)
+**Versão Atual**: 6.12.0 — preflight automático (verifica e instala tudo antes de rodar)
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀

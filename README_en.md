@@ -114,10 +114,19 @@ To run ViralCutter on a fresh computer, you need to install the following core t
 - [x] Automatic caption translation
 - [x] The cut follows the face as it moves
 - [x] XML Export to Premiere Pro (Beta)
-- [ ] Automatic background music (Auto-Duck)
-- [ ] Direct upload to TikTok/YouTube/Instagram
+- [x] Automatic background music (Auto-Duck) — via `--polish`
+- [x] Direct upload to TikTok/Instagram (+ YouTube via OAuth) — v6.10+
 - [ ] More framing formats (beyond 9:16)
-- [ ] Optional Watermark
+- [x] Optional Watermark — via `--polish --logo`
+
+## Pre-flight: everything verified before running (v6.12+)
+
+Before the program starts (CLI or WebUI) it **checks everything** — Python,
+ffmpeg/ffprobe, all dependencies, `api_config.json`, fonts, safety list,
+translations and folders — and **auto-installs/repairs whatever is missing**
+(`scripts/preflight.py`). No more half-broken startups: `run.bat` /
+`run_webui.bat` / `run.sh` run the check first; optional `--preflight off`
+or `VIRALCUTTER_SKIP_PREFLIGHT=1` skips it.
 
 ---
 
@@ -135,5 +144,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Give us a ⭐ star if this project helped you!
 
-**Current Version**: 6.11.1 — double-clicking the exe opens the WebUI in the browser (see docs/RELEASE_CHECKLIST_WINDOWS.md)
+**Current Version**: 6.12.0 — automatic pre-flight (checks and installs everything before running)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀

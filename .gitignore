@@ -55,3 +55,6 @@ yt_token.json
 
 # Local WebUI form preferences (machine-specific, not shared)
 webui_settings.json
+
+# Local Gradio runtime cache (created by the WebUI on first boot)
+.gradio/

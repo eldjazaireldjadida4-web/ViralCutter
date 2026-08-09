@@ -16,10 +16,18 @@ call ".venv\Scripts\activate.bat"
 :: FFmpeg installed next to the app by install_dependencies.bat / packaging\install_ffmpeg_windows.bat
 if exist "bin\ffmpeg.exe" set "PATH=%CD%\bin;%PATH%"
 
-where ffmpeg >nul 2>nul
+:: Pre-flight: check EVERYTHING and auto-install anything missing, so the
+:: WebUI starts with everything in place. --auto-fix installs missing core
+:: dependencies automatically; --off skips the check.
+echo.
+echo [preflight] Checking environment and installing anything missing...
+python -m scripts.preflight --auto-fix
 if errorlevel 1 (
-    echo [!] Warning: ffmpeg not found. Transcription/editing will fail.
-    echo     Run install_dependencies.bat and choose the ffmpeg download option.
+    echo.
+    echo [!] Pre-flight found critical problems. Fix the items above, then run again.
+    echo     (or set VIRALCUTTER_SKIP_PREFLIGHT=1 to force-start anyway)
+    pause
+    exit /b 1
 )
 
 python webui\app.py %*

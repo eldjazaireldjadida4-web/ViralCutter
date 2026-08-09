@@ -27,6 +27,7 @@ pip install -r requirements-dev.txt --quiet || true
 
 echo "[4/4] Sanity check..."
 python -c "import sys; sys.path.insert(0,'.'); import scripts.risk_scorecard; print('✅ import ok')"
+python -m scripts.preflight --check || echo "⚠️  preflight found issues — fix them before running (see above)"
 
 echo ""
 echo "== Optional stacks =="

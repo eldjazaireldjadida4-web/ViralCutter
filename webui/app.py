@@ -1557,7 +1557,21 @@ def _launch(argv=None):
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--colab", action="store_true", help="Run in Google Colab mode")
+    parser.add_argument("--preflight", choices=["auto", "check", "off"], default="auto",
+                        help="Environment check before boot: 'auto' (default) checks everything "
+                             "and auto-installs missing core dependencies, 'off' skips it.")
     args = parser.parse_args(argv)
+
+    # Pre-flight guarantee: verify + auto-repair before the server starts.
+    if args.preflight != "off" and not os.environ.get("VIRALCUTTER_SKIP_PREFLIGHT", "").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            from scripts import preflight
+            code = preflight.run_preflight(mode="auto-fix" if args.preflight == "auto" else "check", quiet=True)
+            if code == 1:
+                print("[preflight] Critical problems remain — fix them and start again (or use --preflight off).")
+                return 1
+        except Exception as e:
+            print("[preflight] check skipped ({}).".format(e))
 
 
     if args.colab:

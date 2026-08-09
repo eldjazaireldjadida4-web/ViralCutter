@@ -30,12 +30,17 @@ try:
     genai = importlib.import_module("google.generativeai")
     HAS_GEMINI = True
     GEMINI_SDK = "legacy"
-except ImportError:
+except Exception:
+    # ANY import failure falls through to the new SDK instead of killing the
+    # app (v6.7b pattern). Real case: google-generativeai 0.8.x raises
+    # NameError: name 'embedding' is not defined at import when
+    # google.genai was already imported in the same process — and
+    # requirements.txt installs BOTH packages.
     try:
         genai = importlib.import_module("google.genai")  # new unified SDK
         HAS_GEMINI = True
         GEMINI_SDK = "new"
-    except ImportError:
+    except Exception:
         HAS_GEMINI = False
         GEMINI_SDK = None
 

@@ -261,10 +261,30 @@ class TestDownloadNeverReturnsNone:
 class TestGeminiDualSDK:
     """create_viral_segments must work with EITHER Gemini SDK (v6.4)."""
 
+    @staticmethod
+    def _purge_sdk_modules():
+        """Remove ONLY the Gemini SDK module trees from sys.modules.
+
+        Hermetic helper: makes the no-SDK / fake-SDK simulations below work
+        even when the real SDKs are already imported (full installs). Only
+        google.generativeai.* and google.genai.* are dropped — NEVER
+        google.protobuf / google.api_core / google._upb, whose live C
+        extensions would segfault the interpreter if unloaded from sys.modules.
+        """
+        import sys as _sys
+        for mod in [m for m in list(_sys.modules)
+                    if m == "google.generativeai" or m.startswith("google.generativeai.")
+                    or m == "google.genai" or m.startswith("google.genai.")]:
+            del _sys.modules[mod]
+
     def test_import_error_message_is_actionable(self):
         import builtins
         import importlib
         import sys as _sys
+
+        # Hermetic: drop any cached Gemini SDK modules first so the no-SDK
+        # simulation below is effective even in full-install environments.
+        self._purge_sdk_modules()
 
         real_import = builtins.__import__
 
@@ -283,18 +303,24 @@ class TestGeminiDualSDK:
                 assert False, "should raise"
             except ImportError as e:
                 assert "google-generativeai" in str(e) or "google-genai" in str(e)
+            # reload keeps the no-SDK state — the message must stay actionable
+            importlib.reload(cvs)
+            try:
+                cvs.call_gemini("prompt", "key")
+                assert False, "should raise"
+            except ImportError as e:
+                assert "google-generativeai" in str(e) or "google-genai" in str(e)
         finally:
             builtins.__import__ = real_import
+            self._purge_sdk_modules()
             importlib.reload(__import__("scripts.create_viral_segments"))
-        try:
-            cvs.call_gemini("prompt", "key")
-            assert False, "should raise"
-        except ImportError as e:
-            assert "google-generativeai" in str(e) or "google-genai" in str(e)
 
     def test_legacy_sdk_path_used(self):
         import sys as _sys
         import types
+
+        # Hermetic: drop any cached real SDKs first (full-install envs).
+        self._purge_sdk_modules()
 
         class FakeGenAI:
             @staticmethod

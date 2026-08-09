@@ -110,6 +110,8 @@ a = Analysis(
         "insightface",
         "acoustid",  # optional music fingerprint check (2.3)
         "gradio",
+        # Pre-flight check + auto-repair (runs before the WebUI/CLI boot)
+        "scripts.preflight",
         # Transcription stack (bundled in the full build — CPU torch):
         "torch",
         "whisperx",

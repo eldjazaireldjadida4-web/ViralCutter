@@ -176,6 +176,11 @@ def _launch_webui():
     browser. On failure (packaged exe) the console shows the error and stays
     open so the user can read it, and a crash log is written next to the app.
     """
+    # Guarantee: nothing critical missing before the UI boots (installs
+    # missing core deps / repairs config automatically).
+    if _preflight_or_exit(mode="auto-fix") == 1:
+        print("[preflight] Critical problems remain — fix the items above, then run again.")
+        return 1
     try:
         print(i18n("Launching ViralCutter WebUI → http://localhost:7860/ "
                    "(keep this window open while using the app)"))
@@ -243,6 +248,31 @@ def _self_check():
         print("[self-check] {}: {}".format(label, "OK" if good else "FAIL — " + detail))
     print("[self-check] overall: {}".format("PASS" if ok else "FAIL"))
     return 0 if ok else 1
+
+
+def _preflight_or_exit(mode="auto-fix"):
+    """Pre-flight check + auto-repair before the app does real work.
+
+    The guarantee: when this returns 0, everything critical is in place
+    (dependencies installed, ffmpeg found, config/assets OK) — the app can
+    start without surprises. Missing core packages are installed on the spot.
+
+    Returns the exit code to propagate: 0 = ready (warnings allowed), 1 =
+    critical problems remain (do NOT start), anything else = continue anyway.
+    Escape hatch: VIRALCUTTER_SKIP_PREFLIGHT=1 skips the whole check.
+    """
+    skip = os.getenv("VIRALCUTTER_SKIP_PREFLIGHT", "").strip().lower() in ("1", "true", "yes", "on")
+    if skip:
+        return 0
+    try:
+        from scripts import preflight
+        code = preflight.run_preflight(mode=mode, quiet=False)
+        # exit 2 == warnings only → the app still works → continue
+        return 1 if code == 1 else 0
+    except Exception as e:
+        print("[preflight] could not run the environment check ({}).".format(e))
+        print("[preflight] continuing anyway — install dependencies manually if things break.")
+        return 0
 
 
 def main():
@@ -353,6 +383,11 @@ def main():
                         help="Verify the packaged bundles: import the heavy optional stacks "
                              "(whisperx/torch transcription, faster_whisper) and exit 0/1. "
                              "Used by the CI smoke test before every release.")
+    parser.add_argument("--preflight", choices=["auto", "check", "off"], default="auto",
+                        help="Pre-flight environment check: 'auto' checks everything and "
+                             "auto-installs missing core dependencies (default), 'check' only "
+                             "reports, 'off' skips the check entirely "
+                             "(env: VIRALCUTTER_SKIP_PREFLIGHT=1).")
 
     args = parser.parse_args()
 
@@ -361,6 +396,14 @@ def main():
 
     if args.self_check:
         return _self_check()
+
+    # Pre-flight: verify everything is in place BEFORE real work (installs
+    # missing core deps automatically). Never blocks on optional warnings.
+    if args.preflight != "off":
+        code = _preflight_or_exit(mode="auto-fix" if args.preflight == "auto" else "check")
+        if code == 1:
+            print("[preflight] Critical problems remain — fix the items above, then run again.")
+            return 1
     global RUNTIME_VERBOSE
     RUNTIME_VERBOSE = BASE_VERBOSE or args.verbose
 
