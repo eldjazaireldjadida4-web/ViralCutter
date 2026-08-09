@@ -1,5 +1,18 @@
 # Changelog
 
+## 🚀 v6.11.4 — نسخة سطح المكتب الكاملة: ffmpeg مدمج + اختبار إقلاع تلقائي (2026-08-09)
+
+### New — الـ exe يعمل من الصفر بدون أي تثبيت خارجي
+- **ffmpeg/ffprobe يُدمجان في الـ exe** (من BtbN FFmpeg-Builds) — معالجة
+  الفيديو تعمل فوراً، لا حاجة لـ install_ffmpeg_windows.bat أو winget.
+- `main_improved.py`: في الوضع المجمّد يضع مجلد الحزمة (sys._MEIPASS) في
+  PATH حتى تجدها subprocesses باسم "ffmpeg"/"ffprobe".
+- **اختبار إقلاع حقيقي في CI**: قبل نشر أي Release، يبدأ الـ exe وضع الواجهة
+  ويشترط استجابة HTTP 200 من http://127.0.0.1:7860 — أي كسر في الحزمة
+  (ملفات بيانات ناقصة، hidden imports) يوقف الإصدار تلقائياً بدل وصوله
+  للمستخدم معطوباً (هذا كان سيكشف مشاكل version.txt في v6.11.2/6.11.3).
+- الإصدار 6.11.4.
+
 ## 🚀 v6.11.3 — حل عام لأخطاء version.txt في الـ exe (groovy + أي باقة مستقبلية) (2026-08-09)
 
 ### Fix — WebUI يفشل في الـ exe: groovy/version.txt
