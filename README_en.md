@@ -144,5 +144,13 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 -   **Discord**: [AI Hub Brasil](https://discord.gg/aihubbrasil)
 -   **Github**: Give us a ⭐ star if this project helped you!
 
-**Current Version**: 6.13.0 — automatic pre-flight (checks and installs everything before running)
+## Professional tools (v6.13–v6.14)
+
+- 🧠 **Teach the tool** (strike loop): WebUI tab "🧠 Teach the Tool", or `python -m scripts.strike_feedback add --term "..."` / `from-scorecard --project VIRALS/x --apply` — the tool learns words from struck clips and blocks them from then on.
+- 📈 **Performance**: WebUI tab "📈 Performance" or `python -m scripts.analytics --summary|--top|--trends` (YouTube Analytics, read-only; enable the API in the Google console first).
+- 📐 **Output formats**: `--output-aspect 4:5|1:1|16:9` (after subtitle burning) — or the "📐 Output framing" menu in the WebUI.
+- ✅ **Reproducible installs**: `uv sync` (uses `uv.lock`); the classic `install_dependencies.bat` flow still works.
+
+
+**Current Version**: 6.14.0 — automatic pre-flight (checks and installs everything before running)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀

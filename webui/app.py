@@ -18,6 +18,7 @@ import subtitle_handler as subs # Module for Subtitles
 import subtitle_editor as editor # Module for Editor Logic
 import segments_review # Module for Segments Review Logic
 import publish_panel # Module for Publish & Upload Logic
+import learn_panel   # Learn (strike feedback) & Performance (analytics) panels
 import batch_queue # Module for Batch Queue Logic
 import settings_store # Module for persistent AI settings (save/load Gemini key)
 import runtime  # frozen-exe helpers (sys.executable re-invocation)
@@ -370,7 +371,7 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
                      h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True,
                      platform=None, metadata_gate=None, title_language=None, polish=False, music=None, logo=None,
-                     cookies_browser=None):
+                     cookies_browser=None, output_aspect=None, reframe_mode=None):
     # NOTE: parameter order MUST match the `inputs=[...]` order of every
     # .click() that targets this function (start / review-render / batch).
     # v6.8 fix: the tail used to be (platform, polish, music, logo,
@@ -503,6 +504,8 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             metadata_gate=metadata_gate,
             cookies_browser=cookies_browser,
             title_language=title_language,
+            output_aspect=output_aspect,
+            reframe_mode=reframe_mode,
         )
 
         env = os.environ.copy()
@@ -929,6 +932,23 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         with gr.Row():
                             music_input = gr.Textbox(label=i18n("Background music file"), placeholder="music/bed.m4a", value="")
                             logo_input = gr.Textbox(label=i18n("Channel logo (PNG)"), placeholder="logo.png", value="")
+                        with gr.Row():
+                            aspect_input = gr.Dropdown(
+                                choices=[(i18n("(9:16 — Shorts/Reels/TikTok)"), "9:16"),
+                                         (i18n("4:5 — Instagram feed"), "4:5"),
+                                         (i18n("1:1 — Square"), "1:1"),
+                                         (i18n("16:9 — Standard YouTube"), "16:9")],
+                                label=i18n("📐 Output framing (aspect ratio)"),
+                                value="9:16",
+                                info=i18n("Reframes the final clips after subtitle burning. 4:5/1:1 center-crop, 16:9 blur-pads."),
+                            )
+                            reframe_mode_input = gr.Dropdown(
+                                choices=[(i18n("Auto (best for the chosen aspect)"), ""),
+                                         (i18n("Crop (fill + center-crop)"), "crop"),
+                                         (i18n("Pad (blurred bars)"), "pad")],
+                                label=i18n("Reframe mode"),
+                                value="",
+                            )
                         gr.Markdown("### " + i18n("🔒 YouTube login"))
                         cookies_input = gr.Dropdown(
                             choices=[(i18n("(No cookies — public videos only)"), ""),
@@ -1321,6 +1341,73 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                                          pub_title, pub_caption, pub_hashtags,
                                          pub_dry, pub_music_gate],
                                  outputs=pub_log)
+        with gr.Tab("🧠 " + i18n("Teach the Tool")):
+            gr.Markdown(f"### {i18n('Teach the Tool')}")
+            gr.Markdown(i18n("The tool learns from your channel: add words a struck/rejected clip contained, allow words the blocklist wrongly flags, or extract patterns from a blocked project."))
+            with gr.Row():
+                learn_term = gr.Textbox(label=i18n("Word / phrase"), placeholder=i18n("e.g. a word from the struck clip"))
+                learn_severity = gr.Dropdown(
+                    choices=[(i18n("High"), "high"), (i18n("Medium"), "medium"), (i18n("Low"), "low")],
+                    label=i18n("Severity"), value="high")
+            learn_reason = gr.Textbox(label=i18n("Reason (optional)"), placeholder=i18n("e.g. strike on video X"))
+            with gr.Row():
+                learn_add_btn = gr.Button(i18n("🚫 Block this word"), variant="primary")
+                learn_allow_btn = gr.Button(i18n("✅ Allow this word (false positive)"))
+                learn_remove_btn = gr.Button(i18n("🗑 Remove"))
+            learn_feedback = gr.Textbox(label=i18n("Result"), lines=3, interactive=False)
+            gr.Markdown("### " + i18n("Learn from a blocked project"))
+            with gr.Row():
+                learn_project = gr.Dropdown(choices=library.get_existing_projects(),
+                                            label=i18n("Blocked project"), value=None)
+                learn_apply = gr.Checkbox(label=i18n("Apply (teach the extracted patterns)"), value=False)
+                learn_extract_btn = gr.Button(i18n("🔍 Extract patterns"), variant="secondary")
+            learn_extract_out = gr.Textbox(label=i18n("Extracted patterns"), lines=8, interactive=False)
+            with gr.Row():
+                learn_terms_btn = gr.Button(i18n("📋 Show my custom terms"))
+                learn_stats_btn = gr.Button(i18n("📓 Learning journal"))
+            learn_terms_out = gr.Textbox(label=i18n("Custom terms / journal"), lines=10, interactive=False)
+
+            def _learn_add(term, severity, reason):
+                return learn_panel.add_term(term, severity, reason)
+
+            def _learn_allow(term, reason):
+                return learn_panel.allow_term(term, reason)
+
+            def _learn_remove(term):
+                return learn_panel.remove_term(term)
+
+            def _learn_extract(project_name, apply):
+                return learn_panel.extract_from_project(project_name, apply)
+
+            learn_add_btn.click(_learn_add, inputs=[learn_term, learn_severity, learn_reason],
+                                outputs=learn_feedback)
+            learn_allow_btn.click(_learn_allow, inputs=[learn_term, learn_reason],
+                                  outputs=learn_feedback)
+            learn_remove_btn.click(_learn_remove, inputs=[learn_term], outputs=learn_feedback)
+            learn_extract_btn.click(_learn_extract, inputs=[learn_project, learn_apply],
+                                    outputs=learn_extract_out)
+            learn_terms_btn.click(lambda: learn_panel.list_terms(), outputs=learn_terms_out)
+            learn_stats_btn.click(lambda: learn_panel.show_stats(), outputs=learn_terms_out)
+        with gr.Tab("📈 " + i18n("Performance")):
+            gr.Markdown(f"### {i18n('Performance (YouTube Analytics)')}")
+            gr.Markdown(i18n("See which clips actually performed so future selections learn from outcomes. First run opens a browser to authorize (read-only)."))
+            with gr.Row():
+                perf_days = gr.Number(label=i18n("Days"), value=28, precision=0)
+                perf_summary_btn = gr.Button(i18n("📈 Channel summary"), variant="primary")
+                perf_top_btn = gr.Button(i18n("🏆 Top clips"))
+                perf_trends_btn = gr.Button(i18n("📅 Daily views"))
+            perf_out = gr.Textbox(label=i18n("Analytics report"), lines=12, interactive=False)
+
+            def _perf(kind, days):
+                try:
+                    days = int(float(days or 28))
+                except Exception:
+                    days = 28
+                return learn_panel.run_analytics(kind, days=days)
+
+            perf_summary_btn.click(lambda d: _perf("summary", d), inputs=[perf_days], outputs=perf_out)
+            perf_top_btn.click(lambda d: _perf("top", d), inputs=[perf_days], outputs=perf_out)
+            perf_trends_btn.click(lambda d: _perf("trends", d), inputs=[perf_days], outputs=perf_out)
         with gr.Tab("📋 " + i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
             gr.Markdown(i18n("One YouTube URL per line. The queue processes them one by one with the current settings."))
@@ -1496,6 +1583,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
         (cookies_input, "cookies"),
         (model_input, "whisper_model"),
         (workflow_input, "workflow"),
+        (aspect_input, "output_aspect"),
+        (reframe_mode_input, "reframe_mode"),
     ])
     for comp, _key in PREF_FIELDS:
         comp.change(autosave_webui_prefs, outputs=[])
@@ -1518,7 +1607,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
+    aspect_input, reframe_mode_input
     ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
     review_render_btn.click(run_review_render, inputs=[
@@ -1534,7 +1624,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
+    aspect_input, reframe_mode_input
     ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
     batch_run_btn.click(run_batch, inputs=[
@@ -1550,7 +1641,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     highlight_size_input, words_per_block_input, gap_limit_input, mode_input,
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
-    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
+    platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
+    aspect_input, reframe_mode_input
     ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
 def _launch(argv=None):

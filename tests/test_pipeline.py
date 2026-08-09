@@ -434,3 +434,29 @@ class TestFrozenExeCommands:
         monkeypatch.setattr(rt.sys, "frozen", False, raising=False)
         cmd = build_command(MAIN, ["--url", "https://youtu.be/x"])
         assert cmd[1] == MAIN
+
+
+class TestOutputAspectFlags:
+    """v6.13 reframe flags must be appended only when explicitly chosen."""
+
+    def test_aspect_9_16_default_not_passed(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"], output_aspect="9:16")
+        assert "--output-aspect" not in cmd
+
+    def test_aspect_4_5_passed(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"], output_aspect="4:5")
+        assert cmd[cmd.index("--output-aspect") + 1] == "4:5"
+        assert "--reframe-mode" not in cmd  # only when chosen
+
+    def test_aspect_with_mode(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"], output_aspect="16:9", reframe_mode="pad")
+        assert cmd[cmd.index("--output-aspect") + 1] == "16:9"
+        assert cmd[cmd.index("--reframe-mode") + 1] == "pad"
+
+    def test_none_passed(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"])
+        assert "--output-aspect" not in cmd

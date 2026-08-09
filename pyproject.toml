@@ -1,0 +1,65 @@
+# ViralCutter — modern packaging metadata (additive; the classic
+# requirements.txt flow keeps working unchanged).
+#
+# Core dependencies mirror requirements.txt. The heavy AI stacks stay opt-in
+# extras because they are environment-specific:
+#   * transcribe (whisperx/torch) — GPU vs CPU wheel choice must stay manual
+#     (see requirements-transcribe.txt / install_dependencies.bat).
+#   * upload (YouTube OAuth) — needed only for direct uploads.
+#
+# Reproducible install of the CORE app:   uv sync
+# Classic install (GPU wizard on Windows): install_dependencies.bat
+
+[project]
+name = "viralcutter"
+version = "6.14.0"
+description = "Open-source Opus Clip alternative: turn long YouTube videos into viral shorts locally, with AI, dynamic captions, face tracking and a YouTube-strike safety layer."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "numpy<2",
+    "g4f[all]",
+    "yt-dlp",
+    "ffmpeg-python",
+    "mediapipe",
+    "google-genai",
+    "google-generativeai",
+    "insightface",
+    "gradio",
+    "opencv-python",
+    "psutil",
+    "fastapi",
+    "uvicorn",
+    "deep-translator",
+    "tqdm",
+    # <1.24: 1.24+ dropped Python 3.10 wheels (project supports 3.10-3.12)
+    "onnxruntime<1.24",
+    "cryptography",
+]
+
+[project.optional-dependencies]
+transcribe = [
+    "whisperx",
+    "torch",
+    "torchaudio",
+    "numpy<2",
+]
+upload = [
+    "google-api-python-client",
+    "google-auth-oauthlib",
+    "google-auth-httplib2",
+    "pyacoustid",
+]
+dev = [
+    "pytest>=8.0",
+    "numpy<2",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main_improved", "app_version"]
+packages = ["scripts", "webui", "i18n"]

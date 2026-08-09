@@ -124,6 +124,11 @@ a = Analysis(
         "app", "library", "subtitle_handler", "subtitle_editor",
         "segments_review", "publish_panel", "batch_queue",
         "settings_store", "header", "utils", "pipeline", "runtime",
+        "learn_panel",
+        # v6.13/v6.14 CLI tools used by the WebUI panels
+        "scripts.strike_feedback",
+        "scripts.reframe",
+        "scripts.analytics",
         # Premiere XML export (called in-process by the WebUI)
         "scripts.export_xml_lib",
         "scripts.export_xml_lib.exporter",
@@ -150,6 +155,7 @@ exe = EXE(
     a.datas,
     [],
     name="ViralCutter",
+    icon=str(ROOT / "packaging" / "icon.ico"),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
