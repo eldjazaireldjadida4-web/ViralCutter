@@ -60,10 +60,13 @@ def _packages_with_version_file():
 
 for _pkg in _packages_with_version_file():
     datas += collect_data_files(_pkg)
-# gradio also reads bundled frontend/template files at runtime — collect its
-# data explicitly in addition to the community hook, so a missing/older hook
-# cannot silently produce a broken exe.
-datas += collect_data_files("gradio")
+# gradio also reads bundled frontend/template files at runtime — and on top
+# of that it reads its OWN .py SOURCE files at startup (component_meta.py →
+# create_or_modify_pyi reads gradio/blocks_events.py to generate type stubs).
+# PyInstaller excludes .py from data by default → frozen WebUI crashed with
+# FileNotFoundError .../gradio/blocks_events.py. include_py_files=True fixes
+# the whole class of "reads its own source at runtime".
+datas += collect_data_files("gradio", include_py_files=True)
 
 # Third-party binaries bundled automatically from packaging/third_party/.
 # The Windows CI build (build-exe.yml) drops fpcalc.exe (and its runtime
