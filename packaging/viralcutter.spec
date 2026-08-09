@@ -19,6 +19,8 @@
 import sys
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files
+
 ROOT = Path(SPECPATH).parent  # packaging/ → repo root
 
 datas = [
@@ -33,6 +35,15 @@ datas = [
     # (webui/subtitle_handler.py) → must sit at the bundle root.
     (str(ROOT / "webui" / "preview.json"), "."),
 ]
+# safehttpx (gradio dependency) reads version.txt from its package dir at
+# import time — PyInstaller has no hook for it, so collect it explicitly.
+# Without this the WebUI crashes on startup with
+# FileNotFoundError: .../safehttpx/version.txt
+datas += collect_data_files("safehttpx")
+# gradio also reads bundled frontend/template files at runtime — collect its
+# data explicitly in addition to the community hook, so a missing/older hook
+# cannot silently produce a broken exe.
+datas += collect_data_files("gradio")
 
 # Third-party binaries bundled automatically from packaging/third_party/.
 # The Windows CI build (build-exe.yml) drops fpcalc.exe (and its runtime
