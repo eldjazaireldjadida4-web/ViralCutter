@@ -14,6 +14,10 @@
 - الاختبار كشف فعلاً مشكلة ثانية: gradio يقرأ **ملفاته المصدرية** (`.py`)
   عند الإقلاع (component_meta → blocks_events.py) وPyInstaller يستبعدها →
   أُصلح بـ `collect_data_files("gradio", include_py_files=True)`.
+- **الجذر الحقيقي لكل إخفاقات الإقلاع**: كود تشغيل الخادم في `webui/app.py`
+  كان داخل `if __name__ == "__main__":` — فعند استيراده كوحدة كان يخرج
+  البرنامج بصمت (exit 0) بدون خادم. أُعيدت هيكلته إلى `_launch(argv)` تُستدعى
+  صراحة من `main_improved._launch_webui` → **تحقق محلي: HTTP 200** ✅.
 - الإصدار 6.11.4.
 
 ## 🚀 v6.11.3 — حل عام لأخطاء version.txt في الـ exe (groovy + أي باقة مستقبلية) (2026-08-09)

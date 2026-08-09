@@ -1553,11 +1553,11 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input
     ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
-if __name__ == "__main__":
+def _launch(argv=None):
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--colab", action="store_true", help="Run in Google Colab mode")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
 
     if args.colab:
@@ -1648,3 +1648,5 @@ if __name__ == "__main__":
                 port=7860,
                 log_level="info",
             )
+if __name__ == "__main__":
+    _launch()

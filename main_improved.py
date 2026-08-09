@@ -186,8 +186,11 @@ def _launch_webui():
         webui_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "webui")
         if webui_dir not in sys.path:
             sys.path.insert(0, webui_dir)
-        import app as _webui_app  # noqa: F401 — webui/app.py launches and blocks
-        return 0
+        import app as _webui_app  # noqa: F401 — module-level code builds the UI
+        # The server itself lives in app._launch() (was under `if __name__ ==
+        # "__main__":` and thus NEVER ran on plain import — the frozen exe
+        # silently exited 0 without starting anything).
+        return _webui_app._launch([])
     except Exception as e:
         print(i18n("ViralCutter WebUI failed to start: {}").format(e))
         import traceback
