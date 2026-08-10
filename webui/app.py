@@ -708,6 +708,65 @@ body, .gradio-container {
 .gradio-container textarea {
     unicode-bidi: plaintext !important;
 }
+
+/* --- Tab bar: rounded pills, subtle dark surface (v6.15 UI polish) --- */
+.gradio-container .tab-nav {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 14px !important;
+    padding: 4px !important;
+    margin-bottom: 14px !important;
+    gap: 4px !important;
+}
+.gradio-container .tab-nav button {
+    border-radius: 10px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 8px 14px !important;
+    transition: all 0.15s ease;
+}
+.gradio-container .tab-nav button:hover {
+    background: rgba(255,255,255,0.07) !important;
+    color: #f1f5f9 !important;
+}
+.gradio-container .tab-nav button.selected {
+    background: linear-gradient(90deg, #f97316, #ea580c) !important;
+    color: #fff !important;
+}
+
+/* --- Top action bar: glass card --- */
+.vc-topbar {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+}
+
+/* --- Progress/tasks/errors panels: subtle cards --- */
+.vc-panels > div {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
+}
+.vc-panels h3 {
+    border-bottom: none !important;
+    margin-top: 0 !important;
+}
+
+/* --- Primary CTA gets a gradient --- */
+.vc-topbar button.primary {
+    background: linear-gradient(90deg, #f97316, #ea580c) !important;
+    border: none !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+}
+
+/* --- Subtle scrollbar for the log --- */
+#logs_output textarea::-webkit-scrollbar { width: 8px; }
+#logs_output textarea::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 """
 
 import header
@@ -784,6 +843,10 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             gr.Markdown("### ⚠️ الأخطاء")
             errors_panel = gr.HTML(value=render_error_html([]))
     with gr.Tabs():
+        with gr.Tab("🏠 " + i18n("Home")):
+            gr.Markdown(f"### {i18n('Home')}")
+            gr.HTML(header.home_panel)
+
         with gr.Tab("📥 إنشاء جديد"):
             with gr.Row():
                 with gr.Column(scale=1):
@@ -1164,6 +1227,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
 
                 results_html = gr.HTML(label=tr("Results"))
 
+
         with gr.Tab("👀 " + i18n("Review Segments")):
             gr.Markdown(f"### {i18n('Review Segments')}")
             gr.Markdown(i18n("Review the AI-suggested segments, uncheck what you don't want, then render only the selected ones."))
@@ -1239,6 +1303,92 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
             review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
             review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
+
+        with gr.Tab("✍️ " + i18n("Subtitle Editor")):
+            gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
+            with gr.Row():
+                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None, scale=4)
+                editor_refresh_btn = gr.Button(tr("Refresh"), size="sm", scale=1)
+            editor_file_dropdown = gr.Dropdown(choices=[], label="ملف الترجمة (من مجلد subs)", value=None)
+            with gr.Group():
+                editor_status = gr.Textbox(label="الحالة", interactive=False)
+            with gr.Row():
+                editor_render_single_btn = gr.Button(i18n("🎬 Render Selected (single clip)"), size="sm")
+                editor_render_all_btn = gr.Button(i18n("🎬 Render All (background)"), size="sm")
+                editor_export_all_btn = gr.Button(i18n("📤 Export All Segments"), size="sm")
+            editor_refresh_btn.click(library.refresh_projects, outputs=editor_project_dropdown)
+
+
+            def update_file_list(proj_name):
+                if not proj_name:
+                    return gr.update(choices=[], value=None)
+                proj_path = os.path.join(VIRALS_DIR, proj_name)
+                files = editor.list_editable_files(proj_path)
+                return gr.update(choices=files, value=files[0] if files else None)
+
+            # v6.8 fix: the file list used to be written into the status Textbox
+            # (a Dropdown update into a Textbox) and current_json_path was never
+            # set — "Render Selected" could never work. Now a real dropdown.
+            editor_project_dropdown.change(update_file_list, inputs=editor_project_dropdown, outputs=editor_file_dropdown)
+
+            def render_single(proj_name, json_file, use_custom, font_name, font_size, font_color, highlight_color, 
+                              outline_color, outline_thickness, shadow_color, shadow_size, 
+                              is_bold, is_italic, is_uppercase, 
+                              h_size, w_block, gap, mode, under, strike, border_s, 
+                              vertical_pos, alignment, remove_punc):
+                if not proj_name:
+                    return i18n("No project selected.")
+                if not json_file:
+                    return i18n("No file loaded.")
+                json_path = os.path.join(VIRALS_DIR, proj_name, "subs", json_file)
+                subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
+                if use_custom:
+                    subtitle_config = _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc)
+                    with open(subtitle_config_path, "w", encoding="utf-8") as f:
+                        json.dump(subtitle_config, f, indent=4)
+                else:
+                    try:
+                        if os.path.exists(subtitle_config_path):
+                            os.remove(subtitle_config_path)
+                    except Exception:
+                        pass
+                return editor.render_specific_video(json_path)
+
+            editor_render_single_btn.click(render_single, inputs=[editor_project_dropdown, editor_file_dropdown, use_custom_subs] + manual_inputs, outputs=editor_status)
+
+            def render_all(proj_name, use_custom, font_name, font_size, font_color, highlight_color, 
+                           outline_color, outline_thickness, shadow_color, shadow_size, 
+                           is_bold, is_italic, is_uppercase, 
+                           h_size, w_block, gap, mode, under, strike, border_s, 
+                           vertical_pos, alignment, remove_punc):
+                if not proj_name:
+                    return i18n("No project selected.")
+                if use_custom:
+                    subtitle_config = _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc)
+                    subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
+                    with open(subtitle_config_path, "w", encoding="utf-8") as f:
+                        json.dump(subtitle_config, f, indent=4)
+                proj_path = os.path.join(VIRALS_DIR, proj_name)
+                cmd = runtime.python_cmd(MAIN_SCRIPT_PATH) + ["--project-path", proj_path, "--workflow", "3", "--skip-prompts"]
+                if use_custom and os.path.exists(os.path.join(WORKING_DIR, "temp_subtitle_config.json")):
+                    cmd.extend(["--subtitle-config", os.path.join(WORKING_DIR, "temp_subtitle_config.json")])
+                try:
+                    subprocess.Popen(cmd, cwd=WORKING_DIR)
+                    return i18n("Render All started in background... Check terminal/logs.")
+                except Exception as e:
+                    return i18n("Error starting render: {}").format(e)
+
+            editor_render_all_btn.click(render_all, inputs=[editor_project_dropdown, use_custom_subs] + manual_inputs, outputs=editor_status)
+
+            def export_all(project_name):
+                if not project_name:
+                    return i18n("No project selected.")
+                proj_path = os.path.join(VIRALS_DIR, project_name)
+                return editor.export_all_segments(proj_path)
+
+            editor_export_all_btn.click(export_all, inputs=[editor_project_dropdown], outputs=editor_status)
+
+
         with gr.Tab("🚀 " + i18n("Publish & Upload")):
             gr.Markdown(f"### {i18n('Publish & Upload')}")
             gr.Markdown(i18n("Play, translate, check music, then upload each clip through the safety gate."))
@@ -1336,73 +1486,26 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                                          pub_title, pub_caption, pub_hashtags,
                                          pub_dry, pub_music_gate],
                                  outputs=pub_log)
-        with gr.Tab("🧠 " + i18n("Teach the Tool")):
-            gr.Markdown(f"### {i18n('Teach the Tool')}")
-            gr.Markdown(i18n("The tool learns from your channel: add words a struck/rejected clip contained, allow words the blocklist wrongly flags, or extract patterns from a blocked project."))
+
+        with gr.Tab("🗂️ " + i18n("Library")):
+            gr.Markdown(f"### {i18n('Existing Projects')}")
             with gr.Row():
-                learn_term = gr.Textbox(label=i18n("Word / phrase"), placeholder=i18n("e.g. a word from the struck clip"))
-                learn_severity = gr.Dropdown(
-                    choices=[(i18n("High"), "high"), (i18n("Medium"), "medium"), (i18n("Low"), "low")],
-                    label=i18n("Severity"), value="high")
-            learn_reason = gr.Textbox(label=i18n("Reason (optional)"), placeholder=i18n("e.g. strike on video X"))
+                lib_query_input = gr.Textbox(label=i18n("Search by name"), placeholder=i18n("Type part of a project name"))
+                lib_date_from_input = gr.Textbox(label=i18n("From date"), placeholder="YYYY-MM-DD")
+                lib_date_to_input = gr.Textbox(label=i18n("To date"), placeholder="YYYY-MM-DD")
+                lib_filter_btn = gr.Button(i18n("Filter"))
             with gr.Row():
-                learn_add_btn = gr.Button(i18n("🚫 Block this word"), variant="primary")
-                learn_allow_btn = gr.Button(i18n("✅ Allow this word (false positive)"))
-                learn_remove_btn = gr.Button(i18n("🗑 Remove"))
-            learn_feedback = gr.Textbox(label=i18n("Result"), lines=3, interactive=False)
-            gr.Markdown("### " + i18n("Learn from a blocked project"))
-            with gr.Row():
-                learn_project = gr.Dropdown(choices=library.get_existing_projects(),
-                                            label=i18n("Blocked project"), value=None)
-                learn_apply = gr.Checkbox(label=i18n("Apply (teach the extracted patterns)"), value=False)
-                learn_extract_btn = gr.Button(i18n("🔍 Extract patterns"), variant="secondary")
-            learn_extract_out = gr.Textbox(label=i18n("Extracted patterns"), lines=8, interactive=False)
-            with gr.Row():
-                learn_terms_btn = gr.Button(i18n("📋 Show my custom terms"))
-                learn_stats_btn = gr.Button(i18n("📓 Learning journal"))
-            learn_terms_out = gr.Textbox(label=i18n("Custom terms / journal"), lines=10, interactive=False)
+                project_dropdown = gr.Dropdown(choices=library.get_existing_projects(force_refresh=True), label="اختر مشروعًا", value=None)
+                refresh_btn = gr.Button(i18n("Refresh List"))
+            project_gallery_html = gr.HTML()
+            refresh_btn.click(library.refresh_projects, outputs=project_dropdown)
+            lib_filter_btn.click(library.filter_projects, inputs=[lib_query_input, lib_date_from_input, lib_date_to_input], outputs=project_dropdown)
+            def on_select_project(proj_name): return library.generate_project_gallery(proj_name)
+            project_dropdown.change(on_select_project, project_dropdown, project_gallery_html)
+    
 
-            def _learn_add(term, severity, reason):
-                return learn_panel.add_term(term, severity, reason)
 
-            def _learn_allow(term, reason):
-                return learn_panel.allow_term(term, reason)
 
-            def _learn_remove(term):
-                return learn_panel.remove_term(term)
-
-            def _learn_extract(project_name, apply):
-                return learn_panel.extract_from_project(project_name, apply)
-
-            learn_add_btn.click(_learn_add, inputs=[learn_term, learn_severity, learn_reason],
-                                outputs=learn_feedback)
-            learn_allow_btn.click(_learn_allow, inputs=[learn_term, learn_reason],
-                                  outputs=learn_feedback)
-            learn_remove_btn.click(_learn_remove, inputs=[learn_term], outputs=learn_feedback)
-            learn_extract_btn.click(_learn_extract, inputs=[learn_project, learn_apply],
-                                    outputs=learn_extract_out)
-            learn_terms_btn.click(lambda: learn_panel.list_terms(), outputs=learn_terms_out)
-            learn_stats_btn.click(lambda: learn_panel.show_stats(), outputs=learn_terms_out)
-        with gr.Tab("📈 " + i18n("Performance")):
-            gr.Markdown(f"### {i18n('Performance (YouTube Analytics)')}")
-            gr.Markdown(i18n("See which clips actually performed so future selections learn from outcomes. First run opens a browser to authorize (read-only)."))
-            with gr.Row():
-                perf_days = gr.Number(label=i18n("Days"), value=28, precision=0)
-                perf_summary_btn = gr.Button(i18n("📈 Channel summary"), variant="primary")
-                perf_top_btn = gr.Button(i18n("🏆 Top clips"))
-                perf_trends_btn = gr.Button(i18n("📅 Daily views"))
-            perf_out = gr.Textbox(label=i18n("Analytics report"), lines=12, interactive=False)
-
-            def _perf(kind, days):
-                try:
-                    days = int(float(days or 28))
-                except Exception:
-                    days = 28
-                return learn_panel.run_analytics(kind, days=days)
-
-            perf_summary_btn.click(lambda d: _perf("summary", d), inputs=[perf_days], outputs=perf_out)
-            perf_top_btn.click(lambda d: _perf("top", d), inputs=[perf_days], outputs=perf_out)
-            perf_trends_btn.click(lambda d: _perf("trends", d), inputs=[perf_days], outputs=perf_out)
         with gr.Tab("📋 " + i18n("Batch Queue")):
             gr.Markdown(f"### {i18n('Batch Queue')}")
             gr.Markdown(i18n("One YouTube URL per line. The queue processes them one by one with the current settings."))
@@ -1451,108 +1554,75 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                        gr.update(visible=True, interactive=False), None,
                        gr.update(), gr.update(), gr.update())
 
-        with gr.Tab("✍️ " + i18n("Subtitle Editor")):
-            gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
+
+        with gr.Tab("🧠 " + i18n("Teach the Tool")):
+            gr.Markdown(f"### {i18n('Teach the Tool')}")
+            gr.Markdown(i18n("The tool learns from your channel: add words a struck/rejected clip contained, allow words the blocklist wrongly flags, or extract patterns from a blocked project."))
             with gr.Row():
-                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None, scale=4)
-                editor_refresh_btn = gr.Button(tr("Refresh"), size="sm", scale=1)
-            editor_file_dropdown = gr.Dropdown(choices=[], label="ملف الترجمة (من مجلد subs)", value=None)
-            with gr.Group():
-                editor_status = gr.Textbox(label="الحالة", interactive=False)
+                learn_term = gr.Textbox(label=i18n("Word / phrase"), placeholder=i18n("e.g. a word from the struck clip"))
+                learn_severity = gr.Dropdown(
+                    choices=[(i18n("High"), "high"), (i18n("Medium"), "medium"), (i18n("Low"), "low")],
+                    label=i18n("Severity"), value="high")
+            learn_reason = gr.Textbox(label=i18n("Reason (optional)"), placeholder=i18n("e.g. strike on video X"))
             with gr.Row():
-                editor_render_single_btn = gr.Button(i18n("🎬 Render Selected (single clip)"), size="sm")
-                editor_render_all_btn = gr.Button(i18n("🎬 Render All (background)"), size="sm")
-                editor_export_all_btn = gr.Button(i18n("📤 Export All Segments"), size="sm")
-            editor_refresh_btn.click(library.refresh_projects, outputs=editor_project_dropdown)
+                learn_add_btn = gr.Button(i18n("🚫 Block this word"), variant="primary")
+                learn_allow_btn = gr.Button(i18n("✅ Allow this word (false positive)"))
+                learn_remove_btn = gr.Button(i18n("🗑 Remove"))
+            learn_feedback = gr.Textbox(label=i18n("Result"), lines=3, interactive=False)
+            gr.Markdown("### " + i18n("Learn from a blocked project"))
+            with gr.Row():
+                learn_project = gr.Dropdown(choices=library.get_existing_projects(),
+                                            label=i18n("Blocked project"), value=None)
+                learn_apply = gr.Checkbox(label=i18n("Apply (teach the extracted patterns)"), value=False)
+                learn_extract_btn = gr.Button(i18n("🔍 Extract patterns"), variant="secondary")
+            learn_extract_out = gr.Textbox(label=i18n("Extracted patterns"), lines=8, interactive=False)
+            with gr.Row():
+                learn_terms_btn = gr.Button(i18n("📋 Show my custom terms"))
+                learn_stats_btn = gr.Button(i18n("📓 Learning journal"))
+            learn_terms_out = gr.Textbox(label=i18n("Custom terms / journal"), lines=10, interactive=False)
 
+            def _learn_add(term, severity, reason):
+                return learn_panel.add_term(term, severity, reason)
 
-            def update_file_list(proj_name):
-                if not proj_name:
-                    return gr.update(choices=[], value=None)
-                proj_path = os.path.join(VIRALS_DIR, proj_name)
-                files = editor.list_editable_files(proj_path)
-                return gr.update(choices=files, value=files[0] if files else None)
+            def _learn_allow(term, reason):
+                return learn_panel.allow_term(term, reason)
 
-            # v6.8 fix: the file list used to be written into the status Textbox
-            # (a Dropdown update into a Textbox) and current_json_path was never
-            # set — "Render Selected" could never work. Now a real dropdown.
-            editor_project_dropdown.change(update_file_list, inputs=editor_project_dropdown, outputs=editor_file_dropdown)
+            def _learn_remove(term):
+                return learn_panel.remove_term(term)
 
-            def render_single(proj_name, json_file, use_custom, font_name, font_size, font_color, highlight_color, 
-                              outline_color, outline_thickness, shadow_color, shadow_size, 
-                              is_bold, is_italic, is_uppercase, 
-                              h_size, w_block, gap, mode, under, strike, border_s, 
-                              vertical_pos, alignment, remove_punc):
-                if not proj_name:
-                    return i18n("No project selected.")
-                if not json_file:
-                    return i18n("No file loaded.")
-                json_path = os.path.join(VIRALS_DIR, proj_name, "subs", json_file)
-                subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
-                if use_custom:
-                    subtitle_config = _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc)
-                    with open(subtitle_config_path, "w", encoding="utf-8") as f:
-                        json.dump(subtitle_config, f, indent=4)
-                else:
-                    try:
-                        if os.path.exists(subtitle_config_path):
-                            os.remove(subtitle_config_path)
-                    except Exception:
-                        pass
-                return editor.render_specific_video(json_path)
+            def _learn_extract(project_name, apply):
+                return learn_panel.extract_from_project(project_name, apply)
 
-            editor_render_single_btn.click(render_single, inputs=[editor_project_dropdown, editor_file_dropdown, use_custom_subs] + manual_inputs, outputs=editor_status)
+            learn_add_btn.click(_learn_add, inputs=[learn_term, learn_severity, learn_reason],
+                                outputs=learn_feedback)
+            learn_allow_btn.click(_learn_allow, inputs=[learn_term, learn_reason],
+                                  outputs=learn_feedback)
+            learn_remove_btn.click(_learn_remove, inputs=[learn_term], outputs=learn_feedback)
+            learn_extract_btn.click(_learn_extract, inputs=[learn_project, learn_apply],
+                                    outputs=learn_extract_out)
+            learn_terms_btn.click(lambda: learn_panel.list_terms(), outputs=learn_terms_out)
+            learn_stats_btn.click(lambda: learn_panel.show_stats(), outputs=learn_terms_out)
 
-            def render_all(proj_name, use_custom, font_name, font_size, font_color, highlight_color, 
-                           outline_color, outline_thickness, shadow_color, shadow_size, 
-                           is_bold, is_italic, is_uppercase, 
-                           h_size, w_block, gap, mode, under, strike, border_s, 
-                           vertical_pos, alignment, remove_punc):
-                if not proj_name:
-                    return i18n("No project selected.")
-                if use_custom:
-                    subtitle_config = _build_subtitle_config(font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc)
-                    subtitle_config_path = os.path.join(WORKING_DIR, "temp_subtitle_config.json")
-                    with open(subtitle_config_path, "w", encoding="utf-8") as f:
-                        json.dump(subtitle_config, f, indent=4)
-                proj_path = os.path.join(VIRALS_DIR, proj_name)
-                cmd = runtime.python_cmd(MAIN_SCRIPT_PATH) + ["--project-path", proj_path, "--workflow", "3", "--skip-prompts"]
-                if use_custom and os.path.exists(os.path.join(WORKING_DIR, "temp_subtitle_config.json")):
-                    cmd.extend(["--subtitle-config", os.path.join(WORKING_DIR, "temp_subtitle_config.json")])
+        with gr.Tab("📈 " + i18n("Performance")):
+            gr.Markdown(f"### {i18n('Performance (YouTube Analytics)')}")
+            gr.Markdown(i18n("See which clips actually performed so future selections learn from outcomes. First run opens a browser to authorize (read-only)."))
+            with gr.Row():
+                perf_days = gr.Number(label=i18n("Days"), value=28, precision=0)
+                perf_summary_btn = gr.Button(i18n("📈 Channel summary"), variant="primary")
+                perf_top_btn = gr.Button(i18n("🏆 Top clips"))
+                perf_trends_btn = gr.Button(i18n("📅 Daily views"))
+            perf_out = gr.Textbox(label=i18n("Analytics report"), lines=12, interactive=False)
+
+            def _perf(kind, days):
                 try:
-                    subprocess.Popen(cmd, cwd=WORKING_DIR)
-                    return i18n("Render All started in background... Check terminal/logs.")
-                except Exception as e:
-                    return i18n("Error starting render: {}").format(e)
+                    days = int(float(days or 28))
+                except Exception:
+                    days = 28
+                return learn_panel.run_analytics(kind, days=days)
 
-            editor_render_all_btn.click(render_all, inputs=[editor_project_dropdown, use_custom_subs] + manual_inputs, outputs=editor_status)
-
-            def export_all(project_name):
-                if not project_name:
-                    return i18n("No project selected.")
-                proj_path = os.path.join(VIRALS_DIR, project_name)
-                return editor.export_all_segments(proj_path)
-
-            editor_export_all_btn.click(export_all, inputs=[editor_project_dropdown], outputs=editor_status)
-
-        with gr.Tab("🗂️ " + i18n("Library")):
-            gr.Markdown(f"### {i18n('Existing Projects')}")
-            with gr.Row():
-                lib_query_input = gr.Textbox(label=i18n("Search by name"), placeholder=i18n("Type part of a project name"))
-                lib_date_from_input = gr.Textbox(label=i18n("From date"), placeholder="YYYY-MM-DD")
-                lib_date_to_input = gr.Textbox(label=i18n("To date"), placeholder="YYYY-MM-DD")
-                lib_filter_btn = gr.Button(i18n("Filter"))
-            with gr.Row():
-                project_dropdown = gr.Dropdown(choices=library.get_existing_projects(force_refresh=True), label="اختر مشروعًا", value=None)
-                refresh_btn = gr.Button(i18n("Refresh List"))
-            project_gallery_html = gr.HTML()
-            refresh_btn.click(library.refresh_projects, outputs=project_dropdown)
-            lib_filter_btn.click(library.filter_projects, inputs=[lib_query_input, lib_date_from_input, lib_date_to_input], outputs=project_dropdown)
-            def on_select_project(proj_name): return library.generate_project_gallery(proj_name)
-            project_dropdown.change(on_select_project, project_dropdown, project_gallery_html)
-    
-
-
+            perf_summary_btn.click(lambda d: _perf("summary", d), inputs=[perf_days], outputs=perf_out)
+            perf_top_btn.click(lambda d: _perf("top", d), inputs=[perf_days], outputs=perf_out)
+            perf_trends_btn.click(lambda d: _perf("trends", d), inputs=[perf_days], outputs=perf_out)
     gr.Markdown("---")
     with gr.Row():
         logs_output = gr.Textbox(label="📜 السجل — تظهر تحديثات التقدم هنا أثناء التشغيل", lines=12, autoscroll=True, elem_id="logs_output", scale=9)
