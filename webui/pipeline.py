@@ -31,7 +31,7 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
                   platform=None, polish=False, music=None, logo=None,
                   checkpoint=None, metadata_gate=None, cookies_browser=None,
                   title_language=None, music_check=None, music_gate=None,
-                  output_aspect=None, reframe_mode=None):
+                  output_aspect=None, reframe_mode=None, force_new_segments=False):
     """Assemble the full CLI command for main_improved.py.
 
     `source_args` holds the input-source-specific flags already resolved by
@@ -136,6 +136,10 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
     if music_gate and music_gate != "warn":
         # "warn" is the CLI default; only pass explicit overrides
         cmd.extend(["--music-gate", str(music_gate)])
+
+    # Force fresh viral segments instead of reusing viral_segments.txt (v6.16).
+    if force_new_segments:
+        cmd.append("--force-new-segments")
 
     # Output framing (v6.13 reframe stage) — only when the user picks one.
     if output_aspect and output_aspect != "9:16":

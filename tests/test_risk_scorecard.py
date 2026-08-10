@@ -186,3 +186,45 @@ class TestAnalyzeProject:
                     {"word": "اذبحهم", "start": 2.0, "end": 2.5}]}]}, f, ensure_ascii=False)
             report = rs.analyze_project(project)
             assert len(report["blocked"]) == 1
+
+
+def test_build_scorecard_html_shape():
+    """v6.16: readable HTML report (functional completeness)."""
+    report = {
+        "summary": {"total": 2, "low": 1, "medium": 0, "high": 1, "danger": 0,
+                    "blocked_for_publish": 1},
+        "segments": [
+            {"index": 0, "title": "كلب لطيف", "overall": "low", "overall_score": 12.0,
+             "axes": {"text": {"first7s": {"score": 5}}, "reuse": {"similarity": 0.1},
+                      "visual": {"score": 0}}},
+            {"index": 1, "title": "مقطع خطير", "overall": "high", "overall_score": 78.0,
+             "axes": {"text": {"first7s": {"score": 65}}, "reuse": {"similarity": 0.85},
+                      "visual": {"score": 0}}},
+        ],
+        "blocked": [
+            {"index": 1, "title": "مقطع خطير", "overall": "high",
+             "axes": {"text": {"first7s": {"score": 65}}, "reuse": {"similarity": 0.85},
+                      "visual": {"score": 0}}},
+        ],
+    }
+    html = rs.build_scorecard_html(report)
+    assert "مقطع خطير" in html
+    assert "منخفض" in html and "مرتفع" in html
+    assert "⛔" in html
+    assert "ممنوع النشر" in html
+    assert "85%" in html  # reuse similarity formatted
+
+
+def test_render_html_report_writes_file(tmp_path):
+    project = tmp_path / "proj"
+    project.mkdir()
+    with open(project / rs.SCORECARD_FILENAME, "w", encoding="utf-8") as fh:
+        json.dump({"summary": {}, "segments": [], "blocked": []}, fh)
+    out = rs.render_html_report(str(project))
+    assert out and os.path.exists(out)
+    content = open(out, encoding="utf-8").read()
+    assert "<html" in content and "تقرير" in content
+
+
+def test_render_html_report_missing(tmp_path):
+    assert rs.render_html_report(str(tmp_path)) is None

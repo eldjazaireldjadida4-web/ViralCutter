@@ -462,3 +462,17 @@ class TestOutputAspectFlags:
         from webui.pipeline import build_command
         cmd = build_command(MAIN, ["--url", "x"])
         assert "--output-aspect" not in cmd
+
+
+class TestForceNewSegmentsFlag:
+    """v6.16: WebUI checkbox → --force-new-segments CLI flag."""
+
+    def test_flag_not_passed_by_default(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"])
+        assert "--force-new-segments" not in cmd
+
+    def test_flag_passed_when_enabled(self):
+        from webui.pipeline import build_command
+        cmd = build_command(MAIN, ["--url", "x"], force_new_segments=True)
+        assert "--force-new-segments" in cmd

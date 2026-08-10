@@ -392,6 +392,9 @@ def main():
     parser.add_argument("--reframe-mode", choices=["crop", "pad"], default=None,
                         help="Reframe method: crop=fill+center-crop (default for 4:5/1:1), "
                              "pad=blurred bars (default for 16:9).")
+    parser.add_argument("--force-new-segments", action="store_true",
+                        help="Ignore an existing viral_segments.txt and generate fresh "
+                             "segments (the WebUI 'generate new segments' checkbox).")
     parser.add_argument("--auto-learn-blocked", action="store_true",
                         help="After the risk scorecard, automatically teach the safety terms "
                              "the patterns that got clips blocked (strike-feedback loop, 5.1). "
@@ -546,7 +549,9 @@ def main():
         
         if os.path.exists(viral_segments_file):
              print(i18n("\nExisting viral segments found: {}").format(viral_segments_file))
-             if args.skip_prompts:
+             if args.force_new_segments:
+                 use_existing_json = 'no'  # explicit regeneration (WebUI checkbox)
+             elif args.skip_prompts:
                  use_existing_json = 'yes'
              else:
                  use_existing_json = input(i18n("Use existing viral segments? (yes/no) [default: yes]: ")).strip().lower()

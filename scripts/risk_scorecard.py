@@ -374,11 +374,16 @@ def main():
                         help="Download the default small visual classifier into models/ if missing")
     parser.add_argument("--exit-on-blocked", action="store_true",
                         help="Exit code 1 if any clip is blocked for publish")
+    parser.add_argument("--html-report", action="store_true",
+                        help="Also write a readable risk_report.html next to the scorecard")
     args = parser.parse_args()
 
     report = analyze_project(args.project, gate_threshold=args.gate_threshold,
                              visual_model_path=args.visual_model,
                              auto_download_visual=args.auto_download_visual)
+    if args.html_report:
+        path = render_html_report(args.project)
+        print("[risk] HTML report → {}".format(path or "failed"))
     blocked = len(report.get("blocked", []))
     if args.exit_on_blocked and blocked:
         raise SystemExit(1)
@@ -386,3 +391,139 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# --------------------------------------------------------------------------
+# Human-readable HTML report (functional completeness: JSON for machines,
+# HTML for the channel owner — shown in the WebUI Review tab too).
+# --------------------------------------------------------------------------
+BADGE = {
+    "low": ("#16a34a", "منخفض"), "medium": ("#f59e0b", "متوسط"),
+    "high": ("#f97316", "مرتفع"), "danger": ("#dc2626", "خطير"),
+}
+
+
+def build_scorecard_html(report):
+    """Render a risk scorecard dict as readable HTML. Pure + testable.
+
+    Returns the HTML fragment (no <html> wrapper — embeddable in the WebUI).
+    """
+    summary = report.get("summary") or {}
+    segments = report.get("segments") or []
+    blocked = report.get("blocked") or []
+    blocked_ids = {id(e) for e in blocked}
+
+    def badge(overall):
+        color, label = BADGE.get(overall, ("#64748b", overall or "?"))
+        return '<span style="background:{}22;color:{};border:1px solid {}55;border-radius:999px;padding:2px 10px;font-weight:700;font-size:0.8em;">{}</span>'.format(
+            color, color, color, label)
+
+    rows = []
+    for e in segments:
+        is_blocked = id(e) in blocked_ids or e.get("overall") in ("high", "danger")
+        axes = e.get("axes") or {}
+        reuse = (axes.get("reuse") or {})
+        visual = (axes.get("visual") or {})
+        text = (axes.get("text") or {})
+        first7 = text.get("first7s")
+        if isinstance(first7, dict):
+            f7 = "{} /100".format(first7.get("score", 0))
+        else:
+            f7 = "—"
+        sim = reuse.get("similarity")
+        sim_txt = "{:.0f}%".format(sim * 100) if isinstance(sim, (int, float)) else "—"
+        vis_txt = "{:.0f}".format(visual.get("score") or 0) + (" ⚠️" if visual.get("flag") else "")
+        rows.append(
+            '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">'
+            '<td style="padding:8px 10px;">{}</td>'
+            '<td style="padding:8px 10px;">{}</td>'
+            '<td style="padding:8px 10px;text-align:center;">{}</td>'
+            '<td style="padding:8px 10px;text-align:center;">{}</td>'
+            '<td style="padding:8px 10px;text-align:center;">{}</td>'
+            '<td style="padding:8px 10px;text-align:center;">{}</td>'
+            '<td style="padding:8px 10px;text-align:center;">{}</td>'
+            '</tr>'.format(
+                e.get("index", "?"), (e.get("title") or "")[:60],
+                badge(e.get("overall")), f7, sim_txt, vis_txt,
+                "⛔ محجوب" if is_blocked else "✅ مسموح"))
+
+    blocked_html = ""
+    if blocked:
+        items = "".join(
+            '<li style="padding:6px 0;">⛔ <b>{}</b> — <span style="color:#94a3b8;">السبب: {}</span></li>'.format(
+                (e.get("title") or "?"), _block_reason(e))
+            for e in blocked[:10])
+        blocked_html = (
+            '<div style="background:#dc262612;border:1px solid #dc262655;border-radius:10px;'
+            'padding:10px 14px;margin-top:10px;"><b style="color:#fca5a5;">⛔ ممنوع النشر: '
+            '{}</b><ul style="margin:6px 0 0;padding-right:18px;">{}</ul></div>'.format(
+                len(blocked), items))
+
+    return """
+<div style="direction:rtl;text-align:right;font-family:inherit;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    <span style="background:#16a34a22;color:#4ade80;border-radius:999px;padding:3px 12px;font-size:0.8em;">{low} منخفض</span>
+    <span style="background:#f59e0b22;color:#fbbf24;border-radius:999px;padding:3px 12px;font-size:0.8em;">{med} متوسط</span>
+    <span style="background:#f9731622;color:#fb923c;border-radius:999px;padding:3px 12px;font-size:0.8em;">{high} مرتفع</span>
+    <span style="background:#dc262622;color:#f87171;border-radius:999px;padding:3px 12px;font-size:0.8em;">{danger} خطير</span>
+    <span style="background:#ffffff11;border-radius:999px;padding:3px 12px;font-size:0.8em;">⛔ {blocked} ممنوع النشر</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;background:rgba(255,255,255,0.03);border-radius:10px;overflow:hidden;">
+    <tr style="background:rgba(255,255,255,0.06);color:#e2e8f0;">
+      <th style="padding:8px 10px;text-align:right;">#</th>
+      <th style="padding:8px 10px;text-align:right;">المقطع</th>
+      <th style="padding:8px 10px;">المخاطر</th>
+      <th style="padding:8px 10px;">أول 7 ثوانٍ</th>
+      <th style="padding:8px 10px;">تشابه المصدر</th>
+      <th style="padding:8px 10px;">بصري</th>
+      <th style="padding:8px 10px;">الحالة</th>
+    </tr>
+    {rows}
+  </table>
+  {blocked_html}
+</div>
+""".format(low=summary.get("low", 0), med=summary.get("medium", 0),
+           high=summary.get("high", 0), danger=summary.get("danger", 0),
+           blocked=summary.get("blocked_for_publish", 0),
+           rows="".join(rows) or '<tr><td colspan="7" style="padding:12px;color:#94a3b8;">لا توجد بيانات</td></tr>',
+           blocked_html=blocked_html)
+
+
+def _block_reason(entry):
+    axes = entry.get("axes") or {}
+    parts = []
+    reuse = axes.get("reuse") or {}
+    if (reuse.get("similarity") or 0) >= HIGH_REUSE_THRESHOLD:
+        parts.append("محتوى مُعاد استخدامه ({:.0f}% تشابه)".format(reuse["similarity"] * 100))
+    if axes.get("text") and isinstance(axes["text"].get("first7s"), dict) and (axes["text"]["first7s"].get("score") or 0) >= 50:
+        parts.append("كلمة مخالفة في أول 7 ثوانٍ")
+    if axes.get("visual") and (axes["visual"].get("flag")):
+        parts.append(axes["visual"]["flag"])
+    return "، ".join(parts) if parts else "مخاطر مرتفعة/خطيرة"
+
+
+def render_html_report(project_folder):
+    """Write risk_report.html next to risk_scorecard.json. Returns path or None."""
+    path = os.path.join(project_folder, SCORECARD_FILENAME)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            report = json.load(fh)
+        html = build_scorecard_html(report)
+    except Exception:
+        return None
+    out = os.path.join(project_folder, "risk_report.html")
+    page = """<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<title>تقرير مخاطر النشر — ViralCutter</title>
+<style>body{{font-family:Segoe UI,Tahoma,Arial,sans-serif;background:#0b0b0b;color:#e2e8f0;max-width:900px;margin:24px auto;padding:0 16px;}}
+h1{{font-size:1.4em;}} .muted{{color:#94a3b8;}}</style></head>
+<body><h1>🛡️ تقرير مخاطر النشر</h1>
+<p class="muted">ViralCutter — تحقق من أن كل مقطع آمن للنشر قبل الرفع.</p>
+{body}</body></html>""".format(body=html)
+    try:
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(page)
+        return out
+    except Exception:
+        return None

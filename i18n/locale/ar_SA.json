@@ -673,5 +673,11 @@
     "Performance": "الأداء",
     "System status": "حالة النظام",
     "Re-check system": "إعادة الفحص",
-    "Waiting for a run...": "بانتظار التشغيل..."
+    "Waiting for a run...": "بانتظار التشغيل...",
+    "Generate new segments (ignore existing)": "توليد مقاطع جديدة (تجاهل المحفوظة)",
+    "Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits).": "يعيد تحليل الذكاء الاصطناعي من الصفر بدل إعادة استخدام المقاطع المحفوظة (يستهلك رصيد API).",
+    "Risk Scorecard": "بطاقة المخاطر",
+    "Save HTML report to the project": "حفظ تقرير HTML في المشروع",
+    "No risk scorecard yet — run the pipeline first.": "لا توجد بطاقة مخاطر بعد — شغّل المعالجة أولاً.",
+    "Saved: {filename}": "حُفظ: {filename}"
 }

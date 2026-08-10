@@ -570,5 +570,11 @@
     "Performance": "Performans",
     "System status": "Sistem durumu",
     "Re-check system": "Yeniden kontrol et",
-    "Waiting for a run...": "Çalışma bekleniyor..."
+    "Waiting for a run...": "Çalışma bekleniyor...",
+    "Generate new segments (ignore existing)": "Yeni segmentler oluştur (mevcutları yok say)",
+    "Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits).": "Kayıtlı segmentleri yeniden kullanmak yerine AI analizini sıfırdan çalıştırır (API kredisi harcar).",
+    "Risk Scorecard": "Risk kartı",
+    "Save HTML report to the project": "HTML raporunu projeye kaydet",
+    "No risk scorecard yet — run the pipeline first.": "Henüz risk kartı yok — önce işlem hattını çalıştırın.",
+    "Saved: {filename}": "Kaydedildi: {filename}"
 }

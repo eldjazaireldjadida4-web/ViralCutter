@@ -570,5 +570,11 @@
     "Performance": "Desempenho",
     "System status": "Status do sistema",
     "Re-check system": "Verificar novamente",
-    "Waiting for a run...": "Aguardando execução..."
+    "Waiting for a run...": "Aguardando execução...",
+    "Generate new segments (ignore existing)": "Gerar novos segmentos (ignorar existentes)",
+    "Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits).": "Refaz a análise de IA do zero em vez de reutilizar os segmentos salvos (consome créditos de API).",
+    "Risk Scorecard": "Cartão de risco",
+    "Save HTML report to the project": "Salvar relatório HTML no projeto",
+    "No risk scorecard yet — run the pipeline first.": "Ainda não há cartão de risco — execute o pipeline primeiro.",
+    "Saved: {filename}": "Salvo: {filename}"
 }

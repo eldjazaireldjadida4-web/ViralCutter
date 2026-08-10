@@ -570,5 +570,11 @@
     "Performance": "Performance",
     "System status": "System status",
     "Re-check system": "Re-check system",
-    "Waiting for a run...": "Waiting for a run..."
+    "Waiting for a run...": "Waiting for a run...",
+    "Generate new segments (ignore existing)": "Generate new segments (ignore existing)",
+    "Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits).": "Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits).",
+    "Risk Scorecard": "Risk Scorecard",
+    "Save HTML report to the project": "Save HTML report to the project",
+    "No risk scorecard yet — run the pipeline first.": "No risk scorecard yet — run the pipeline first.",
+    "Saved: {filename}": "Saved: {filename}"
 }

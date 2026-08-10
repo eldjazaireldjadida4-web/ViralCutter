@@ -371,7 +371,8 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                      use_custom_subs, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment,
                      h_size, w_block, gap, mode, under, strike, border_s, remove_punc, video_quality, use_youtube_subs, translate_target, safety_mode="block", safety_ai=True,
                      platform=None, metadata_gate=None, title_language=None, polish=False, music=None, logo=None,
-                     cookies_browser=None, output_aspect=None, reframe_mode=None):
+                     cookies_browser=None, output_aspect=None, reframe_mode=None,
+                     force_new_segments=False):
     # NOTE: parameter order MUST match the `inputs=[...]` order of every
     # .click() that targets this function (start / review-render / batch).
     # v6.8 fix: the tail used to be (platform, polish, music, logo,
@@ -506,6 +507,7 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
             title_language=title_language,
             output_aspect=output_aspect,
             reframe_mode=reframe_mode,
+            force_new_segments=force_new_segments,
         )
 
         env = os.environ.copy()
@@ -733,6 +735,11 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         video_quality_input = gr.Dropdown(choices=["best", "1080p", "720p", "480p"], label="جودة الفيديو", value="best")
                         translate_input = gr.Dropdown(choices=["None", "pt", "en", "es", "fr", "de", "it", "ru", "ja", "ko", "zh-CN", "ar"], label="ترجمة الترجمة إلى", value="None")
                         use_youtube_subs_input = gr.Checkbox(label="استخدام ترجمات يوتيوب", value=True, info=i18n("Download and use official subtitles if available. (Recommended, it speeds up the process)"))
+                    with gr.Row():
+                        force_new_segments_input = gr.Checkbox(
+                            label=i18n("Generate new segments (ignore existing)"),
+                            value=False,
+                            info=i18n("Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits)."))
 
                     project_selector = gr.Dropdown(choices=[], label="اختر مشروعًا", visible=False)
 
@@ -1124,6 +1131,10 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             with gr.Row():
                 review_export_btn = gr.Button(i18n("Export Publish Metadata"))
             review_export_out = gr.Textbox(label=i18n("Publish Metadata"), lines=8, interactive=False)
+            with gr.Row():
+                review_risk_btn = gr.Button("🛡️ " + i18n("Risk Scorecard"), variant="secondary")
+                review_risk_html_btn = gr.Button(i18n("Save HTML report to the project"), size="sm")
+            review_risk_out = gr.HTML(label=i18n("Risk Scorecard"))
 
             def load_review_segments(project_name):
                 if not project_name:
@@ -1173,6 +1184,28 @@ with gr.Blocks(**_blocks_kwargs) as demo:
 
             review_refresh_btn.click(library.refresh_projects, outputs=review_project_dropdown)
             review_load_btn.click(load_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
+            def load_risk_scorecard(project_name, save_html=False):
+                if not project_name:
+                    return '<div style="color:#f87171;">❌ ' + i18n("Error: No project selected.") + '</div>'
+                project_path = os.path.join(VIRALS_DIR, project_name)
+                try:
+                    from scripts import risk_scorecard
+                    path = os.path.join(project_path, risk_scorecard.SCORECARD_FILENAME)
+                    if not os.path.exists(path):
+                        return '<div style="color:#fbbf24;">' + i18n("No risk scorecard yet — run the pipeline first.") + '</div>'
+                    with open(path, "r", encoding="utf-8") as fh:
+                        report = json.load(fh)
+                    html = risk_scorecard.build_scorecard_html(report)
+                    if save_html:
+                        risk_scorecard.render_html_report(project_path)
+                        html += '<div style="margin-top:8px;color:#4ade80;">✅ ' + i18n("Saved: {filename}").format(filename="risk_report.html") + '</div>'
+                    return html
+                except Exception as e:
+                    return '<div style="color:#f87171;">❌ {}</div>'.format(e)
+
+            review_risk_btn.click(lambda p: load_risk_scorecard(p, False), inputs=review_project_dropdown, outputs=review_risk_out)
+            review_risk_html_btn.click(lambda p: load_risk_scorecard(p, True), inputs=review_project_dropdown, outputs=review_risk_out)
+
             review_apply_btn.click(apply_review_selection, inputs=[review_project_dropdown, review_df], outputs=review_status)
             review_restore_btn.click(restore_review_segments, inputs=review_project_dropdown, outputs=[review_df, review_status])
             review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
@@ -1523,6 +1556,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
         (workflow_input, "workflow"),
         (aspect_input, "output_aspect"),
         (reframe_mode_input, "reframe_mode"),
+        (force_new_segments_input, "force_new_segments"),
     ])
     for comp, _key in PREF_FIELDS:
         comp.change(autosave_webui_prefs, outputs=[])
@@ -1546,7 +1580,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
     platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
-    aspect_input, reframe_mode_input
+    aspect_input, reframe_mode_input, force_new_segments_input
     ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
     review_render_btn.click(run_review_render, inputs=[
@@ -1563,7 +1597,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
     platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
-    aspect_input, reframe_mode_input
+    aspect_input, reframe_mode_input, force_new_segments_input
     ], outputs=[logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
     batch_run_btn.click(run_batch, inputs=[
@@ -1580,7 +1614,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     underline_input, strikeout_input, border_style_input, remove_punc_input,
     video_quality_input, use_youtube_subs_input, translate_input, safety_mode_input, safety_ai_input,
     platform_input, metadata_gate_input, title_language_input, polish_input, music_input, logo_input, cookies_input,
-    aspect_input, reframe_mode_input
+    aspect_input, reframe_mode_input, force_new_segments_input
     ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
 def _launch(argv=None):
