@@ -152,5 +152,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 - ✅ **Reproducible installs**: `uv sync` (uses `uv.lock`); the classic `install_dependencies.bat` flow still works.
 
 
-**Current Version**: 6.14.0 — automatic pre-flight (checks and installs everything before running)
+**Current Version**: 6.16.0 — automatic pre-flight (checks and installs everything before running)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀

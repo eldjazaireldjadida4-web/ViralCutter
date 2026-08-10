@@ -36,6 +36,11 @@ datas = [
     # (webui/subtitle_handler.py) → must sit at the bundle root.
     (str(ROOT / "webui" / "preview.json"), "."),
 ]
+# Native libraries collected below are appended to this list. It must be
+# declared BEFORE the first `binaries +=` — a NameError here (line 73
+# referenced it before it existed) was the exact cause of the failing
+# Windows EXE build on 2026-08-10.
+binaries = []
 # Several small packages in the gradio dependency chain (safehttpx, groovy,
 # …) read a version.txt from their package dir at import time. PyInstaller
 # has no hooks for them, so a frozen exe crashed on WebUI startup with
@@ -81,7 +86,7 @@ datas += collect_data_files("ctranslate2")
 # DLLs) there; at runtime they appear next to the exe (onefile →
 # sys._MEIPASS), where scripts/music_fingerprint.py finds them. This makes
 # the music check work out of the box — no manual downloads for the user.
-binaries = []
+# (binaries already declared above, before the first `+=`.)
 _tp = ROOT / "packaging" / "third_party"
 if _tp.is_dir():
     for p in sorted(_tp.iterdir()):

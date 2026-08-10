@@ -27,6 +27,15 @@ class I18nAuto:
             language = "en_US"
         self.language = language
         self.language_map = load_language_list(language)
+        # Fallback chain: selected locale -> en_US -> the raw key. A locale
+        # file that lags behind en_US degrades gracefully instead of showing
+        # raw keys (or worse, orphan entries from another language).
+        self._fallback = (
+            load_language_list("en_US") if language != "en_US" else self.language_map
+        )
 
     def __call__(self, key):
-        return self.language_map.get(key, key)
+        value = self.language_map.get(key)
+        if value is not None:
+            return value
+        return self._fallback.get(key, key)

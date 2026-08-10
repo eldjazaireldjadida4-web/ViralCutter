@@ -12,11 +12,11 @@
 
 [project]
 name = "viralcutter"
-version = "6.14.0"
+version = "6.16.0"
 description = "Open-source Opus Clip alternative: turn long YouTube videos into viral shorts locally, with AI, dynamic captions, face tracking and a YouTube-strike safety layer."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = { text = "GPL-3.0" }
 dependencies = [
     "numpy<2",
     "g4f[all]",

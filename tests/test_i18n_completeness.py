@@ -28,6 +28,19 @@ def test_locale_covers_all_english_keys(lang):
     assert missing == [], f"{lang} is missing {len(missing)} keys: {missing[:5]}"
 
 
+@pytest.mark.parametrize("lang", ["ar_SA", "pt_BR", "tr_TR"])
+def test_locale_has_no_extra_keys_beyond_english(lang):
+    """All locales must share EXACTLY the en_US key set.
+
+    Guard added after v6.16: ar_SA carried 103 orphan keys (Arabic UI
+    literals hardcoded in the WebUI that are never routed through i18n()),
+    making the locale files asymmetric. en_US is the canonical key set.
+    """
+    data = _load(lang)
+    extra = [k for k in data if k not in EN]
+    assert extra == [], f"{lang} has {len(extra)} keys not in en_US: {extra[:5]}"
+
+
 def test_english_has_no_arabic_values():
     polluted = [k for k, v in EN.items() if ARABIC_RE.search(v)]
     assert polluted == [], f"en_US has Arabic values: {polluted[:5]}"

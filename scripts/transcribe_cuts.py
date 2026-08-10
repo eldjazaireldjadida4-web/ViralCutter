@@ -31,7 +31,11 @@ def transcribe(project_folder="tmp"):
         ]
 
         print(f"Transcrevendo: {input_file}...")
-        result = subprocess.run(command, shell=True, text=True, capture_output=True)
+        # NOTE: shell=True removed on purpose — the command is a list of
+        # arguments, so the executable runs directly. shell=True with a list is
+        # pointless AND a command-injection risk when a file path contains
+        # shell metacharacters (&, (, !, ...).
+        result = subprocess.run(command, text=True, capture_output=True)
         print(f"Comando executado: {command}")
         
         if result.returncode != 0:

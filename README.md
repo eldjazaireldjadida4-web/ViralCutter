@@ -152,5 +152,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 - ✅ **Instalação reproduzível**: `uv sync` (usa `uv.lock`); o fluxo clássico `install_dependencies.bat` continua igual.
 
 
-**Versão Atual**: 6.14.0 — preflight automático (verifica e instala tudo antes de rodar)
+**Versão Atual**: 6.16.0 — preflight automático (verifica e instala tudo antes de rodar)
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀
