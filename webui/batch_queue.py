@@ -7,7 +7,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
+from i18n.i18n import DEFAULT_LANGUAGE, I18nAuto
 
 i18n = I18nAuto(DEFAULT_LANGUAGE)
 

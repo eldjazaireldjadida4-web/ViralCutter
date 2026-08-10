@@ -1,6 +1,7 @@
 import os
 import uuid
 
+
 def create_premiere_xml(project_name, video_path, overlay_path, duration_frames, width=1080, height=1920, timebase=30, face_data=None, source_width=1920, source_height=1080):
     """
     Generates a Premiere Pro XML (xmeml version 4) compliant with vertical restrictions.

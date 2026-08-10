@@ -23,7 +23,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.secure_config import load_api_config, legacy_config_path
+from scripts.secure_config import legacy_config_path, load_api_config
 
 # Local UI-preferences file (user-machine state, NOT tracked by git).
 WEBUI_PREFS_FILE = "webui_settings.json"

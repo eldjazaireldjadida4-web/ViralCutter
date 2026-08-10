@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """Tests for the AI second-pass policy review + new safety filter modes."""
 
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import safety_ai, safety_filter as sf
-
+from scripts import safety_ai
+from scripts import safety_filter as sf
 
 # ---------------------------------------------------------------------------
 # Prompt building
@@ -131,7 +130,8 @@ class TestCensorMode:
             extra_terms_path=None)
         assert len(kept) == 0  # blocked normally
         # now with allowlist via project folder
-        import tempfile, json as _json
+        import json as _json
+        import tempfile
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, "safety_terms.json"), "w", encoding="utf-8") as f:
                 _json.dump({"allow_terms": ["قردة", "خنازير"]}, f, ensure_ascii=False)

@@ -1,6 +1,8 @@
 import os
 import subprocess
+
 from .utils import get_video_dims
+
 
 def render_segmented_overlays(ass_path, segments, video_path, output_dir):
     """

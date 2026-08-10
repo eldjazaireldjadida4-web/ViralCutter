@@ -1,6 +1,6 @@
 import argparse
-import sys
 import os
+import sys
 
 # Add the script directory to path so we can import the lib if needed
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

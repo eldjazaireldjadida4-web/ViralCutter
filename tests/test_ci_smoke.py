@@ -20,7 +20,13 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import jump_cuts, branding, background_music, upload_gate, metadata_compliance
+from scripts import (
+    background_music,
+    branding,
+    jump_cuts,
+    metadata_compliance,
+    upload_gate,
+)
 
 FFMPEG = shutil.which("ffmpeg")
 FFPROBE = shutil.which("ffprobe")

@@ -1,14 +1,14 @@
+import hashlib
 import json
 import os
 import re
-import sys
-import hashlib
 import subprocess
 from pathlib import Path
 
 # Import scripts for direct processing
 import scripts.adjust_subtitles as adjust
 import scripts.burn_subtitles as burn
+
 
 # Helper to format seconds to HH:MM:SS,mmm
 def format_timestamp(seconds):
@@ -332,7 +332,6 @@ def render_specific_video(json_full_path):
     # Load Config
     try:
         # Try to load temp config from root, else default
-        temp_config = os.path.join(os.path.dirname(os.path.dirname(project_folder)), "temp_subtitle_config.json")
         # .. from VIRALS/proj -> VIRALS -> root? No.
         # project_folder is VIRALS/proj.
         # root is ../../

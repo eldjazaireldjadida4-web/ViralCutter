@@ -63,3 +63,41 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 py-modules = ["main_improved", "app_version"]
 packages = ["scripts", "webui", "i18n"]
+
+[tool.ruff]
+target-version = "py39"
+exclude = [".venv", "build", "dist", "models", "VIRALS", ".gradio", "*.ipynb"]
+
+[tool.ruff.lint]
+# Pragmatic quality gate: real bugs (F), bugbear patterns (B), imports (I),
+# pycodestyle basics (E). Style-modernization lints (f-strings everywhere)
+# would churn thousands of lines for zero runtime value — not selected.
+select = ["E", "F", "I", "B"]
+# Documented intentional ignores:
+#   E501 — long lines are a deliberate style in this codebase.
+#   E701 — one-line `if x: y` blocks are used throughout.
+#   E722 — bare except is the project's defensive resilience pattern
+#          (fallbacks must never crash the app; see v6.7b).
+ignore = ["E501", "E701", "E722"]
+
+[tool.ruff.lint.per-file-ignores]
+# Env/bootstrap imports must stay before heavy library imports (main_improved
+# sets env vars before importing cv2/torch stacks).
+"main_improved.py" = ["E402"]
+"webui/app.py" = ["E402"]
+"webui/pipeline.py" = ["E402"]
+# webui modules add their own dir to sys.path before importing i18n/etc.
+"webui/header.py" = ["E402"]
+"webui/library.py" = ["E402"]
+"webui/subtitle_handler.py" = ["E402"]
+# Test files may import fixtures after module-level setup.
+"tests/*" = ["E402"]
+
+[tool.coverage.run]
+branch = true
+source = ["scripts", "webui", "main_improved.py", "app_version.py"]
+omit = ["*/export_xml_lib/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

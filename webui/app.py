@@ -1,27 +1,25 @@
-import gradio as gr
-import subprocess
-import os
-import sys
-import json
-import psutil
-import shutil
 import datetime
+import json
+import os
+import shutil
+import subprocess
+import sys
 import time
-import urllib.parse
+
+import batch_queue  # Module for Batch Queue Logic
+import gradio as gr
+import learn_panel  # Learn (strike feedback) & Performance (analytics) panels
+import library  # Module for Library Logic
+import psutil
+import publish_panel  # Module for Publish & Upload Logic
+import runtime  # frozen-exe helpers (sys.executable re-invocation)
+import segments_review  # Module for Segments Review Logic
+import settings_store  # Module for persistent AI settings (save/load Gemini key)
+import subtitle_editor as editor  # Module for Editor Logic
+import subtitle_handler as subs  # Module for Subtitles
+import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-import uvicorn
-
-import re
-import library # Module for Library Logic
-import subtitle_handler as subs # Module for Subtitles
-import subtitle_editor as editor # Module for Editor Logic
-import segments_review # Module for Segments Review Logic
-import publish_panel # Module for Publish & Upload Logic
-import learn_panel   # Learn (strike feedback) & Performance (analytics) panels
-import batch_queue # Module for Batch Queue Logic
-import settings_store # Module for persistent AI settings (save/load Gemini key)
-import runtime  # frozen-exe helpers (sys.executable re-invocation)
 
 # Path to the main script. Frozen exe: the exe itself (nothing on disk);
 # source run: main_improved.py. WORKING_DIR holds user projects (VIRALS).
@@ -33,7 +31,8 @@ else:
     WORKING_DIR = os.path.dirname(MAIN_SCRIPT_PATH)
 sys.path.append(WORKING_DIR)
 
-from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
+from i18n.i18n import DEFAULT_LANGUAGE, I18nAuto
+
 i18n = I18nAuto(DEFAULT_LANGUAGE)
 
 # Version banner at startup — helps confirm you run the latest code
@@ -108,17 +107,17 @@ current_process = None
 from pipeline import build_command
 from utils import (
     PROGRESS_STAGES,
-    empty_progress_state,
-    convert_color_to_ass,
     build_subtitle_config,
+    empty_progress_state,
     normalize_path,
-    safe_int,
-    safe_float,
+    render_error_html,
     render_progress_html,
     render_tasks_html,
-    render_error_html,
+    safe_float,
+    safe_int,
     summarize_error,
 )
+
 PROGRESS_ORDER = PROGRESS_STAGES
 _safe_int = safe_int
 _safe_float = safe_float
@@ -541,8 +540,6 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         )
         project_folder_path = None
         last_update_time = time.time()
-        last_progress_tick = 0.0
-        current_stage = None
         current_buffer = []
 
         while True:
@@ -560,8 +557,6 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
                         progress_state[stage] = {"percent": int(percent), "message": message}
                         progress_state["current"] = message
                         progress_state["overall"] = int(sum(progress_state[s]["percent"] for s in PROGRESS_ORDER) / len(PROGRESS_ORDER))
-                    current_stage = stage
-                    last_progress_tick = time.time()
                 except Exception as e:
                     error_items.append({"title": "Bad progress line: {}".format(e),
                                          "detail": str(e), "hint": ""})
@@ -1655,7 +1650,7 @@ def _launch(argv=None):
     args = parser.parse_args(argv)
 
     # Pre-flight guarantee: verify + auto-repair before the server starts.
-    if args.preflight != "off" and not os.environ.get("VIRALCUTTER_SKIP_PREFLIGHT", "").strip().lower() in ("1", "true", "yes", "on"):
+    if args.preflight != "off" and os.environ.get("VIRALCUTTER_SKIP_PREFLIGHT", "").strip().lower() not in ("1", "true", "yes", "on"):
         try:
             from scripts import preflight
             code = preflight.run_preflight(mode="auto-fix" if args.preflight == "auto" else "check", quiet=True)
@@ -1690,8 +1685,8 @@ def _launch(argv=None):
             gr.set_static_paths(paths=allowed_dirs)
         except AttributeError:
             pass
-        from fastapi.responses import FileResponse
         from fastapi import BackgroundTasks
+        from fastapi.responses import FileResponse
 
         def attach_extra_routes(fastapi_app):
             fastapi_app.mount("/virals", StaticFiles(directory=VIRALS_DIR), name="virals")

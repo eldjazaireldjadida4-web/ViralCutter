@@ -194,7 +194,6 @@ def test_connection_rest_invalid_key(monkeypatch):
 
 
 def test_connection_rest_ok(monkeypatch):
-    import io
 
     class FakeResp:
         def __enter__(self):
@@ -217,8 +216,8 @@ def test_connection_rest_ok(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_call_gemini_raises_on_invalid_key(monkeypatch):
-    import types
     import importlib
+    import types
 
     class FakeGenAI:
         @staticmethod
@@ -251,8 +250,8 @@ def test_call_gemini_raises_on_invalid_key(monkeypatch):
 
 def test_call_gemini_non_key_error_returns_empty(monkeypatch):
     """Transient errors keep the old contract: return "{}" after logging."""
-    import types
     import importlib
+    import types
 
     class FakeGenAI:
         @staticmethod

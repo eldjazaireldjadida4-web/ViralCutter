@@ -1,6 +1,7 @@
+import json
 import os
 import sys
-import json
+
 try:
     import torch  # optional: only required for the real whisperx transcription path
 except Exception as _torch_err:
@@ -9,6 +10,7 @@ except Exception as _torch_err:
 else:
     _TORCH_IMPORT_ERROR = ""
 import time
+
 try:
     import whisperx
 except Exception as _whisperx_err:
@@ -21,7 +23,7 @@ else:
     _WHISPERX_IMPORT_ERROR = ""
 import gc
 import re
-import glob
+
 from i18n.i18n import I18nAuto
 
 i18n = I18nAuto()
@@ -122,7 +124,7 @@ def apply_safe_globals_hack():
         if not hasattr(torchaudio, 'list_audio_backends'):
             torchaudio.list_audio_backends = lambda: []
             print("Aplicado monkeypatch em torchaudio.list_audio_backends para PyTorch >= 2.4.")
-    except Exception as e:
+    except Exception:
         pass
 
 def parse_srt(srt_path):

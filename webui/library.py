@@ -1,17 +1,20 @@
-import os
-import json
-import urllib.parse
-import gradio as gr
 import datetime
+import json
+import os
 import time
+import urllib.parse
+
+import gradio as gr
 
 # Setup Virals Dir relative to this file
 # This file is in webui/library.py
 # VIRALS dir is in ../VIRALS (root of project)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 import sys
+
 sys.path.append(BASE_DIR)
 from i18n.i18n import I18nAuto
+
 i18n = I18nAuto()
 
 VIRALS_DIR = os.path.join(BASE_DIR, "VIRALS")
@@ -94,7 +97,6 @@ def filter_projects(query="", date_from="", date_to=""):
 
 
 def _find_segment_video(project_folder_path, seg, index):
-    title = seg.get("title", f"{i18n('Segment')} {index+1}")
     video_path = seg.get("filepath", None)
     if video_path and os.path.exists(video_path):
         return video_path
@@ -176,7 +178,6 @@ def generate_project_gallery(project_path_name, is_full_path=False):
         for i, seg in enumerate(segments_list):
             title = seg.get("title", f"{i18n('Segment')} {i+1}")
             score = seg.get("score", "N/A")
-            description = seg.get("description", i18n("No description available."))
             video_path = _find_segment_video(project_folder_path, seg, i)
 
             video_tag = ""
@@ -222,8 +223,8 @@ def generate_project_gallery(project_path_name, is_full_path=False):
                             """
                             download_link = f'<a href="{video_src}" download="{os.path.basename(video_path)}" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="Download" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>'
                             proj_name_api = os.path.basename(project_path_name)
-                            def make_export_btn(fmt, label, color_hover, svg_path):
-                                src = f"/export_xml_api?project={proj_name_api}&segment={i}&format={fmt}"
+                            def make_export_btn(fmt, label, color_hover, svg_path, _proj=proj_name_api, _seg=i):
+                                src = f"/export_xml_api?project={_proj}&segment={_seg}&format={fmt}"
                                 return f'<a href="{src}" target="_blank" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="{label}" onmouseover="this.style.color=\'{color_hover}\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_path}</svg></a>'
 
                             export_pr = make_export_btn("premiere", "Export Premiere XML (Split Screen – known bug)", "#d064ff", '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M9 15h6"></path><path d="M12 12v6"></path>')

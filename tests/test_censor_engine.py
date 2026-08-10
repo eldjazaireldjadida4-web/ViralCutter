@@ -12,7 +12,6 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import censor_engine as ce
-from scripts.safety_filter import _build_index
 
 FFMPEG = shutil.which("ffmpeg")
 
@@ -39,7 +38,6 @@ class TestComputeSpans:
     def test_finds_offending_words(self):
         spans = ce.compute_censor_spans(SEGMENT, WORDS)
         assert spans
-        covered = [(s["start"], s["end"]) for s in spans]
         # القردة (1.5-2.0) + والخنازير (2.0-2.5) merge into one padded span
         # اذبحهم (3.0-3.5) is its own span
         assert len(spans) == 2

@@ -323,7 +323,7 @@ def _run_pip(args):
     cmd = [sys.executable, "-m", "pip", "install"] + args
     try:
         return subprocess.run(cmd, capture_output=True, text=True)
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -351,8 +351,8 @@ def fix_numpy_pin(dry_run=False):
     if spec is None:
         return True, "numpy not installed - nothing to pin"
     try:
-        from numpy import __version__ as v
         import packaging.version as _pv
+        from numpy import __version__ as v
         if _pv.parse(v) < _pv.parse("2.0"):
             return True, "numpy %s OK (<2)" % v
     except Exception:
@@ -415,12 +415,12 @@ def collect_checks():
     checks += [check_api_config(), check_assets(), check_models_dir()]
 
     # dependency checks per requirements file
-    for req_file, (label, optional, hint) in REQ_FILES.items():
+    for req_file, (_label, _optional, _hint) in REQ_FILES.items():
         deps = _read_req_names(req_file)
         if not deps:
             continue
-        for dist, raw in deps:
-            checks.append(check_dependency(dist, raw, critical=not optional))
+        for dist, _raw in deps:
+            checks.append(check_dependency(dist, _raw, critical=not _optional))
             pin = check_pin(dist, PINNED_RULES[0][1]) if dist == "numpy" else None
             if pin:
                 checks.append(pin)
@@ -452,8 +452,8 @@ def repair(mode, checks):
     # 2) pip installs (core always attempted; optional stacks only on request)
     fail_names = [c["name"] for c in checks if c["status"] == FAIL]
     req_fails = {}
-    for req_file, (label, optional, hint) in REQ_FILES.items():
-        for dist, raw in _read_req_names(req_file):
+    for req_file, (_label, _optional, _hint) in REQ_FILES.items():
+        for dist, _raw in _read_req_names(req_file):
             if dist in fail_names and dist not in req_fails:
                 req_fails[dist] = req_file
 

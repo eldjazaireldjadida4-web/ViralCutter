@@ -63,3 +63,8 @@ webui_settings.json
 safety_terms.json
 strike_feedback.json
 analytics_report.json
+
+# Coverage artifacts
+.coverage
+.coverage.*
+htmlcov/

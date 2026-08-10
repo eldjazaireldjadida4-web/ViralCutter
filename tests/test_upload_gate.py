@@ -121,6 +121,7 @@ class TestYouTubeUploaderReal:
 
     def test_upload_builds_request_and_returns_id(self, tmp_path, monkeypatch):
         import sys as _sys
+
         from scripts import upload_gate as ug
 
         video = tmp_path / "clip.mp4"

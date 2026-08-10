@@ -1,5 +1,6 @@
-from datetime import timedelta
 import subprocess
+from datetime import timedelta
+
 
 def timestamp_to_srt(seconds):
     td = timedelta(seconds=seconds)

@@ -261,7 +261,7 @@ class YouTubeUploader(_BaseUploader):
 
     def auth(self):
         """Run the OAuth consent flow and save the token (no upload)."""
-        creds = self._load_or_create_token()
+        self._load_or_create_token()
         print("[youtube] ✅ token saved → {}".format(self._token_path()))
         return self._token_path()
 
@@ -309,7 +309,7 @@ class YouTubeUploader(_BaseUploader):
             from googleapiclient.http import MediaFileUpload
         except ImportError:
             raise RuntimeError(
-                "youtube upload needs: pip install -r requirements-upload.txt")
+                "youtube upload needs: pip install -r requirements-upload.txt") from None
 
         tags = [str(h).lstrip("#") for h in (hashtags or []) if str(h).strip()]
         description = caption or ""
@@ -476,7 +476,6 @@ def _load_token(platform):
 
 def _multipart_body(fields, file_path, file_field, boundary):
     """Build a multipart/form-data body (stdlib only)."""
-    import uuid
     lines = []
     for k, v in (fields or {}).items():
         lines.append("--" + boundary)

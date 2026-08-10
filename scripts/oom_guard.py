@@ -16,7 +16,6 @@ Usage (drop-in):
 
 import gc
 import os
-import re
 
 FALLBACK_CHAIN = {
     "large-v3": "medium",

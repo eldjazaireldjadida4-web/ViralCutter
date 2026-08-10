@@ -82,7 +82,7 @@ def _build_services():
     try:
         from googleapiclient.discovery import build
     except ImportError:
-        raise RuntimeError("analytics needs: pip install -r requirements-upload.txt")
+        raise RuntimeError("analytics needs: pip install -r requirements-upload.txt") from None
     creds = load_credentials()
     return (build("youtubeAnalytics", "v2", credentials=creds),
             build("youtube", "v3", credentials=creds))

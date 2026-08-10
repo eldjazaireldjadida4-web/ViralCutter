@@ -221,7 +221,7 @@ class TestDownloadNeverReturnsNone:
                         base_root=str(tmp_path), download_subs=False)
 
     def test_invalid_url_raises(self, monkeypatch, tmp_path):
-        dl = self._run_private_video_sim(monkeypatch, tmp_path, sys.modules)
+        self._run_private_video_sim(monkeypatch, tmp_path, sys.modules)
         # different message → SystemExit instead of AuthNeededError
         class FakeBadURL(Exception):
             def __str__(self):
@@ -252,6 +252,7 @@ class TestDownloadNeverReturnsNone:
         fake.utils = _U()
         _sys.modules["yt_dlp"] = fake
         import importlib
+
         from scripts import download_video as dl2
         importlib.reload(dl2)
         with pytest.raises(SystemExit):
@@ -280,7 +281,6 @@ class TestGeminiDualSDK:
     def test_import_error_message_is_actionable(self):
         import builtins
         import importlib
-        import sys as _sys
 
         # Hermetic: drop any cached Gemini SDK modules first so the no-SDK
         # simulation below is effective even in full-install environments.
@@ -300,14 +300,14 @@ class TestGeminiDualSDK:
             assert cvs.HAS_GEMINI is False
             try:
                 cvs.call_gemini("prompt", "key")
-                assert False, "should raise"
+                raise AssertionError("should raise")
             except ImportError as e:
                 assert "google-generativeai" in str(e) or "google-genai" in str(e)
             # reload keeps the no-SDK state — the message must stay actionable
             importlib.reload(cvs)
             try:
                 cvs.call_gemini("prompt", "key")
-                assert False, "should raise"
+                raise AssertionError("should raise")
             except ImportError as e:
                 assert "google-generativeai" in str(e) or "google-genai" in str(e)
         finally:
@@ -339,6 +339,7 @@ class TestGeminiDualSDK:
         fake.GenerativeModel = FakeGenAI.GenerativeModel
         _sys.modules["google.generativeai"] = fake
         import importlib
+
         import scripts.create_viral_segments as cvs
         importlib.reload(cvs)
         assert cvs.HAS_GEMINI is True
@@ -395,13 +396,14 @@ class TestBrokenWhisperxResilience:
             importlib.reload(__import__("scripts.transcribe_video"))
 
     def test_placeholder_path_still_guarded(self):
-        import scripts.transcribe_video as tv
         # without the env flag it must raise a clear error, not crash
         import os
+
+        import scripts.transcribe_video as tv
         os.environ.pop("VIRALCUTTER_ALLOW_PLACEHOLDER", None)
         try:
             tv.transcribe("/nope.mp4", "large-v3", project_folder="/tmp/x")
-            assert False, "should raise"
+            raise AssertionError("should raise")
         except ImportError as e:
             assert "requirements-transcribe" in str(e) or "torch" in str(e) or "WhisperX" in str(e)
 

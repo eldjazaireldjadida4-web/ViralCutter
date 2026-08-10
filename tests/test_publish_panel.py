@@ -5,8 +5,6 @@ import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "webui"))
 
@@ -156,7 +154,7 @@ class TestStreamUpload:
     def test_missing_clip(self):
         lines = list(pp.stream_upload("/tmp/x", "youtube", "/nope.mp4",
                                       "T", "C", [], True, "warn"))
-        assert any("Clip not found" in l for l in lines)
+        assert any("Clip not found" in label for label in lines)
 
     def test_upload_flow(self, tmp_path, monkeypatch):
         project = _project(tmp_path)

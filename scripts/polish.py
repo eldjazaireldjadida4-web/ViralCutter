@@ -18,7 +18,7 @@ import os
 import subprocess
 import sys
 
-from scripts import jump_cuts, punch_zoom, background_music, branding
+from scripts import background_music, branding, jump_cuts, punch_zoom
 
 STAGE_ORDER = ["jump_cuts", "punch_zoom", "background_music", "branding"]
 
@@ -144,7 +144,6 @@ def polish_project(project_folder, enable=None, keywords=None,
         base = os.path.basename(video_file)
         tmp_dir = os.path.join(project_folder, ".polish_tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-        work = os.path.join(tmp_dir, base)
         current = video_file
         subs_json = _subs_json_for(final_dir, video_file, subs_dir)
         applied_cuts = []

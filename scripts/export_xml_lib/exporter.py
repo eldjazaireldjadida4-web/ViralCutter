@@ -1,11 +1,12 @@
-import os
 import json
+import os
 import shutil
-import zipfile
-from .utils import json_to_srt, get_video_dims
+
 from .face_detection import detect_faces_jit
 from .rendering import render_segmented_overlays
+from .utils import get_video_dims, json_to_srt
 from .xml_generator import create_premiere_xml
+
 
 def export_pack(project_path, segment_index, output_format="premiere"):
     """
@@ -19,7 +20,6 @@ def export_pack(project_path, segment_index, output_format="premiere"):
     
     # 1. IDENTIFY VIDEO FILE
     video_file = None
-    original_scale_file = None
     
     if os.path.exists(cut_dir):
         files = os.listdir(cut_dir)

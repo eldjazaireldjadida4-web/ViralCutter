@@ -27,12 +27,11 @@ How it fits in the pipeline
 import glob
 import json
 import os
-import re
 import subprocess
 
 from scripts.safety_filter import (
-    _build_index,
     SEVERITY_ORDER,
+    _build_index,
     load_custom_terms,
     load_remote_terms,
     normalize_text,

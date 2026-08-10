@@ -2,12 +2,16 @@
 import os
 import re
 import subprocess
+
 import gradio as gr
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKING_DIR = os.path.dirname(CURRENT_DIR) # ViralCutter root
 import sys
+
 sys.path.append(WORKING_DIR)
 from i18n.i18n import I18nAuto
+
 i18n = I18nAuto()
 
 # Subtitle Presets
@@ -407,6 +411,7 @@ def apply_preset(preset):
 
 import scripts.adjust_subtitles as adjust
 
+
 def render_preview_video(font, size, color, highlight, outline, outline_thick, shadow, shadow_sz, bold, italic, upper,
                          h_size, w_block, gap, mode, under, strike, border_s, vert_pos, align, remove_punc):
     # Helper to convert HEX to ASS color &HBBGGRR&
@@ -516,6 +521,7 @@ def render_preview_video(font, size, color, highlight, outline, outline_thick, s
         
         if os.path.exists(out_vid_path):
             import shutil
+
             # Create a timestamped copy to force browser cache refresh
             import time
             timestamp = int(time.time())

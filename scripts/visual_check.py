@@ -256,7 +256,7 @@ def download_model(target_path=None, url=None):
                 os.remove(tmp)
             except Exception:
                 pass
-        raise RuntimeError("visual model download failed: {}".format(e))
+        raise RuntimeError("visual model download failed: {}".format(e)) from None
     print("Saved visual model to {}".format(target))
     return target
 

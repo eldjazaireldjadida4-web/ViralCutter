@@ -1,6 +1,7 @@
 import os
-import uuid
 import statistics
+import uuid
+
 
 def create_premiere_xml(project_name, video_path, overlay_segments, duration_frames, width=1080, height=1920, timebase=30, video_file_id=None, audio_file_id=None, scale_value=100.0, face_data=None, source_width=1920, source_height=1080):
     """
@@ -103,7 +104,7 @@ def create_premiere_xml(project_name, video_path, overlay_segments, duration_fra
         sorted_segs = sorted(overlay_segments, key=lambda x: x['start'])
         is_last_dual = False # Initialize is_last_dual
 
-        for idx, seg in enumerate(sorted_segs):
+        for _idx, seg in enumerate(sorted_segs):
             start_f = int(seg['start'] * fps_float)
             end_f = int(seg['end'] * fps_float)
             

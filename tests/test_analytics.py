@@ -1,6 +1,5 @@
 """Tests for the performance analytics module (scripts/analytics.py, Roadmap 5.4)."""
 
-import json
 import os
 import sys
 

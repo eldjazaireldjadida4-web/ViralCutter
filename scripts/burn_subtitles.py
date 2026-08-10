@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 
 
 def _detect_best_encoder():

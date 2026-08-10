@@ -1,11 +1,8 @@
 """Tests for the pre-flight check & auto-repair module (scripts/preflight.py)."""
 
-import importlib
 import json
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -77,7 +74,6 @@ def test_check_api_config_missing(monkeypatch, tmp_path):
 def test_check_api_config_invalid(tmp_path):
     p = tmp_path / "api_config.json"
     p.write_text("{not json")
-    monkeypatch_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     monkeypatch_dir_holder = tmp_path
     old = preflight._app_dir
     preflight._app_dir = lambda: str(monkeypatch_dir_holder)

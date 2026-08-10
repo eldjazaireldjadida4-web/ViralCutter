@@ -1,5 +1,47 @@
 # Changelog
 
+## 🚀 v6.14.1 — إصلاحات الجودة الشاملة: lint نظيف + خلل mediapipe قاتل + بوابات CI (2026-08-09)
+
+### Fix — خلل حقيقي قاتل
+- **`scripts/edit_video.py`**: `generate_short_mediapipe` كان يستعمل
+  `coordinate_log` (تسجيل إطارات بلا وجه في وضع padding الافتراضي) **بلا
+  تعريف** — كان ينهار بـ NameError في منتصف المعالجة على أي مقطع mediapipe
+  بلا وجه. أُصلح (اكتشفه فحص `ruff` الجديد: F821).
+
+### Quality — أول بوابة lint في تاريخ المشروع
+- **ruff** في `pyproject.toml` (قواعد: E/F/I/B — أخطاء حقيقية + ترتيب
+  استيراد؛ تجاهلات موثّقة: E501/E701/E722 للأسلوب المتعمد).
+- **إصلاح 250+ ملاحظة** عبر المشروع: إزالة 20+ متغيراً ميتاً، `raise ...
+  from None`، ربط closures بحلقات (B023)، إصلاح تظليل متغير في
+  music_fingerprint (B020)، mutable default في adjust_subtitles (B006)،
+  تحويل lambdas إلى def، تنظيف استيرادات.
+- **`ruff check .` → All checks passed.** (كان 1011 ملاحظة قبل الضبط).
+
+### Quality — تغطية + بوابة CI جاهزة
+- `[tool.coverage]` في pyproject + تشغيل محلي: **39% تغطية** (إعلامية).
+- `docs/CI_UPDATE_v614.md`: محتوى `ci.yml` كامل (ruff + pytest + coverage +
+  فحص preflight) و`build-exe.yml` (خطوة مثبّت Inno Setup) — **جاهز للصق من
+  المالك** (التطبيق بلا صلاحية Workflows كما هو موثّق).
+- استثناءات coverage موثّقة (test_mediapipe_optional ينهار مع متتبع
+  coverage؛ اختبارا محاكاة download يعتمدان على جراحة sys.modules) —
+  يستثنيان فقط من التقرير الإعلامي، ويعملان كاملين في البوابة الوظيفية.
+
+### New — ملفات المشروع الاحترافية
+- `CONTRIBUTING.md` (القواعد الصارمة: i18n ×4، الإصدار، lint، حرمة
+  منظومة الأمان، حماية حلقة القص).
+- `SECURITY.md` (إبلاغ خاص، نطاق: طبقة الحماية من الضربات أولاً).
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
+- `.editorconfig` + قوالب Issues (bug/feature) في `.github/ISSUE_TEMPLATE/`.
+
+### New — مثبّت Windows
+- `packaging/installer.iss` (Inno Setup 6): متعدد اللغات (EN/AR/PT/TR)،
+  أيقونة، اختصارات، تثبيت بلا صلاحيات إدارية — يُبنى في CI بعد لصق
+  التحديث من `docs/CI_UPDATE_v614.md`.
+
+### Tests
+- 529 (كلها خضراء) + ruff نظيف.
+# Changelog
+
 ## 🚀 v6.14.0 — الاحترافية: أزرار WebUI + أيقونة exe + قفل اعتماديات (2026-08-09)
 
 ### New — WebUI: التعلّم والأداء والأبعاد (المستوى 1 الاحترافي)

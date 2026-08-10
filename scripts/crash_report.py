@@ -21,7 +21,6 @@ import json
 import os
 import platform
 import re
-import sys
 import time
 import urllib.request
 

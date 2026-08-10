@@ -1,6 +1,6 @@
 import json
-import re
 import os
+import re
 
 RTL_LANGS = {"ar", "he", "fa", "ur"}
 
@@ -28,11 +28,13 @@ def generate_ass_from_file(input_path, output_path, project_folder,
                            words_per_block, gap_limit, mode, vertical_position, alignment, 
                            font, outline_color, shadow_color, bold, italic, underline, 
                             strikeout, border_style, outline_thickness, shadow_size, uppercase,
-                            face_modes={}, remove_punctuation=True):
+                            face_modes=None, remove_punctuation=True):
     """
     Generates a single ASS file from a JSON input.
     """
-    
+    if face_modes is None:
+        face_modes = {}
+
     # 1. Load Timeline Data (if exists)
     # 1. Load Timeline Data (if exists)
     filename = os.path.basename(input_path)
@@ -69,20 +71,6 @@ def generate_ass_from_file(input_path, output_path, project_folder,
                  with open(csv_timeline, "r") as tf:
                      timeline_data = json.load(tf)
              except: pass
-
-    # 2. Determine Style Overrides (Face Mode)
-    # Determine static alignment (fallback)
-    key = base_name
-    if idx is not None:
-        key = f"output{str(idx).zfill(3)}"
-    
-    current_alignment = alignment
-    current_vertical_position = vertical_position
-    
-    mode_face = face_modes.get(key)
-    if mode_face == "2" and not timeline_data: # Only use static if no timeline
-        current_alignment = 5 
-        current_vertical_position = 0 
 
     # 3. Load JSON
     try:

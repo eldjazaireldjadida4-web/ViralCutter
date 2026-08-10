@@ -9,12 +9,10 @@ the import-time guard.
 """
 
 import importlib
+import os
 import sys
 import types
 
-import pytest
-
-import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -75,5 +73,5 @@ def test_modules_expose_expected_functions():
     for fn in ("crop_and_resize_single_face", "resize_with_padding",
                "detect_face_or_body", "crop_center_zoom"):
         assert callable(getattr(of, fn)), fn
-    assert callable(getattr(tf, "detect_face_or_body_two_faces"))
-    assert callable(getattr(ev, "get_best_encoder"))
+    assert callable(tf.detect_face_or_body_two_faces)
+    assert callable(ev.get_best_encoder)

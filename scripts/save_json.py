@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import sys
 
 from i18n.i18n import I18nAuto

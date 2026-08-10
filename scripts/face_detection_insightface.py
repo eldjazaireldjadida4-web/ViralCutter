@@ -1,9 +1,9 @@
-import cv2
-import numpy as np
 import os
 import sys
-from contextlib import contextmanager
 import warnings
+from contextlib import contextmanager
+
+import cv2
 
 # Suppress warnings
 warnings.filterwarnings("ignore")

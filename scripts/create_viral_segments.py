@@ -1,10 +1,10 @@
+import ast
+import io
 import json
 import os
 import re
 import sys
 import time
-import ast
-import io
 
 # Configura stdout para evitar erros de encoding no Windows (substitui caracteres inválidos por ?)
 # Aplicado apenas no Windows — em Linux/macOS (e no CI/pytest) o stdout nativo já é UTF-8
@@ -762,7 +762,7 @@ OUTPUT JSON ONLY:
                 json_template=json_template,
                 amount=quantidade_de_virals
             )
-        except KeyError as e:
+        except KeyError:
             prompt = system_prompt_template
             prompt = prompt.replace("{context_instruction}", context_instruction)
             prompt = prompt.replace("{virality_instruction}", virality_instruction)
@@ -903,7 +903,7 @@ OUTPUT JSON ONLY:
             print(f"Encontrados {len(chunk_segments)} segmentos neste chunk.")
             all_raw_segments.extend(chunk_segments)
         except json.JSONDecodeError:
-            print(f"Erro: Resposta inválida.")
+            print("Erro: Resposta inválida.")
         except Exception as e:
             print(f"Erro desconhecido ao processar chunk: {e}")
 

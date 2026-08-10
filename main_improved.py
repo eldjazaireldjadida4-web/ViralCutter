@@ -14,39 +14,36 @@ if getattr(sys, "frozen", False):
         os.environ["PATH"] = _bundle_dir + os.pathsep + os.environ.get("PATH", "")
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import json
-import shutil
-import subprocess
 import argparse
-import time
 import atexit
+import json
+import time
+
+from i18n.i18n import DEFAULT_LANGUAGE, I18nAuto
 from scripts import (
-    download_video,
-    transcribe_video,
-    create_viral_segments,
-    cut_segments,
-    edit_video,
-    transcribe_cuts,
     adjust_subtitles,
     burn_subtitles,
-    save_json,
-    organize_output,
-    translate_json,
-    safety_filter,
-    safety_ai,
     censor_engine,
-    risk_scorecard,
     checkpoint,
+    crash_report,
+    create_viral_segments,
+    cut_segments,
+    download_video,
+    edit_video,
+    metadata_compliance,
     oom_guard,
     polish,
-    upload_gate,
-    metadata_compliance,
+    risk_scorecard,
+    safety_ai,
+    safety_filter,
+    save_json,
     secure_config,
-    crash_report,
+    translate_json,
+    upload_gate,
 )
-from i18n.i18n import I18nAuto, DEFAULT_LANGUAGE
 
 # Inicializa sistema de tradução (default: Arabic; override with VIRALCUTTER_LANG)
 i18n = I18nAuto(DEFAULT_LANGUAGE)
@@ -743,7 +740,7 @@ def main():
                         cookies_from_browser=args.cookies_from_browser,
                         cookies_file=args.cookies)
                     break
-                except download_video.AuthNeededError as auth_err:
+                except download_video.AuthNeededError:
                     if (_interactive_tty and not args.skip_prompts
                             and not args.cookies_from_browser and not args.cookies
                             and not _auth_retried):
@@ -753,7 +750,7 @@ def main():
                         if resp in ('y', 'yes'):
                             args.cookies_from_browser = 'chrome'
                             continue
-                    raise SystemExit(1)
+                    raise SystemExit(1) from None
             
             # Guard FIRST: a failed/empty download must never reach
             # os.path.dirname(None) (this crashed on Windows — v6.3c).

@@ -136,12 +136,12 @@ def fingerprint_file(video_path, timeout=600):
             "  • Linux: sudo apt-get install libchromaprint-tools")
 
     errors = []
-    for fpcalc in fpcalc:
-        cmd = [fpcalc, "-raw", str(video_path)]
+    for candidate in fpcalc:
+        cmd = [candidate, "-raw", str(video_path)]
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except Exception as e:
-            errors.append("{}: {}".format(fpcalc, e))
+            errors.append("{}: {}".format(candidate, e))
             continue
         if proc.returncode != 0:
             detail = (proc.stderr or proc.stdout or "").strip()[:300]

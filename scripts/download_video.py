@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - depends on environment
     yt_dlp = None
 
 from i18n.i18n import I18nAuto
+
 i18n = I18nAuto()
 
 
@@ -309,7 +310,6 @@ def download(url, base_root="VIRALS", download_subs=True, quality="best",
                     srt_content = []
                     counter = 1
 
-                    seen_texts = set()
                     last_text = ""
 
                     for line in lines:

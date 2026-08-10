@@ -1,7 +1,9 @@
-import cv2
-import numpy as np
 import os
 import subprocess
+
+import cv2
+import numpy as np
+
 # v6.9.1: mediapipe is optional — a missing/broken install must not kill the
 # module import (the pipeline crashed mid-run with a bare ModuleNotFoundError
 # before). The usage site below already falls back to OpenCV Haar Cascade
@@ -13,10 +15,19 @@ except ImportError:
     mp = None
     MEDIAPIPE_AVAILABLE = False
     print("MediaPipe not found. Install with: pip install mediapipe — will fall back to OpenCV Haar Cascade if needed.")
-from scripts.one_face import crop_and_resize_single_face, resize_with_padding, detect_face_or_body, crop_center_zoom
+from scripts.one_face import (
+    crop_and_resize_single_face,
+    crop_center_zoom,
+    resize_with_padding,
+)
 from scripts.two_face import crop_and_resize_two_faces, detect_face_or_body_two_faces
+
 try:
-    from scripts.face_detection_insightface import init_insightface, detect_faces_insightface, crop_and_resize_insightface
+    from scripts.face_detection_insightface import (
+        crop_and_resize_insightface,
+        detect_faces_insightface,
+        init_insightface,
+    )
     INSIGHTFACE_AVAILABLE = True
 except ImportError:
     INSIGHTFACE_AVAILABLE = False
@@ -115,8 +126,6 @@ def generate_short_fallback(input_file, output_file, index, project_folder, fina
     fps = cap.get(cv2.CAP_PROP_FPS)
     if not fps or fps <= 0 or fps > 240:
         fps = 30.0  # broken/VFR metadata → assume 30; keeps A/V in sync
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     # Target dimensions (9:16)
     
@@ -247,23 +256,18 @@ def generate_short_mediapipe(input_file, output_file, index, face_mode, project_
             return
 
         fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_file, fourcc, fps, (1080, 1920))
 
+        # v6.14.1 fix: coordinate_log was referenced below (empty-face frames)
+        # but only ever initialized in the insightface function → NameError
+        # crash in the mediapipe path with no_face_mode="padding" (default).
+        coordinate_log = []  # Store raw face coordinates frame-by-frame
+
         next_detection_frame = 0
-        current_interval = int(5 * fps) # Initial guess
 
-        # Initial Interval Logic if predefined
-
-        if detection_period is not None:
-             current_interval = max(1, int(detection_period * fps))
-        elif face_mode == "2":
-             current_interval = int(1.0 * fps)
-        
         last_detected_faces = None
         last_frame_face_positions = None
         last_success_frame = -1000
@@ -317,7 +321,7 @@ def generate_short_mediapipe(input_file, output_file, index, face_mode, project_
                         end_faces = np.array(current_detections)
                         try:
                             transition_frames = np.linspace(start_faces, end_faces, transition_duration, dtype=int)
-                        except Exception as e:
+                        except Exception:
                             # Fallback if shapes mismatch unexpectedly
                             transition_frames = []
                     else:
@@ -638,7 +642,6 @@ def generate_short_insightface(input_file, output_file, index, project_folder, f
                 last_detected_faces = None
                 transition_frames = []
                 faces_activity_state = [] 
-                zoom_ema_bbox = None # Reset smoothing too
             # ---------------------------
 
             # Update Activity State - Two Pass for Global Motion Compensation
@@ -769,7 +772,7 @@ def generate_short_insightface(input_file, output_file, index, project_folder, f
                              # Raised threshold to 4.0 to avoid noise triggering split
                              target_faces = 2
                              decided = True
-                             print(f"DEBUG: Dual Active Speakers! Both scores > 4.0. Forcing Split Mode.")
+                             print("DEBUG: Dual Active Speakers! Both scores > 4.0. Forcing Split Mode.")
                          
                          # If scores are low (both silent), fallback to size ratio (decided=False) or force 1 if very silent?
                          # Let's fallback to size.
@@ -845,7 +848,7 @@ def generate_short_insightface(input_file, output_file, index, project_folder, f
                    if target_faces == 1:
                        old_center = get_center_bbox(last_detected_faces[0])
                        
-                       def sort_score(f):
+                       def sort_score(f, old_center=old_center):
                            # Distance score (lower is better)
                            dist = np.sqrt((f['center'][0] - old_center[0])**2 + (f['center'][1] - old_center[1])**2)
                            # EFFECTIVE Area score (higher is better)
@@ -1146,7 +1149,7 @@ def edit(project_folder="tmp", face_model="insightface", face_mode="auto", detec
             mp_pose = mp.solutions.pose
             
             # Try to init with model_selection=0 (Short Range) as a smoketest
-            with mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5) as fd:
+            with mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5):
                 pass
             mediapipe_working = True
             print("MediaPipe Initialized Successfully.")

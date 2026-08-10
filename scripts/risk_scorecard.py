@@ -25,8 +25,8 @@ import json
 import os
 import subprocess
 
-from scripts.safety_filter import find_matches, normalize_text
 from scripts import visual_check
+from scripts.safety_filter import find_matches
 
 SCORECARD_FILENAME = "risk_scorecard.json"
 PUBLISH_BLOCKLIST_FILENAME = "publish_blocklist.json"
@@ -110,7 +110,8 @@ def _letterbox_ratio(video_path, at_seconds):
     bottom = sum(row_mean(r) for r in range(h - 3, h)) / 3
     mid = sum(row_mean(r) for r in range(h // 2 - 2, h // 2 + 2)) / 4
 
-    dark = lambda v: v < 20.0
+    def dark(v):
+        return v < 20.0
 
     bars = 0.0
     if mid > 35.0 and dark(top) and dark(bottom):
@@ -139,7 +140,7 @@ def profanity_in_first_seconds(segment, words, seconds=FIRST_SECONDS_PROFANITY):
     in_window = []
     for w in words:
         try:
-            ws, we = float(w["start"]), float(w["end"])
+            ws = float(w["start"])
         except Exception:
             continue
         if ws >= seg_start - 0.05 and ws <= window_end:

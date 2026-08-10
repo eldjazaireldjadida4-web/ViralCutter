@@ -9,8 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import checkpoint, secure_config, oom_guard, auto_updater
-
+from scripts import auto_updater, checkpoint, oom_guard, secure_config
 
 # ---------------------------------------------------------------------------
 # checkpoint
