@@ -1,4 +1,7 @@
 # ViralCutter
+[![CI](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml/badge.svg)](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-565%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
 
 **100% Free, Local, and Unlimited Open-Source Alternative to Opus Clip**  
@@ -152,5 +155,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 - ✅ **Reproducible installs**: `uv sync` (uses `uv.lock`); the classic `install_dependencies.bat` flow still works.
 
 
-**Current Version**: 6.16.0 — automatic pre-flight (checks and installs everything before running)
+**Current Version**: 6.16.1 — automatic pre-flight (checks and installs everything before running)
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀

@@ -1,4 +1,7 @@
 # ViralCutter
+[![CI](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml/badge.svg)](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-565%20passed-brightgreen)](tests/)
 
 **البديل المفتوح المصدر المجاني 100% لـ Opus Clip — يعمل محلياً وبلا حدود**
 حوّل فيديوهات يوتيوب الطويلة إلى مقاطع قصيرة فيروسية جاهزة لـ TikTok وInstagram Reels وYouTube Shorts — بذكاء اصطناعي متقدم، وترجمات ديناميكية، وتتبع دقيق للوجه، وترجمة تلقائية. كل شيء يعمل على جهازك.
@@ -324,5 +327,5 @@ python -m scripts.upload_gate --project VIRALS/مشروعك --index 0 --title ".
 - ✅ **تثبيت قابل للتكرار**: `uv sync` (يستخدم `uv.lock`)؛ تدفق `install_dependencies.bat` الكلاسيكي يعمل كما هو.
 
 
-**الإصدار الحالي**: 6.16.0 — فحص مسبق تلقائي (يتحقق ويثبّت كل شيء قبل التشغيل)
+**الإصدار الحالي**: 6.16.1 — فحص مسبق تلقائي (يتحقق ويثبّت كل شيء قبل التشغيل)
 *ViralCutter: لأن المقاطع الفيروسية لا يجب أن تكلّف ثروة.* 🚀

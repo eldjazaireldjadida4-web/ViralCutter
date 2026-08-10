@@ -4,7 +4,7 @@
 ; the resulting setup.exe to the GitHub Release next to ViralCutter.exe.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "6.16.0"
+  #define MyAppVersion "6.16.1"
 #endif
 
 #define MyAppName "ViralCutter"
