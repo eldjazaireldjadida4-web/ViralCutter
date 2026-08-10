@@ -17,7 +17,7 @@ PROGRESS_STAGES = ["download", "transcribe", "ai", "cut", "edit", "subtitles", "
 
 def empty_progress_state(current=None):
     current = current or i18n("Loading...")
-    loading = i18n("Loading...")
+    loading = i18n("Waiting for a run...")  # initial/empty state, not real loading
     state = {k: {"percent": 0, "message": loading} for k in PROGRESS_STAGES}
     state["overall"] = 0
     state["current"] = current

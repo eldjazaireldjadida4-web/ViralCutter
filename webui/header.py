@@ -34,13 +34,13 @@ description = """
 """.format(logo=LOGO_DATA_URI, version=VERSION)
 
 
-def env_status_html():
+def env_status_html(force=False):
     """Render the pre-flight environment status card (run once, cached).
 
     Mirrors scripts/preflight so the user SEES the 'everything in place'
     guarantee instead of trusting it blindly. Never raises.
     """
-    if getattr(env_status_html, "_cached", None) is not None:
+    if not force and getattr(env_status_html, "_cached", None) is not None:
         return env_status_html._cached
     try:
         # build a compact summary from the live checks
@@ -71,8 +71,8 @@ def env_status_html():
     return html
 
 
-def home_panel():
-    """🏠 Home tab: quick start + live environment status."""
+def home_quickstart():
+    """🏠 Home tab: the quick-start card (status is a separate component)."""
     steps = [
         ("1️⃣", "الصق رابط فيديو يوتيوب (أو ارفع فيديو)"),
         ("2️⃣", "اختر عدد المقاطع وأسلوب الذكاء الاصطناعي (Gemini مجاني أو محلي)"),
@@ -89,10 +89,10 @@ def home_panel():
     <h3 style="margin:0 0 6px; color:#f1f5f9;">🚀 ابدأ خلال دقيقة</h3>
     <ul style="margin:0; padding-right:20px; line-height:1.9; color:#cbd5e1;">{steps}</ul>
   </div>
-  <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px 20px;">
-    <h3 style="margin:0 0 6px; color:#f1f5f9;">🔧 حالة النظام</h3>
-    <div style="color:#94a3b8; font-size:0.9em;">فحص مسبق تلقائي: البرنامج يتحقق من كل شيء (الحزم، ffmpeg، الإعدادات) قبل التشغيل.</div>
-    {status}
-  </div>
 </div>
-""".format(steps=steps_html, status=env_status_html())
+""".format(steps=steps_html)
+
+
+def home_panel():
+    """Full home content: quick-start + live system status (boot-time)."""
+    return home_quickstart() + env_status_html()

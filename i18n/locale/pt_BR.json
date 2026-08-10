@@ -567,5 +567,8 @@
     "📅 Daily views": "📅 Visualizações diárias",
     "Analytics report": "Relatório de análise",
     "Home": "Início",
-    "Performance": "Desempenho"
+    "Performance": "Desempenho",
+    "System status": "Status do sistema",
+    "Re-check system": "Verificar novamente",
+    "Waiting for a run...": "Aguardando execução..."
 }

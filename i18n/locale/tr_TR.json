@@ -567,5 +567,8 @@
     "📅 Daily views": "📅 Günlük görüntülenme",
     "Analytics report": "Analiz raporu",
     "Home": "Ana Sayfa",
-    "Performance": "Performans"
+    "Performance": "Performans",
+    "System status": "Sistem durumu",
+    "Re-check system": "Yeniden kontrol et",
+    "Waiting for a run...": "Çalışma bekleniyor..."
 }

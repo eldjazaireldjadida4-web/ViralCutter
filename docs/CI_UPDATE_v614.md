@@ -38,7 +38,7 @@ jobs:
           pip install pytest pytest-cov ruff
           pip install -r requirements-dev.txt
       - name: Lint (ruff)
-        run: ruff check . --exclude .venv
+        run: ruff check .
       - name: Run the full test suite (hard gate)
         run: pytest -v
       - name: Pre-flight smoke (scripts/preflight.py must pass on CI)

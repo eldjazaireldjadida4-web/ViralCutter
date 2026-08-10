@@ -670,5 +670,8 @@
     "📅 Daily views": "📅 المشاهدات اليومية",
     "Analytics report": "تقرير التحليلات",
     "Home": "الرئيسية",
-    "Performance": "الأداء"
+    "Performance": "الأداء",
+    "System status": "حالة النظام",
+    "Re-check system": "إعادة الفحص",
+    "Waiting for a run...": "بانتظار التشغيل..."
 }

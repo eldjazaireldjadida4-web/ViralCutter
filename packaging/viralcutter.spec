@@ -121,7 +121,7 @@ a = Analysis(
         "tokenizers",
         "av",
         # WebUI (launched by default when the exe is double-clicked)
-        "app", "library", "subtitle_handler", "subtitle_editor",
+        "app", "style", "library", "subtitle_handler", "subtitle_editor",
         "segments_review", "publish_panel", "batch_queue",
         "settings_store", "header", "utils", "pipeline", "runtime",
         "learn_panel",
