@@ -21,7 +21,7 @@ BACKUP_FILENAME = "viral_segments.full_backup.json"
 SAFETY_REPORT_FILENAME = "safety_report.json"
 
 # Table columns: checkbox, title, score, start, end, duration, reason, caption, safety
-HEADERS = ["✓", "العنوان", "التقييم", "البداية", "النهاية", "المدة (ث)", "لماذا فيروسي؟", "كابشن النشر", "الأمان"]
+HEADERS = ["✓", i18n("Title"), i18n("Rating"), i18n("Start"), i18n("End"), i18n("Duration (s)"), i18n("Why Viral?"), i18n("Publish Caption"), i18n("Safety")]
 
 
 def segments_file_path(project_path):
@@ -88,7 +88,7 @@ def _safety_badge(seg, safety_map):
         "safe": "✅",
         "flagged": "⚠️",
         "blocked": "⛔",
-        "censor": "🔇 مكتوم",
+        "censor": "🔇 " + i18n("Muted"),
         "ai_flagged": "🤖⚠️",
         "ai_blocked": "🤖⛔",
     }.get(status or "safe", "✅")

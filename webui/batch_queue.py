@@ -11,7 +11,7 @@ from i18n.i18n import DEFAULT_LANGUAGE, I18nAuto
 
 i18n = I18nAuto(DEFAULT_LANGUAGE)
 
-HEADERS = ["#", "الرابط", "الحالة"]
+HEADERS = ["#", i18n("Link"), i18n("Status")]
 
 STATUS_ICONS = {"pending": "⏳", "running": "🔄", "done": "✅", "failed": "❌"}
 STATUS_I18N = {

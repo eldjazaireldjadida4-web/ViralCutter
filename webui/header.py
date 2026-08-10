@@ -27,11 +27,10 @@ description = """
     <span style="background:linear-gradient(90deg,#f97316,#ea580c); color:#fff; border-radius:999px; padding:3px 14px; font-size:0.85em; font-weight:600;">v{version}</span>
   </div>
   <p style="font-size: 1.0em; margin: 0 auto 6px; color: #cbd5e1; max-width: 760px;">
-    بديل Opus Clip مفتوح المصدر — حوّل فيديوهات يوتيوب الطويلة إلى مقاطع Shorts فيروسية،
-    محلياً بالكامل، مع طبقة حماية من ضربات يوتيوب.
+    {tagline}
   </p>
 </div>
-""".format(logo=LOGO_DATA_URI, version=VERSION)
+""".format(logo=LOGO_DATA_URI, version=VERSION, tagline=i18n("Open-source Opus Clip alternative — turn long YouTube videos into viral Shorts, fully local, with a YouTube-strike protection layer."))
 
 
 def env_status_html(force=False):
@@ -50,12 +49,12 @@ def env_status_html(force=False):
         n_warn = len(warn)
         n_fail = len(critical)
         if n_fail:
-            color, icon, label = "#f87171", "❌", "مشاكل حرجة — راجع المحطة الطرفية أو أعد التشغيل بعد الإصلاح"
+            color, icon, label = "#f87171", "❌", i18n("Critical issues — check the terminal or restart after fixing")
         elif n_warn:
-            color, icon, label = "#fbbf24", "⚠️", "النظام جاهز مع تحذيرات اختيارية (يعمل بشكل طبيعي)"
+            color, icon, label = "#fbbf24", "⚠️", i18n("System ready with optional warnings (works normally)")
         else:
-            color, icon, label = "#4ade80", "✅", "كل شيء في مكانه — النظام جاهز"
-        detail = "{} فحصاً ناجحاً · {} تحذيراً · {} حرجاً".format(n_ok, n_warn, n_fail)
+            color, icon, label = "#4ade80", "✅", i18n("Everything in place — system ready")
+        detail = i18n("{} checks passed · {} warnings · {} critical").format(n_ok, n_warn, n_fail)
         html = (
             '<div style="display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05);'
             ' border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:10px 16px; margin-top:10px;">'
@@ -74,9 +73,9 @@ def env_status_html(force=False):
 def home_quickstart():
     """🏠 Home tab: the quick-start card (status is a separate component)."""
     steps = [
-        ("1️⃣", "الصق رابط فيديو يوتيوب (أو ارفع فيديو)"),
-        ("2️⃣", "اختر عدد المقاطع وأسلوب الذكاء الاصطناعي (Gemini مجاني أو محلي)"),
-        ("3️⃣", "اضغط «بدء المعالجة» — التقطيع والترجمات وفحص الأمان يتم تلقائياً"),
+        ("1️⃣", i18n("Paste a YouTube video link (or upload a video)")),
+        ("2️⃣", i18n("Choose the number of clips and the AI style (free Gemini or local)")),
+        ("3️⃣", i18n("Press «Start Processing» — cutting, subtitles and safety check run automatically")),
     ]
     steps_html = "".join(
         '<li style="display:flex; gap:10px; align-items:flex-start; padding:8px 0;">'
@@ -86,11 +85,11 @@ def home_quickstart():
     return """
 <div style="direction:rtl; text-align:right;">
   <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px 20px; margin-bottom:14px;">
-    <h3 style="margin:0 0 6px; color:#f1f5f9;">🚀 ابدأ خلال دقيقة</h3>
+    <h3 style="margin:0 0 6px; color:#f1f5f9;">🚀 {title}</h3>
     <ul style="margin:0; padding-right:20px; line-height:1.9; color:#cbd5e1;">{steps}</ul>
   </div>
 </div>
-""".format(steps=steps_html)
+""".format(steps=steps_html, title=i18n("Start in One Minute"))
 
 
 def home_panel():

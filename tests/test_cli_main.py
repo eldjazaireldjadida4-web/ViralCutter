@@ -1,0 +1,240 @@
+"""Smoke + unit tests for the CLI entry module (main_improved.py).
+
+The heavy AI/video stacks (cv2 / mediapipe / torch / whisperx / ...) are
+stubbed in sys.modules before the module is imported — these tests cover the
+pure helpers and the startup/argument paths, not the video pipeline itself.
+"""
+
+import json
+import os
+import sys
+import types
+from unittest import mock
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+_HEAVY_MODULES = [
+    "cv2", "mediapipe", "torch", "torchaudio", "whisperx", "insightface",
+    "onnxruntime", "av", "moviepy", "librosa", "soundfile",
+    # light but not in requirements-dev.txt (CI installs pytest + numpy only)
+    "tqdm", "tqdm.asyncio", "deep_translator", "psutil",
+]
+
+
+@pytest.fixture(scope="module")
+def cli():
+    """Import main_improved once, with heavy third-party deps stubbed."""
+    saved = {}
+    stubs = {}
+    for name in _HEAVY_MODULES:
+        saved[name] = sys.modules.get(name)
+        if saved[name] is None:
+            stubs[name] = mock.MagicMock(name=name)
+    sys.modules.update(stubs)
+    try:
+        import main_improved as mod
+    finally:
+        for name, original in saved.items():
+            if original is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = original
+    return mod
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+def test_parse_face_detect_interval_single(cli):
+    assert cli.parse_face_detect_interval("0.5") == {"1": 0.5, "2": 0.5}
+
+
+def test_parse_face_detect_interval_pair(cli):
+    assert cli.parse_face_detect_interval("0.17, 1.0") == {"1": 0.17, "2": 1.0}
+
+
+@pytest.mark.parametrize("raw", [None, "", "abc", "0.1,abc", "  "])
+def test_parse_face_detect_interval_invalid(cli, raw):
+    assert cli.parse_face_detect_interval(raw) is None
+
+
+def test_load_json_file_missing_returns_default(cli, tmp_path):
+    missing = str(tmp_path / "nope.json")
+    assert cli.load_json_file(missing) == {}
+    assert cli.load_json_file(missing, default={"x": 1}) == {"x": 1}
+
+
+def test_load_json_file_roundtrip(cli, tmp_path):
+    p = tmp_path / "data.json"
+    p.write_text(json.dumps({"a": 1, "b": [2, 3]}), encoding="utf-8")
+    assert cli.load_json_file(str(p)) == {"a": 1, "b": [2, 3]}
+
+
+def test_load_json_file_corrupt_returns_default(cli, tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text("{not valid json", encoding="utf-8")
+    assert cli.load_json_file(str(p)) == {}
+    assert cli.load_json_file(str(p), default={"fallback": True}) == {"fallback": True}
+
+
+def test_emit_progress_format(cli, capsys):
+    cli.emit_progress("ai", 58, "فحص الأمان")
+    assert capsys.readouterr().out == "PROGRESS|ai|58|فحص الأمان\n"
+
+
+def test_emit_progress_coerces_percent(cli, capsys):
+    cli.emit_progress("cut", 12.9, "msg")
+    assert capsys.readouterr().out == "PROGRESS|cut|12|msg\n"
+
+
+def test_get_subtitle_config_defaults(cli):
+    cfg = cli.get_subtitle_config()
+    assert cfg["font"] == "Montserrat-Regular"
+    assert cfg["mode"] == "highlight"
+    assert cfg["base_color"] == "&H00FFFFFF&"
+    assert cfg["highlight_color"] == "&H0000FF00&"
+    assert cfg["words_per_block"] == 3
+
+
+def test_get_subtitle_config_override_keeps_untouched_defaults(cli, tmp_path):
+    p = tmp_path / "sub.json"
+    p.write_text(json.dumps({"base_size": 42, "mode": "word_by_word"}), encoding="utf-8")
+    cfg = cli.get_subtitle_config(str(p))
+    assert cfg["base_size"] == 42
+    assert cfg["mode"] == "word_by_word"
+    assert cfg["font"] == "Montserrat-Regular"
+
+
+def test_cleanup_temp_files_removes(cli, tmp_path, monkeypatch):
+    target = tmp_path / "temp_subtitle_config.json"
+    target.write_text("{}")
+    monkeypatch.setattr(cli, "TEMP_SUBTITLE_CONFIG", str(target))
+    cli.cleanup_temp_files()
+    assert not target.exists()
+
+
+def test_cleanup_temp_files_missing_is_ok(cli, tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "TEMP_SUBTITLE_CONFIG", str(tmp_path / "missing.json"))
+    cli.cleanup_temp_files()  # must not raise
+
+
+def test_interactive_input_int_retries_until_valid(cli, monkeypatch):
+    answers = iter(["abc", "-5", "3"])
+    monkeypatch.setattr("builtins.input", lambda *a: next(answers))
+    assert cli.interactive_input_int("Pick a number") == 3
+
+
+# ---------------------------------------------------------------------------
+# Startup / argument paths
+# ---------------------------------------------------------------------------
+
+def test_main_no_args_launches_webui(cli, monkeypatch):
+    """Double-click UX: bare invocation must open the WebUI, never the CLI."""
+    monkeypatch.setattr(sys, "argv", ["viralcutter"])
+    with mock.patch.object(cli, "_launch_webui") as launch:
+        cli.main()
+    launch.assert_called_once_with()
+
+
+def test_main_help_exits_zero_and_lists_flags(cli, monkeypatch, capsys):
+    """`--help` exercises the full argparse construction (all flags defined)."""
+    monkeypatch.setattr(sys, "argv", ["viralcutter", "--help"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    for flag in ("--url", "--segments", "--ai-backend", "--workflow", "--face-mode"):
+        assert flag in out
+
+
+def test_main_unknown_flag_exits_two(cli, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["viralcutter", "--no-such-flag-xyz"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# run_safety_stage (extracted pipeline stage)
+# ---------------------------------------------------------------------------
+
+def _safety_args(**over):
+    base = dict(safety_mode="block", safety_autoupdate="off",
+                safety_min_severity="high", safety_extra_terms=None,
+                safety_ai="off", ai_model_name=None)
+    base.update(over)
+    return types.SimpleNamespace(**base)
+
+
+def _segments(*texts):
+    return {"segments": [{"title": f"clip {i}", "text": t} for i, t in enumerate(texts)]}
+
+
+def test_safety_stage_skips_workflow_3(cli, tmp_path):
+    segs = _segments("hello")
+    out = cli.run_safety_stage(segs, project_folder=str(tmp_path),
+                               args=_safety_args(), ai_backend="manual",
+                               api_key=None, workflow_choice="3")
+    assert out is segs  # untouched
+
+
+def test_safety_stage_skips_mode_off(cli, tmp_path):
+    segs = _segments("hello")
+    out = cli.run_safety_stage(segs, project_folder=str(tmp_path),
+                               args=_safety_args(safety_mode="off"),
+                               ai_backend="manual", api_key=None,
+                               workflow_choice="1")
+    assert out is segs
+
+
+def test_safety_stage_returns_filtered_segments(cli, tmp_path, monkeypatch):
+    filtered = {"segments": [{"title": "ok", "text": "fine"}]}
+    monkeypatch.setattr(cli.safety_filter, "apply_safety_filter",
+                        lambda *a, **k: filtered)
+    saved = []
+    monkeypatch.setattr(cli.save_json, "save_viral_segments",
+                        lambda data, **k: saved.append(data))
+    out = cli.run_safety_stage(_segments("bad word"), project_folder=str(tmp_path),
+                               args=_safety_args(), ai_backend="manual",
+                               api_key=None, workflow_choice="1")
+    assert out is filtered
+    assert saved == [filtered]  # filtered result persisted
+
+
+def test_safety_stage_unchanged_filter_does_not_resave(cli, tmp_path, monkeypatch):
+    segs = _segments("clean")
+    monkeypatch.setattr(cli.safety_filter, "apply_safety_filter",
+                        lambda *a, **k: segs)  # same object = nothing blocked
+    monkeypatch.setattr(cli.save_json, "save_viral_segments",
+                        lambda *a, **k: pytest.fail("must not resave"))
+    out = cli.run_safety_stage(segs, project_folder=str(tmp_path),
+                               args=_safety_args(), ai_backend="manual",
+                               api_key=None, workflow_choice="1")
+    assert out is segs
+
+
+def test_safety_stage_exits_when_everything_blocked(cli, tmp_path, monkeypatch):
+    monkeypatch.setattr(cli.safety_filter, "apply_safety_filter",
+                        lambda *a, **k: {"segments": []})
+    monkeypatch.setattr(cli.save_json, "save_viral_segments", lambda *a, **k: None)
+    with pytest.raises(SystemExit) as exc:
+        cli.run_safety_stage(_segments("slur"), project_folder=str(tmp_path),
+                             args=_safety_args(safety_mode="block"),
+                             ai_backend="manual", api_key=None,
+                             workflow_choice="1")
+    assert exc.value.code == 1
+
+
+def test_safety_stage_survives_filter_exception(cli, tmp_path, monkeypatch):
+    """A crashing filter must never kill the pipeline — segments pass through."""
+    def boom(*a, **k):
+        raise RuntimeError("filter exploded")
+    monkeypatch.setattr(cli.safety_filter, "apply_safety_filter", boom)
+    segs = _segments("anything")
+    out = cli.run_safety_stage(segs, project_folder=str(tmp_path),
+                               args=_safety_args(), ai_backend="manual",
+                               api_key=None, workflow_choice="1")
+    assert out is segs

@@ -156,35 +156,35 @@ def _html_escape(text):
 
 KNOWN_ERROR_HINTS = [
     # --- Gemini API errors first: common when keys expire or quota ends (v6.9) ---
-    ("api key not valid", "مفتاح Gemini غير صالح — تحقق منه أو أنشئ مفتاحاً جديداً من aistudio.google.com/apikey ثم احفظه في الإعدادات"),
-    ("api_key_invalid", "مفتاح Gemini غير صالح — تحقق منه أو أنشئ مفتاحاً جديداً من aistudio.google.com/apikey ثم احفظه في الإعدادات"),
-    ("permission_denied", "مفتاح Gemini مرفوض (PERMISSION_DENIED) — تأكد أن المفتاح فعّال وأن Generative Language API مُفعّلة في مشروع Google Cloud"),
-    ("resource_exhausted", "انتهت حصة Gemini المجانية أو الحد اليومي — انتظر حتى يتجدد الحد، أو ارفع الحصة، أو استعمل مفتاحاً آخر"),
-    ("quota exceeded", "انتهت حصة Gemini المجانية أو الحد اليومي — انتظر حتى يتجدد الحد، أو ارفع الحصة، أو استعمل مفتاحاً آخر"),
-    ("rate limit", "يوتيوب/Gemini يحدّ الطلبات مؤقتاً — انتظر دقيقة وأعد المحاولة"),
+    ("api key not valid", i18n("Invalid Gemini API key — check it or create a new one at aistudio.google.com/apikey, then save it in Settings")),
+    ("api_key_invalid", i18n("Invalid Gemini API key — check it or create a new one at aistudio.google.com/apikey, then save it in Settings")),
+    ("permission_denied", i18n("Gemini API key rejected (PERMISSION_DENIED) — make sure the key is active and the Generative Language API is enabled in your Google Cloud project")),
+    ("resource_exhausted", i18n("Free Gemini quota or daily limit exhausted — wait for it to reset, raise the quota, or use another key")),
+    ("quota exceeded", i18n("Free Gemini quota or daily limit exhausted — wait for it to reset, raise the quota, or use another key")),
+    ("rate limit", i18n("YouTube/Gemini is rate-limiting temporarily — wait a minute and retry")),
     # --- YouTube / download errors ---
-    ("private video", "الفيديو خاص — استعمل كوكيز المتصفح: من قائمة 🔒 أو أعد التشغيل بـ --cookies-from-browser chrome"),
-    ("sign in", "الفيديو يتطلب تسجيل دخول يوتيوب — استعمل كوكيز متصفحك من قائمة 🔒"),
-    ("cookiesfrombrowser", "تعذّرت قراءة كوكيز المتصفح (تشفير Chrome) — جرّب Firefox أو ملف cookies.txt مُصدَّر"),
-    ("age", "الفيديو مقيد عمرياً — استعمل كوكيز متصفحك"),
-    ("video unavailable", "الفيديو غير متاح (محذوف أو محجوب جغرافياً)"),
-    ("google-generativeai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai (أو أعد تشغيل install_dependencies.bat)"),
-    ("google.genai", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-genai (أو أعد تشغيل install_dependencies.bat)"),
-    ("gemini sdk", "مكتبة Gemini غير مثبّتة — شغّل: pip install google-generativeai"),
-    ("generativelanguage", "خطأ من واجهة Gemini — غالباً مفتاح غير صالح أو حصة منتهية: جرّب زر 🔌 اختبار الاتصال في إعدادات الذكاء الاصطناعي"),
-    ("no viral segments", "الذكاء الاصطناعي لم يُرجع مقاطع — غالباً مفتاح Gemini غير صالح أو الحصة منتهية: جرّب 🔌 اختبار الاتصال في الإعدادات"),
-    ("403", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
-    ("forbidden", "يوتيوب حجب التنزيل (403) — حدّث yt-dlp: uv pip install -U yt-dlp، أو استعمل كوكيز المتصفح، أو أعد المحاولة بعد دقائق"),
-    ("np.nan", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
-    ("numpy 2.0", "تعارض إصدارات: numpy 2.x غير متوافق مع pyannote/whisperx — شغّل: uv pip install 'numpy<2'"),
-    ("invalid model size", "نموذج Whisper غير مدعوم في نسخة faster-whisper المثبتة — حدّثها: uv pip install -U faster-whisper، أو اختر نموذجاً آخر مثل large-v3 أو medium من القائمة"),
-    ("expected one of", "نموذج Whisper غير مدعوم في نسخة faster-whisper المثبتة — حدّثها: uv pip install -U faster-whisper، أو اختر نموذجاً آخر مثل large-v3 أو medium من القائمة"),
-    ("whisperx", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
-    ("torch", "مكوّن التفريغ الصوتي غير مثبّت — أعد تشغيل install_dependencies.bat واختر تثبيت whisperx"),
-    ("out of memory", "نفاد الذاكرة — أغلق البرامج الأخرى أو استعمل نموذج Whisper أصغر"),
-    ("ffmpeg", "FFmpeg غير مثبّت أو غير موجود في المسار — شغّل install_dependencies.bat واختر تنزيل FFmpeg"),
-    ("429", "يوتيوب يحدّ الطلبات مؤقتاً (429) — انتظر دقيقة وأعد المحاولة"),
-    ("connection", "مشكلة اتصال بالإنترنت أو حجب DNS"),
+    ("private video", i18n("Private video — use browser cookies: from the 🔒 menu or rerun with --cookies-from-browser chrome")),
+    ("sign in", i18n("Video requires YouTube sign-in — use your browser cookies from the 🔒 menu")),
+    ("cookiesfrombrowser", i18n("Could not read browser cookies (Chrome encryption) — try Firefox or an exported cookies.txt file")),
+    ("age", i18n("Age-restricted video — use your browser cookies")),
+    ("video unavailable", i18n("Video unavailable (deleted or geo-blocked)")),
+    ("google-generativeai", i18n("Gemini library not installed — run: pip install google-generativeai (or rerun install_dependencies.bat)")),
+    ("google.genai", i18n("Gemini library not installed — run: pip install google-genai (or rerun install_dependencies.bat)")),
+    ("gemini sdk", i18n("Gemini library not installed — run: pip install google-generativeai")),
+    ("generativelanguage", i18n("Gemini API error — likely an invalid key or exhausted quota: try the 🔌 Test Connection button in the AI settings")),
+    ("no viral segments", i18n("The AI returned no clips — likely an invalid Gemini key or exhausted quota: try 🔌 Test Connection in Settings")),
+    ("403", i18n("YouTube blocked the download (403) — update yt-dlp: uv pip install -U yt-dlp, use browser cookies, or retry in a few minutes")),
+    ("forbidden", i18n("YouTube blocked the download (403) — update yt-dlp: uv pip install -U yt-dlp, use browser cookies, or retry in a few minutes")),
+    ("np.nan", i18n("Version conflict: numpy 2.x is incompatible with pyannote/whisperx — run: uv pip install 'numpy<2'")),
+    ("numpy 2.0", i18n("Version conflict: numpy 2.x is incompatible with pyannote/whisperx — run: uv pip install 'numpy<2'")),
+    ("invalid model size", i18n("Whisper model not supported by the installed faster-whisper — update it: uv pip install -U faster-whisper, or pick another model like large-v3 or medium from the list")),
+    ("expected one of", i18n("Whisper model not supported by the installed faster-whisper — update it: uv pip install -U faster-whisper, or pick another model like large-v3 or medium from the list")),
+    ("whisperx", i18n("Transcription component not installed — rerun install_dependencies.bat and choose to install whisperx")),
+    ("torch", i18n("Transcription component not installed — rerun install_dependencies.bat and choose to install whisperx")),
+    ("out of memory", i18n("Out of memory — close other programs or use a smaller Whisper model")),
+    ("ffmpeg", i18n("FFmpeg not installed or not on PATH — run install_dependencies.bat and choose to download FFmpeg")),
+    ("429", i18n("YouTube is rate-limiting temporarily (429) — wait a minute and retry")),
+    ("connection", i18n("Internet connection problem or DNS blocking")),
 ]
 
 
@@ -197,7 +197,7 @@ def summarize_error(text, max_title=160):
     """
     text = (text or "").strip()
     lines = [ln for ln in text.splitlines() if ln.strip()]
-    title = lines[0] if lines else "خطأ غير معروف"
+    title = lines[0] if lines else i18n("Unknown error")
     for ln in lines:
         low = ln.lower()
         if low.startswith("error") or "error:" in low[:40]:
@@ -230,23 +230,23 @@ def render_error_html(error_items):
     cards = []
     for item in error_items:
         if isinstance(item, dict):
-            title = item.get("title") or "خطأ"
+            title = item.get("title") or i18n("Error")
             detail = item.get("detail") or ""
             hint = item.get("hint") or ""
             code = item.get("code")
         else:
             title, detail, hint = summarize_error(item)
             code = None
-        badge = '<span style="background:#b00020;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">خطأ</span>'
+        badge = '<span style="background:#b00020;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">' + i18n("Error") + '</span>'
         if code:
-            badge = '<span style="background:#7f1d1d;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">رمز الخروج {}</span>'.format(code)
+            badge = ('<span style="background:#7f1d1d;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;">' + i18n("Exit code {}") + '</span>').format(code)
         hint_html = (
             '<div style="color:#7a5c00;background:#fff7e0;border:1px solid #f0dc9a;'
             'border-radius:4px;padding:4px 8px;margin-top:4px;font-size:12px;">💡 {}</div>'
             .format(_html_escape(hint))) if hint else ""
         detail_html = (
             '<details style="margin-top:4px;"><summary style="cursor:pointer;'
-            'font-size:12px;color:#666;">التفاصيل التقنية</summary>'
+            'font-size:12px;color:#666;">' + i18n("Technical Details") + '</summary>'
             '<pre style="white-space:pre-wrap;background:#1e1e1e;color:#eee;'
             'border-radius:4px;padding:8px;font-size:11px;max-height:200px;'
             'overflow:auto;">{}</pre></details>'.format(_html_escape(detail))) if detail else ""

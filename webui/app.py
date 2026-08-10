@@ -700,17 +700,17 @@ with gr.Blocks(**_blocks_kwargs) as demo:
         gr.HTML("<style>{}</style>".format(css))
     gr.HTML(header.description)
     with gr.Row(elem_classes=["vc-topbar"]):
-        start_btn = gr.Button("🚀 بدء المعالجة", variant="primary", size="lg", min_width=220)
-        stop_btn = gr.Button("⏹️ إيقاف", variant="stop", visible=True, interactive=False, size="lg", min_width=140)
+        start_btn = gr.Button("🚀 " + i18n("Start Processing"), variant="primary", size="lg", min_width=220)
+        stop_btn = gr.Button("⏹️ " + i18n("Stop"), variant="stop", visible=True, interactive=False, size="lg", min_width=140)
     with gr.Row(elem_classes=["vc-panels"]):
         with gr.Column(scale=1, min_width=280):
-            gr.Markdown("### 📊 التقدم")
+            gr.Markdown("### 📊 " + i18n("Progress"))
             progress_panel = gr.HTML(value=render_progress_html(empty_progress_state()))
         with gr.Column(scale=1, min_width=280):
-            gr.Markdown("### 🧩 المهام")
+            gr.Markdown("### 🧩 " + i18n("Tasks"))
             tasks_panel = gr.HTML(value=render_tasks_html(empty_progress_state()))
         with gr.Column(scale=1, min_width=280):
-            gr.Markdown("### ⚠️ الأخطاء")
+            gr.Markdown("### ⚠️ " + i18n("Errors"))
             errors_panel = gr.HTML(value=render_error_html([]))
     with gr.Tabs():
         with gr.Tab("🏠 " + i18n("Home")):
@@ -722,26 +722,26 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                 home_check_btn = gr.Button("🔄 " + i18n("Re-check system"), size="sm", scale=1)
             home_check_btn.click(lambda: header.env_status_html(force=True), outputs=home_status_html)
 
-        with gr.Tab("📥 إنشاء جديد"):
+        with gr.Tab("📥 " + i18n("Create New")):
             with gr.Row():
                 with gr.Column(scale=1):
-                    gr.Markdown("### 1️⃣ المصدر")
-                    input_source = gr.Radio([("رابط يوتيوب", "YouTube URL"), ("مشروع موجود", "Existing Project"), ("رفع فيديو", "Upload Video")], label="مصدر الإدخال", value="YouTube URL")
-                    url_input = gr.Textbox(label="رابط يوتيوب", placeholder="https://www.youtube.com/watch?v=...", visible=True)
+                    gr.Markdown("### 1️⃣ " + i18n("Source"))
+                    input_source = gr.Radio([(i18n("YouTube URL"), "YouTube URL"), (i18n("Existing Project"), "Existing Project"), (i18n("Upload Video"), "Upload Video")], label=i18n("Input Source"), value="YouTube URL")
+                    url_input = gr.Textbox(label=i18n("YouTube URL"), placeholder="https://www.youtube.com/watch?v=...", visible=True)
                     video_upload = gr.File(label=i18n("Drag & drop a video here or click to browse"), file_count="single", file_types=["video"], visible=False, elem_id="video_upload_box")
                     upload_hint = gr.Markdown(i18n("Drop a video here for fastest upload."), visible=False)
 
                     with gr.Row():
-                        video_quality_input = gr.Dropdown(choices=["best", "1080p", "720p", "480p"], label="جودة الفيديو", value="best")
-                        translate_input = gr.Dropdown(choices=["None", "pt", "en", "es", "fr", "de", "it", "ru", "ja", "ko", "zh-CN", "ar"], label="ترجمة الترجمة إلى", value="None")
-                        use_youtube_subs_input = gr.Checkbox(label="استخدام ترجمات يوتيوب", value=True, info=i18n("Download and use official subtitles if available. (Recommended, it speeds up the process)"))
+                        video_quality_input = gr.Dropdown(choices=["best", "1080p", "720p", "480p"], label=i18n("Video Quality"), value="best")
+                        translate_input = gr.Dropdown(choices=["None", "pt", "en", "es", "fr", "de", "it", "ru", "ja", "ko", "zh-CN", "ar"], label=i18n("Translate Subtitles To"), value="None")
+                        use_youtube_subs_input = gr.Checkbox(label=i18n("Use YouTube Subtitles"), value=True, info=i18n("Download and use official subtitles if available. (Recommended, it speeds up the process)"))
                     with gr.Row():
                         force_new_segments_input = gr.Checkbox(
                             label=i18n("Generate new segments (ignore existing)"),
                             value=False,
                             info=i18n("Re-runs the AI analysis from scratch instead of reusing the saved segments (uses API credits)."))
 
-                    project_selector = gr.Dropdown(choices=[], label="اختر مشروعًا", visible=False)
+                    project_selector = gr.Dropdown(choices=[], label=i18n("Choose a Project"), visible=False)
 
                     def on_source_change(source):
                         if source == "YouTube URL":
@@ -751,29 +751,29 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         projs = library.get_existing_projects(force_refresh=True)
                         return gr.update(visible=False), gr.update(choices=projs, visible=True), gr.update(visible=False), gr.update(value="Subtitles Only"), gr.update(visible=False)
 
-                    gr.Markdown("### ✂️ القص والترجمة")
+                    gr.Markdown("### ✂️ " + i18n("Cut & Subtitles"))
                     with gr.Row():
-                        segments_input = gr.Number(label="عدد المقاطع", value=3, precision=0)
-                        viral_input = gr.Checkbox(label="وضع الفيروسية", value=True)
-                    themes_input = gr.Textbox(label="المواضيع", placeholder=i18n("funny, sad..."), visible=False)
+                        segments_input = gr.Number(label=i18n("Number of Clips"), value=3, precision=0)
+                        viral_input = gr.Checkbox(label=i18n("Viral Mode"), value=True)
+                    themes_input = gr.Textbox(label=i18n("Themes"), placeholder=i18n("funny, sad..."), visible=False)
                     viral_input.change(lambda x: gr.update(visible=not x), viral_input, themes_input)
                     with gr.Row():
-                        min_dur_input = gr.Number(label="أقل مدة (ث)", value=15)
-                        max_dur_input = gr.Number(label="أقصى مدة (ث)", value=90)
+                        min_dur_input = gr.Number(label=i18n("Min Duration (s)"), value=15)
+                        max_dur_input = gr.Number(label=i18n("Max Duration (s)"), value=90)
                 with gr.Column(scale=1):
-                    gr.Markdown("### 🤖 الذكاء الاصطناعي")
+                    gr.Markdown("### 🤖 " + i18n("AI"))
                     with gr.Row():
-                        ai_backend_input = gr.Dropdown(choices=[(i18n("Gemini"), "gemini"), (i18n("G4F"), "g4f"), (i18n("Local (GGUF)"), "local"), (i18n("Manual"), "manual")], label="محرك الذكاء الاصطناعي", value="gemini", scale=2)
-                        api_key_input = gr.Textbox(label="مفتاح Gemini API", type="password", scale=3)
+                        ai_backend_input = gr.Dropdown(choices=[(i18n("Gemini"), "gemini"), (i18n("G4F"), "g4f"), (i18n("Local (GGUF)"), "local"), (i18n("Manual"), "manual")], label=i18n("AI Backend"), value="gemini", scale=2)
+                        api_key_input = gr.Textbox(label=i18n("Gemini API Key"), type="password", scale=3)
                     settings_status = gr.Markdown(elem_id="ai_settings_status")
                     with gr.Row():
                         save_settings_btn = gr.Button("💾 " + i18n("Save Settings"), variant="secondary", size="sm", scale=1)
                         test_key_btn = gr.Button("🔌 " + i18n("Test Connection"), variant="secondary", size="sm", scale=1)
                         settings_hint = gr.Markdown("💡 " + i18n("The key is saved automatically — no need to re-enter it each time."), scale=3)
                     with gr.Row():
-                        ai_model_input = gr.Dropdown(choices=GEMINI_MODELS, label="نموذج الذكاء الاصطناعي", value=GEMINI_MODELS[1], allow_custom_value=True, visible=True, scale=5)
+                        ai_model_input = gr.Dropdown(choices=GEMINI_MODELS, label=i18n("AI Model"), value=GEMINI_MODELS[1], allow_custom_value=True, visible=True, scale=5)
                         refresh_models_btn = gr.Button("🔄", size="sm", visible=False, scale=0, min_width=50)
-                        chunk_size_input = gr.Number(label="حجم الجزء", value=70000, precision=0, scale=2)
+                        chunk_size_input = gr.Number(label=i18n("Chunk Size"), value=70000, precision=0, scale=2)
 
                     def update_ai_ui(backend):
                         show_api = (backend == "gemini")
@@ -813,11 +813,11 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     test_key_btn.click(test_api_connection, inputs=[ai_backend_input, api_key_input, ai_model_input], outputs=settings_status)
                     # v6.9: prefill the saved key/model/backend on startup
                     demo.load(load_saved_settings, outputs=[ai_backend_input, api_key_input, ai_model_input, refresh_models_btn, chunk_size_input, settings_status])
-                    model_input = gr.Dropdown(["tiny", "small", "medium", "large", "large-v1", "large-v2", "large-v3", "turbo", "large-v3-turbo", "distil-large-v2", "distil-medium.en", "distil-small.en", "distil-large-v3"], label="نموذج Whisper", value="large-v3-turbo")
+                    model_input = gr.Dropdown(["tiny", "small", "medium", "large", "large-v1", "large-v2", "large-v3", "turbo", "large-v3-turbo", "distil-large-v2", "distil-medium.en", "distil-small.en", "distil-large-v3"], label=i18n("Whisper Model"), value="large-v3-turbo")
                     with gr.Row():
-                        workflow_input = gr.Dropdown(choices=[(i18n("Full"), "Full"), (i18n("Cut Only"), "Cut Only"), (i18n("Subtitles Only"), "Subtitles Only")], label="طريقة العمل", value="Full")
-                        face_model_input = gr.Dropdown(["insightface", "mediapipe"], label="نموذج الوجه", value="insightface")
-                    gr.Markdown("### 🛡️ الأمان")
+                        workflow_input = gr.Dropdown(choices=[(i18n("Full"), "Full"), (i18n("Cut Only"), "Cut Only"), (i18n("Subtitles Only"), "Subtitles Only")], label=i18n("Workflow"), value="Full")
+                        face_model_input = gr.Dropdown(["insightface", "mediapipe"], label=i18n("Face Model"), value="insightface")
+                    gr.Markdown("### 🛡️ " + i18n("Safety"))
                     safety_mode_input = gr.Dropdown(
                         choices=[(i18n("Block violating segments (recommended)"), "block"), (i18n("Bleep violating words (keep clip)"), "censor"), (i18n("Flag only (keep segments)"), "flag"), (i18n("Off"), "off")],
                         label=i18n("🛡️ Safety filter (hate speech)"),
@@ -932,8 +932,8 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     demo.load(lambda: safety_list_status_text(), outputs=safety_update_status)
                     safety_update_btn.click(run_safety_update, outputs=safety_update_status)
                     with gr.Row():
-                        face_mode_input = gr.Dropdown(choices=[(i18n("Auto"), "auto"), ("1", "1"), ("2", "2")], label="وضع الوجه", value="auto")
-                        face_detect_interval_input = gr.Textbox(label="فاصل كشف الوجه", value="0.17,1.0")
+                        face_mode_input = gr.Dropdown(choices=[(i18n("Auto"), "auto"), ("1", "1"), ("2", "2")], label=i18n("Face Mode"), value="auto")
+                        face_detect_interval_input = gr.Textbox(label=i18n("Face Detect Interval"), value="0.17,1.0")
                         no_face_mode_input = gr.Dropdown(choices=[(i18n("Padding (9:16)"), "padding"), (i18n("Zoom (Center)"), "zoom")], label=i18n("No Face Fallback"), value="zoom")
                     input_source.change(on_source_change, inputs=input_source, outputs=[url_input, project_selector, video_upload, workflow_input, upload_hint])
 
@@ -959,43 +959,43 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                         active_speaker_motion_sensitivity_input = gr.Slider(label=i18n("Motion Sensitivity"), minimum=0.01, maximum=0.5, value=0.05, step=0.01, info=i18n("Points per pixel."))
                         active_speaker_decay_input = gr.Slider(label=i18n("Switch Speed"), minimum=0.5, maximum=5.0, value=2.0, step=0.5, info=i18n("Speed to lose focus."))
                     experimental_preset_input.change(apply_experimental_preset, inputs=experimental_preset_input, outputs=[focus_active_speaker_input, active_speaker_mar_input, active_speaker_score_diff_input, include_motion_input, active_speaker_motion_threshold_input, active_speaker_motion_sensitivity_input, active_speaker_decay_input])
-            with gr.Accordion("إعدادات الترجمة (تجريبي)", open=False):
-                preset_input = gr.Dropdown(choices=[(i18n("Manual"), "Manual")] + [(i18n(k), k) for k in subs.SUBTITLE_PRESETS.keys()], label="إعدادات سريعة", value="Hormozi (Classic)")
-                use_custom_subs = gr.Checkbox(label="تفعيل تخصيص الترجمة (يشمل الإعداد المسبق)", value=True)
+            with gr.Accordion(i18n("Subtitle Settings (Beta)"), open=False):
+                preset_input = gr.Dropdown(choices=[(i18n("Manual"), "Manual")] + [(i18n(k), k) for k in subs.SUBTITLE_PRESETS.keys()], label=i18n("Presets"), value="Hormozi (Classic)")
+                use_custom_subs = gr.Checkbox(label=i18n("Enable Subtitle Customization (incl. preset)"), value=True)
                 preview_html = gr.HTML(value=f"<div style='text-align:center; padding:10px; color:#666;'>{i18n('Select options or preset to preview')}</div>")
                 with gr.Row():
                     preview_vid_btn = gr.Button(i18n("🎬 Render Animated Preview (Slow)"), size="sm")
-                preview_vid = gr.Video(label="معاينة متحركة", height=300, autoplay=True, interactive=False)
-                with gr.Accordion("إعدادات متقدمة", open=False):
+                preview_vid = gr.Video(label=i18n("Animated Preview"), height=300, autoplay=True, interactive=False)
+                with gr.Accordion(i18n("Advanced Settings"), open=False):
                     gr.Markdown("### " + tr("Appearance"))
                     with gr.Row():
-                        font_name_input = gr.Textbox(label="اسم الخط", value="Montserrat-Regular")
-                        font_size_input = gr.Slider(label="حجم الخط (الأساسي)", minimum=8, maximum=80, value=12)
-                        highlight_size_input = gr.Slider(label="حجم التمييز", minimum=8, maximum=80, value=14)
+                        font_name_input = gr.Textbox(label=i18n("Font Name"), value="Montserrat-Regular")
+                        font_size_input = gr.Slider(label=i18n("Font Size (Base)"), minimum=8, maximum=80, value=12)
+                        highlight_size_input = gr.Slider(label=i18n("Highlight Size"), minimum=8, maximum=80, value=14)
                     with gr.Row():
-                        font_color_input = gr.ColorPicker(label="اللون الأساسي", value="#FFFFFF")
-                        highlight_color_input = gr.ColorPicker(label="لون التمييز", value="#00FF00")
-                        outline_color_input = gr.ColorPicker(label="لون الإطار", value="#000000")
-                        shadow_color_input = gr.ColorPicker(label="لون الظل", value="#000000")
+                        font_color_input = gr.ColorPicker(label=i18n("Base Color"), value="#FFFFFF")
+                        highlight_color_input = gr.ColorPicker(label=i18n("Highlight Color"), value="#00FF00")
+                        outline_color_input = gr.ColorPicker(label=i18n("Outline Color"), value="#000000")
+                        shadow_color_input = gr.ColorPicker(label=i18n("Shadow Color"), value="#000000")
                     gr.Markdown("### " + tr("Styling & Effects"))
                     with gr.Row():
-                        outline_thickness_input = gr.Slider(label="سماكة الإطار", minimum=0, maximum=10, value=1.5)
-                        shadow_size_input = gr.Slider(label="حجم الظل", minimum=0, maximum=10, value=2)
-                        border_style_input = gr.Dropdown(choices=[(i18n("Outline"), 1), (i18n("Opaque Box"), 3)], label="نمط الإطار", value=1)
+                        outline_thickness_input = gr.Slider(label=i18n("Outline Thickness"), minimum=0, maximum=10, value=1.5)
+                        shadow_size_input = gr.Slider(label=i18n("Shadow Size"), minimum=0, maximum=10, value=2)
+                        border_style_input = gr.Dropdown(choices=[(i18n("Outline"), 1), (i18n("Opaque Box"), 3)], label=i18n("Border Style"), value=1)
                     with gr.Row():
-                        bold_input = gr.Checkbox(label="عريض")
-                        italic_input = gr.Checkbox(label="مائل")
-                        uppercase_input = gr.Checkbox(label="أحرف كبيرة")
+                        bold_input = gr.Checkbox(label=i18n("Bold"))
+                        italic_input = gr.Checkbox(label=i18n("Italic"))
+                        uppercase_input = gr.Checkbox(label=i18n("Uppercase"))
                         remove_punc_input = gr.Checkbox(label=i18n("Remove Punctuation"), value=True)
-                        underline_input = gr.Checkbox(label="تحته خط")
-                        strikeout_input = gr.Checkbox(label="مشطوب")
+                        underline_input = gr.Checkbox(label=i18n("Underline"))
+                        strikeout_input = gr.Checkbox(label=i18n("Strikeout"))
                     gr.Markdown("### " + tr("Positioning & Layout"))
                     with gr.Row():
                         vertical_pos_input = gr.Slider(label=i18n("V-Pos (Margin V)"), minimum=0, maximum=500, value=210)
-                        alignment_input = gr.Dropdown(choices=[(i18n("Left"), 1), (i18n("Center"), 2), (i18n("Right"), 3)], label="المحاذاة", value=2)
-                        gap_limit_input = gr.Slider(label="حد الفجوة", minimum=0.0, maximum=5.0, value=0.5, step=0.1)
-                        mode_input = gr.Dropdown(choices=[(i18n("Highlight"), "highlight"), (i18n("Word by Word"), "word_by_word"), (i18n("No Highlight"), "no_highlight")], label="الوضع", value="highlight")
-                        words_per_block_input = gr.Slider(label="كلمات بكل كتلة", minimum=1, maximum=20, value=3, step=1)
+                        alignment_input = gr.Dropdown(choices=[(i18n("Left"), 1), (i18n("Center"), 2), (i18n("Right"), 3)], label=i18n("Alignment"), value=2)
+                        gap_limit_input = gr.Slider(label=i18n("Gap Limit"), minimum=0.0, maximum=5.0, value=0.5, step=0.1)
+                        mode_input = gr.Dropdown(choices=[(i18n("Highlight"), "highlight"), (i18n("Word by Word"), "word_by_word"), (i18n("No Highlight"), "no_highlight")], label=i18n("Mode"), value="highlight")
+                        words_per_block_input = gr.Slider(label=i18n("Words per Block"), minimum=1, maximum=20, value=3, step=1)
 
                 manual_inputs = [
                     font_name_input, font_size_input, font_color_input, highlight_color_input,
@@ -1015,12 +1015,12 @@ with gr.Blocks(**_blocks_kwargs) as demo:
 
                 with gr.Accordion(i18n("Saved Settings Templates"), open=False):
                     with gr.Row():
-                        template_name_input = gr.Textbox(label="اسم القالب", placeholder=i18n("e.g. clean-shorts"))
+                        template_name_input = gr.Textbox(label=i18n("Template Name"), placeholder=i18n("e.g. clean-shorts"))
                         save_template_btn = gr.Button(tr("Save Template"), variant="primary")
                     with gr.Row():
-                        template_dropdown = gr.Dropdown(choices=template_choices(), label="تحميل القالب", value=None)
+                        template_dropdown = gr.Dropdown(choices=template_choices(), label=i18n("Load Template"), value=None)
                         load_template_btn = gr.Button(tr("Apply Template"), variant="secondary")
-                    template_status = gr.Textbox(label="حالة القالب", interactive=False)
+                    template_status = gr.Textbox(label=i18n("Template Status"), interactive=False)
 
                 def save_settings_template(name, use_custom, font_name, font_size, font_color, highlight_color, outline_color, outline_thickness, shadow_color, shadow_size, is_bold, is_italic, is_uppercase, vertical_pos, alignment, h_size, w_block, gap, mode, under, strike, border_s, remove_punc, face_mode, face_model, no_face_mode, face_detect_interval):
                     """Save current subtitle + face settings as a named template."""
@@ -1211,13 +1211,13 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             review_export_btn.click(export_review_metadata, inputs=review_project_dropdown, outputs=review_export_out)
 
         with gr.Tab("✍️ " + i18n("Subtitle Editor")):
-            gr.Markdown("### تحرير الترجمات (الوضع الذكي)")
+            gr.Markdown("### " + i18n("Edit Subtitles (Smart Mode)"))
             with gr.Row():
-                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label="اختر مشروعًا", value=None, scale=4)
+                editor_project_dropdown = gr.Dropdown(choices=library.get_existing_projects(), label=i18n("Choose a Project"), value=None, scale=4)
                 editor_refresh_btn = gr.Button(tr("Refresh"), size="sm", scale=1)
-            editor_file_dropdown = gr.Dropdown(choices=[], label="ملف الترجمة (من مجلد subs)", value=None)
+            editor_file_dropdown = gr.Dropdown(choices=[], label=i18n("Subtitle File (from subs folder)"), value=None)
             with gr.Group():
-                editor_status = gr.Textbox(label="الحالة", interactive=False)
+                editor_status = gr.Textbox(label=i18n("Status"), interactive=False)
             with gr.Row():
                 editor_render_single_btn = gr.Button(i18n("🎬 Render Selected (single clip)"), size="sm")
                 editor_render_all_btn = gr.Button(i18n("🎬 Render All (background)"), size="sm")
@@ -1401,7 +1401,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                 lib_date_to_input = gr.Textbox(label=i18n("To date"), placeholder="YYYY-MM-DD")
                 lib_filter_btn = gr.Button(i18n("Filter"))
             with gr.Row():
-                project_dropdown = gr.Dropdown(choices=library.get_existing_projects(force_refresh=True), label="اختر مشروعًا", value=None)
+                project_dropdown = gr.Dropdown(choices=library.get_existing_projects(force_refresh=True), label=i18n("Choose a Project"), value=None)
                 refresh_btn = gr.Button(i18n("Refresh List"))
             project_gallery_html = gr.HTML()
             refresh_btn.click(library.refresh_projects, outputs=project_dropdown)
@@ -1531,10 +1531,10 @@ with gr.Blocks(**_blocks_kwargs) as demo:
             perf_trends_btn.click(lambda d: _perf("trends", d), inputs=[perf_days], outputs=perf_out)
     gr.Markdown("---")
     with gr.Row():
-        logs_output = gr.Textbox(label="📜 السجل — تظهر تحديثات التقدم هنا أثناء التشغيل", lines=12, autoscroll=True, elem_id="logs_output", scale=9)
+        logs_output = gr.Textbox(label="📜 " + i18n("Log — progress updates appear here while running"), lines=12, autoscroll=True, elem_id="logs_output", scale=9)
         with gr.Column(scale=1, min_width=110):
             gr.Markdown("&nbsp;")
-            clear_log_btn = gr.Button("🗑️ مسح السجل", size="sm")
+            clear_log_btn = gr.Button("🗑️ " + i18n("Clear Log"), size="sm")
     logs_output.change(fn=None, inputs=[], outputs=[], js="function() { var ta = document.querySelector('#logs_output textarea'); if (ta) { if (!ta._scrollerSetup) { ta._isSticky = true; ta.addEventListener('scroll', function() { var diff = ta.scrollHeight - ta.scrollTop - ta.clientHeight; ta._isSticky = diff <= 50; }); ta._scrollerSetup = true; } if (ta._isSticky === undefined || ta._isSticky === true) { ta.scrollTop = ta.scrollHeight; } } }")
     clear_log_btn.click(lambda: "", outputs=logs_output)
 

@@ -272,6 +272,97 @@ def _preflight_or_exit(mode="auto-fix"):
         return 0
 
 
+def run_safety_stage(viral_segments, *, project_folder, args, ai_backend, api_key, workflow_choice):
+    """Stages 3.7–3.8: YouTube policy shield (extracted from main() for testability).
+
+    Auto-updates the blocklist, applies the keyword safety filter, then the
+    optional AI second-pass review. Returns the (possibly filtered)
+    viral_segments dict. Exits with code 1 when every segment was blocked in
+    block/censor mode — nothing left to cut is a hard stop, by design.
+    """
+    if workflow_choice == "3" or not viral_segments or "segments" not in viral_segments:
+        return viral_segments
+    if args.safety_mode == "off":
+        return viral_segments
+
+    # Auto-update the word list from GitHub (daily throttle, offline-safe)
+    if args.safety_autoupdate == "on":
+        try:
+            from scripts import safety_updater
+            upd = safety_updater.check_and_update()
+            if upd.get("status") == "updated":
+                print(i18n("[safety-updater] {}").format(upd["message"]))
+            elif upd.get("status") == "offline":
+                debug("Safety list update skipped (offline) — using local list.")
+        except Exception as e:
+            debug(f"Safety list auto-update failed: {e}")
+
+    print(i18n("Running safety filter (mode: {})...").format(args.safety_mode))
+    emit_progress("ai", 58, "فحص الأمان")
+    try:
+        filtered = safety_filter.apply_safety_filter(
+            viral_segments,
+            project_folder=project_folder,
+            mode=args.safety_mode,
+            min_severity=args.safety_min_severity,
+            extra_terms_path=args.safety_extra_terms,
+            i18n=i18n,
+        )
+        if filtered is not viral_segments:
+            viral_segments = filtered
+            save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
+    except Exception as e:
+        print(i18n("Safety filter failed (continuing without it): {}").format(e))
+
+    # 3.8. Second-pass AI policy review (context-level violations)
+    if safety_ai.should_run_ai_review(ai_backend, args.safety_ai) and viral_segments.get("segments"):
+        print(i18n("Running AI safety review..."))
+        try:
+            kept_segments = viral_segments.get("segments", [])
+            transcript_for_review = safety_filter.load_transcript(project_folder)
+            clips = [{
+                "index": pos,
+                "title": seg.get("title", ""),
+                "text": safety_filter.segment_text(seg, transcript_for_review),
+            } for pos, seg in enumerate(kept_segments)]
+            verdicts = safety_ai.review_segments(
+                clips, ai_backend,
+                api_key=api_key, model_name=args.ai_model_name)
+            if verdicts:
+                kept_after, ai_report = safety_ai.apply_ai_review(
+                    kept_segments, clips, verdicts, mode=args.safety_mode)
+                flagged_n = len(ai_report)
+                if flagged_n:
+                    print(i18n("AI review: {} segment(s) flagged by AI policy review.").format(flagged_n))
+                    for entry in ai_report:
+                        print(i18n("[safety-ai]   ✗ '{}' — {}").format(entry["title"], entry["reason"]))
+                    viral_segments = dict(viral_segments)
+                    viral_segments["segments"] = kept_after
+                    save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
+                    # merge AI verdicts into the safety report
+                    try:
+                        report_path = os.path.join(project_folder, "safety_report.json")
+                        report_data = load_json_file(report_path, default={})
+                        report_data["ai_review"] = ai_report
+                        with open(report_path, "w", encoding="utf-8") as rf:
+                            json.dump(report_data, rf, ensure_ascii=False, indent=2)
+                    except Exception as e:
+                        debug(f"Could not merge AI review into report: {e}")
+                else:
+                    print(i18n("AI review: all surviving segments look clean ✔"))
+        except Exception as e:
+            print(i18n("AI safety review failed (continuing): {}").format(e))
+    elif args.safety_ai == "on" and args.safety_mode != "off":
+        debug(f"AI safety review skipped for backend '{ai_backend}' (needs gemini/g4f).")
+
+    if args.safety_mode in ("block", "censor") and not viral_segments.get("segments"):
+        print(i18n("Error: All segments were blocked by the safety filter (hate speech / policy violations)."))
+        print(i18n("Check safety_report.json in the project folder for details. Nothing was cut."))
+        sys.exit(1)
+
+    return viral_segments
+
+
 def main():
     if not hasattr(main, "_retried"):
         main._retried = False
@@ -895,83 +986,15 @@ def main():
                           print(i18n("Failed to align raw segments: {}").format(e))
                           # If alignment fails, it might crash later, but we tried. 
 
-        # 3.7. Safety Filter (YouTube hate-speech / violence policy shield)
-        if workflow_choice != "3" and viral_segments and "segments" in viral_segments:
-            if args.safety_mode != "off":
-                # Auto-update the word list from GitHub (daily throttle, offline-safe)
-                if args.safety_autoupdate == "on":
-                    try:
-                        from scripts import safety_updater
-                        upd = safety_updater.check_and_update()
-                        if upd.get("status") == "updated":
-                            print(i18n("[safety-updater] {}").format(upd["message"]))
-                        elif upd.get("status") == "offline":
-                            debug("Safety list update skipped (offline) — using local list.")
-                    except Exception as e:
-                        debug(f"Safety list auto-update failed: {e}")
-
-                print(i18n("Running safety filter (mode: {})...").format(args.safety_mode))
-                emit_progress("ai", 58, "فحص الأمان")
-                try:
-                    filtered = safety_filter.apply_safety_filter(
-                        viral_segments,
-                        project_folder=project_folder,
-                        mode=args.safety_mode,
-                        min_severity=args.safety_min_severity,
-                        extra_terms_path=args.safety_extra_terms,
-                        i18n=i18n,
-                    )
-                    if filtered is not viral_segments:
-                        viral_segments = filtered
-                        save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
-                except Exception as e:
-                    print(i18n("Safety filter failed (continuing without it): {}").format(e))
-
-                # 3.8. Second-pass AI policy review (context-level violations)
-                if safety_ai.should_run_ai_review(ai_backend, args.safety_ai) and viral_segments.get("segments"):
-                    print(i18n("Running AI safety review..."))
-                    try:
-                        kept_segments = viral_segments.get("segments", [])
-                        transcript_for_review = safety_filter.load_transcript(project_folder)
-                        clips = [{
-                            "index": pos,
-                            "title": seg.get("title", ""),
-                            "text": safety_filter.segment_text(seg, transcript_for_review),
-                        } for pos, seg in enumerate(kept_segments)]
-                        verdicts = safety_ai.review_segments(
-                            clips, ai_backend,
-                            api_key=api_key, model_name=args.ai_model_name)
-                        if verdicts:
-                            kept_after, ai_report = safety_ai.apply_ai_review(
-                                kept_segments, clips, verdicts, mode=args.safety_mode)
-                            flagged_n = len(ai_report)
-                            if flagged_n:
-                                print(i18n("AI review: {} segment(s) flagged by AI policy review.").format(flagged_n))
-                                for entry in ai_report:
-                                    print(i18n("[safety-ai]   ✗ '{}' — {}").format(entry["title"], entry["reason"]))
-                                viral_segments = dict(viral_segments)
-                                viral_segments["segments"] = kept_after
-                                save_json.save_viral_segments(viral_segments, project_folder=project_folder, overwrite=True)
-                                # merge AI verdicts into the safety report
-                                try:
-                                    report_path = os.path.join(project_folder, "safety_report.json")
-                                    report_data = load_json_file(report_path, default={})
-                                    report_data["ai_review"] = ai_report
-                                    with open(report_path, "w", encoding="utf-8") as rf:
-                                        json.dump(report_data, rf, ensure_ascii=False, indent=2)
-                                except Exception as e:
-                                    debug(f"Could not merge AI review into report: {e}")
-                            else:
-                                print(i18n("AI review: all surviving segments look clean ✔"))
-                    except Exception as e:
-                        print(i18n("AI safety review failed (continuing): {}").format(e))
-                elif args.safety_ai == "on" and args.safety_mode != "off":
-                    debug(f"AI safety review skipped for backend '{ai_backend}' (needs gemini/g4f).")
-
-                if args.safety_mode in ("block", "censor") and not viral_segments.get("segments"):
-                    print(i18n("Error: All segments were blocked by the safety filter (hate speech / policy violations)."))
-                    print(i18n("Check safety_report.json in the project folder for details. Nothing was cut."))
-                    sys.exit(1)
+        # 3.7–3.8. Safety Filter + AI policy review (extracted helper)
+        viral_segments = run_safety_stage(
+            viral_segments,
+            project_folder=project_folder,
+            args=args,
+            ai_backend=ai_backend,
+            api_key=api_key,
+            workflow_choice=workflow_choice,
+        )
 
         # 4. Cut Segments
         # Se workflow for 3, pulamos corte
