@@ -18,4 +18,4 @@ whisperx
 torch
 torchaudio
 
-numpy<2  # whisperx/pyannote.audio require NumPy 1.x (np.NaN removed in 2.0)
+numpy<3  # whisperx/pyannote.audio require NumPy 1.x (np.NaN removed in 2.0)
