@@ -56,8 +56,9 @@ def build_command(main_script_path, source_args, *, segments=None, viral=False,
     cmd.extend(["--max-duration", str(safe_int(max_duration, 90))])
     cmd.extend(["--model", model or "large-v3-turbo"])
     cmd.extend(["--ai-backend", ai_backend])
-    if api_key:
-        cmd.extend(["--api-key", api_key])
+    # SECURITY: API keys must never be placed in argv/process listings.
+    # The caller should pass the resolved key through the child environment.
+    # Keep the parameter for backward compatibility but deliberately ignore it.
     if ai_model_name:
         cmd.extend(["--ai-model-name", str(ai_model_name)])
     if chunk_size not in (None, ""):

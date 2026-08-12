@@ -9,10 +9,12 @@ Gemini key:
     2. encrypted store (api_config.secure.json, Fernet AES)   [new]
     3. legacy plaintext api_config.json (with a warning)
 
-Encryption: uses `cryptography` (Fernet) when installed; otherwise falls
+Encryption: uses `cryptography` (Fernet) when installed
+otherwise falls
 back to a scrypt-derived XOR obfuscation and warns that it is NOT
 real encryption — install `cryptography` for real protection. The
-passphrase never touches the file; it is asked once interactively or via
+passphrase never touches the file
+it is asked once interactively or via
 the VIRALCUTTER_CONFIG_PASSPHRASE env var.
 
 API: resolve_api_key(), set_key(), get_key(), load_api_config() (returns
@@ -23,6 +25,7 @@ import base64
 import hashlib
 import json
 import os
+import tempfile
 
 SECURE_CONFIG = "api_config.secure.json"
 LEGACY_CONFIG = "api_config.json"
@@ -52,27 +55,18 @@ def _derive_key(passphrase, salt):
         passphrase.encode("utf-8"), salt=salt, n=2 ** 14, r=8, p=1, dklen=32)
 
 
-def _xor_encrypt(data: bytes, key: bytes) -> bytes:
-    return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
-
-
-def _xor_decrypt(data: bytes, key: bytes) -> bytes:
-    return _xor_encrypt(data, key)
-
 
 def _encrypt_blob(plain: bytes, passphrase: str) -> str:
-    if HAS_CRYPTOGRAPHY:
-        salt = os.urandom(16)
-        key = base64.urlsafe_b64encode(_derive_key(passphrase, salt))
-        token = Fernet(key).encrypt(plain)
-        return json.dumps({"v": 2, "salt": base64.b64encode(salt).decode(),
-                           "token": token.decode()})
-    # fallback obfuscation (NOT real encryption)
+    # SECURITY: the insecure XOR "obfuscation" format (v1) was removed in
+    # 7.0.0-pro — credential storage now fails closed: without real
+    # encryption available we refuse to write anything.
+    if not HAS_CRYPTOGRAPHY:
+        raise RuntimeError("cryptography is required for secure credential storage")
     salt = os.urandom(16)
-    key = _derive_key(passphrase, salt)
-    body = _xor_encrypt(plain, key)
-    return json.dumps({"v": 1, "salt": base64.b64encode(salt).decode(),
-                       "body": base64.b64encode(body).decode()})
+    key = base64.urlsafe_b64encode(_derive_key(passphrase, salt))
+    token = Fernet(key).encrypt(plain)
+    return json.dumps({"v": 2, "salt": base64.b64encode(salt).decode(),
+                       "token": token.decode()})
 
 
 def _decrypt_blob(payload: str, passphrase: str) -> bytes:
@@ -83,8 +77,7 @@ def _decrypt_blob(payload: str, passphrase: str) -> bytes:
             raise RuntimeError("this config needs 'cryptography' (pip install cryptography)")
         key = base64.urlsafe_b64encode(_derive_key(passphrase, salt))
         return Fernet(key).decrypt(data["token"].encode())
-    body = base64.b64decode(data["body"])
-    return _xor_decrypt(body, _derive_key(passphrase, salt))
+    raise RuntimeError("insecure legacy credential format is not supported")
 
 
 def set_key(api_key, passphrase=None, base_dir=None):
@@ -93,11 +86,24 @@ def set_key(api_key, passphrase=None, base_dir=None):
         passphrase = os.getenv("VIRALCUTTER_CONFIG_PASSPHRASE", "").strip()
     if not passphrase:
         raise ValueError("a passphrase is required (or set VIRALCUTTER_CONFIG_PASSPHRASE)")
+    if not HAS_CRYPTOGRAPHY:
+        raise RuntimeError("cryptography is required for secure credential storage")
     path = secure_config_path(base_dir)
     data = {"gemini": {"api_key": _encrypt_blob(api_key.encode("utf-8"), passphrase)}}
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        try: os.chmod(path, 0o600)
+        except OSError: pass
+    finally:
+        if os.path.exists(tmp):
+            try: os.remove(tmp)
+            except OSError: pass
     return path
 
 

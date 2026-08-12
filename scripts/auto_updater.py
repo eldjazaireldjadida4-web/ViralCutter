@@ -6,14 +6,22 @@ Roadmap item 1.2 ("تحديث تلقائي للبرنامج نفسه"). The word
 updates itself (v3); now the *program* can too:
 
     check_for_update()    — GET /repos/{repo}/releases/latest (8s timeout)
-    download_update(url)  — stream the release asset into updates/
+    download_update(url)  — stream the release asset into updates/ and verify
+                            its SHA-256 against the release's checksums.txt /
+                            SHA256SUMS manifest (fail-closed when missing)
     update_info()         — last downloaded asset + local version
 
 Installers (see run.bat / install_linux.sh) check updates/ on startup and
 swap the new binary in. Offline / no-releases / non-GitHub errors are all
 safe no-ops — the app must never fail to start because of the updater.
+
+SECURITY: the updater replaces the running executable, so downloads are
+verified against a published checksum manifest before they are kept. A
+release without a manifest is refused unless the operator explicitly sets
+VIRALCUTTER_ALLOW_UNSIGNED_UPDATE=1.
 """
 
+import hashlib
 import json
 import os
 import subprocess
@@ -99,7 +107,9 @@ def check_for_update(repo=REPO, current_version=None, timeout=8, urlopen=None):
                 download_url = asset.get("browser_download_url")
                 break
         if not download_url and assets:
-            download_url = assets[0].get("browser_download_url")
+            # SECURITY: never fall back to a random asset — only accept an
+            # asset that matches this platform.
+            download_url = None
         available = _newer(tag) if tag else False
         return {
             "update_available": available,
@@ -113,8 +123,58 @@ def check_for_update(repo=REPO, current_version=None, timeout=8, urlopen=None):
                 "download_url": None, "notes": None, "error": str(e)}
 
 
-def download_update(download_url, dest_dir=None):
-    """Stream the release asset to updates/. Returns the local path."""
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _tag_from_url(download_url):
+    """Extract the release tag from a github.com/.../releases/download/ URL."""
+    marker = "/releases/download/"
+    if marker in (download_url or ""):
+        return download_url.split(marker, 1)[1].split("/", 1)[0]
+    return ""
+
+
+def _fetch_checksums(repo, tag):
+    """Fetch a release checksum manifest (checksums.txt / SHA256SUMS).
+
+    Returns {filename: sha256_hex} or {} when no manifest exists for the tag.
+    """
+    if not repo or not tag:
+        return {}
+    for fname in ("checksums.txt", "SHA256SUMS"):
+        url = "https://github.com/{}/releases/download/{}/{}".format(repo, tag, fname)
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "ViralCutter-auto-update"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                text = resp.read().decode("utf-8", "replace")
+        except Exception:
+            continue
+        out = {}
+        for line in text.splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and len(parts[0]) == 64:
+                out[parts[1].lstrip("*")] = parts[0].lower()
+        if out:
+            return out
+    return {}
+
+
+def download_update(download_url, dest_dir=None, expected_sha256=None, repo=None, tag=None):
+    """Stream the release asset to updates/ and verify its SHA-256.
+
+    Returns the local path.
+
+    Integrity policy (fail-closed): the binary is only kept when its SHA-256
+    matches a published checksums.txt / SHA256SUMS manifest for the same
+    release. Without a manifest the update is REFUSED unless the operator
+    explicitly opts in with VIRALCUTTER_ALLOW_UNSIGNED_UPDATE=1 (not
+    recommended — the updater replaces the running executable).
+    """
     dest_dir = dest_dir or UPDATES_DIR
     os.makedirs(dest_dir, exist_ok=True)
     name = os.path.basename(download_url.split("?")[0]) or "viralcutter_update.bin"
@@ -127,9 +187,45 @@ def download_update(download_url, dest_dir=None):
             if not chunk:
                 break
             f.write(chunk)
+
+    # --- integrity check -------------------------------------------------
+    if not tag:
+        tag = _tag_from_url(download_url)
+    if not expected_sha256:
+        checksums = _fetch_checksums(repo or REPO, tag)
+        expected_sha256 = checksums.get(name)
+        if not expected_sha256:
+            # tolerate dash/underscore naming drift between manifest and asset
+            expected_sha256 = checksums.get(name.replace("-", "_"))
+    if expected_sha256:
+        actual = _sha256(tmp)
+        if actual != expected_sha256.lower():
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise RuntimeError(
+                "checksum mismatch for {}: expected {} got {}. Update refused."
+                .format(name, expected_sha256, actual))
+        print("update integrity OK (sha256 {})".format(actual[:12]))
+    elif os.environ.get("VIRALCUTTER_ALLOW_UNSIGNED_UPDATE", "").strip().lower() in ("1", "true", "yes", "on"):
+        print("WARNING: no checksum manifest for release {} — accepting "
+              "unsigned update (VIRALCUTTER_ALLOW_UNSIGNED_UPDATE=1)"
+              .format(tag or "?"))
+    else:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise RuntimeError(
+            "no checksum manifest for release {}; refusing to install an "
+            "unverified binary. Publish a checksums.txt asset for the release "
+            "or set VIRALCUTTER_ALLOW_UNSIGNED_UPDATE=1 to accept it anyway."
+            .format(tag or "?"))
+
     os.replace(tmp, dest)
     info = {"downloaded": dest, "asset": name,
-            "local_version": LOCAL_VERSION}
+            "local_version": LOCAL_VERSION, "tag": tag}
     try:
         with open(os.path.join(dest_dir, UPDATE_INFO), "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
@@ -208,7 +304,8 @@ def main():
         if not info.get("download_url"):
             print("no downloadable asset found")
             return 1
-        path = download_update(info["download_url"])
+        path = download_update(info["download_url"], repo=REPO,
+                               tag=info.get("latest_version"))
         print("downloaded to {}".format(path))
         return 0
     if args.apply:

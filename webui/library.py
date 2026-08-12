@@ -1,4 +1,5 @@
 import datetime
+import html
 import json
 import os
 import time
@@ -142,7 +143,7 @@ def generate_project_gallery(project_path_name, is_full_path=False):
         project_folder_path = os.path.join(VIRALS_DIR, project_path_name)
 
     if not os.path.exists(project_folder_path):
-        return f'<div style="padding: 20px; text-align: center;">{i18n("Project path not found: {}").format(project_folder_path)}</div>'
+        return f'<div style="padding: 20px; text-align: center;">{html.escape(i18n("Project path not found: {}").format(project_folder_path))}</div>'
 
     try:
         json_path = os.path.join(project_folder_path, "viral_segments.txt")
@@ -191,23 +192,40 @@ def generate_project_gallery(project_path_name, is_full_path=False):
                         try:
                             cwd = os.getcwd()
                             abs_video_path = os.path.abspath(video_path)
-                            rel_path = os.path.relpath(abs_video_path, cwd)
-                            if not rel_path.startswith(".."):
-                                final_path = rel_path.replace("\\", "/")
+                            # SECURITY: only emit a /file/ URL when the video
+                            # is inside a dir Gradio is configured to serve
+                            # (VIRALS_DIR or VIRALCUTTER_EXTRA_STATIC_DIRS).
+                            # Never leak absolute paths of arbitrary files.
+                            allowed_roots = []
+                            try:
+                                from webui.app import _allowed_dirs
+                                allowed_roots = [os.path.abspath(d) for d in _allowed_dirs()]
+                            except Exception:
+                                pass
+                            inside_allowed = any(
+                                os.path.commonpath([abs_video_path, root]) == root
+                                for root in allowed_roots
+                            )
+                            if inside_allowed:
+                                rel_path = os.path.relpath(abs_video_path, cwd)
+                                if not rel_path.startswith(".."):
+                                    final_path = rel_path.replace("\\", "/")
+                                else:
+                                    final_path = abs_video_path.replace("\\", "/")
+                                path_encoded = urllib.parse.quote(final_path, safe="/:")
+                                video_src = f"/file/{path_encoded}"
                             else:
-                                final_path = abs_video_path.replace("\\", "/")
-                            path_encoded = urllib.parse.quote(final_path, safe="/:")
-                            video_src = f"/file/{path_encoded}"
+                                video_src = ""
                         except Exception:
                             video_src = ""
 
                         video_tag = f"""
                         <video controls preload="metadata" playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;">
-                            <source src="{video_src}" type="video/mp4">
+                            <source src="{html.escape(video_src)}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                         """
-                        download_link = f'<a href="{video_src}" target="_blank" download="{os.path.basename(video_path)}" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="Download" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>'
+                        download_link = f'<a href="{html.escape(video_src)}" target="_blank" download="{html.escape(os.path.basename(video_path))}" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="Download" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>'
                     else:
                         abs_virals = os.path.abspath(VIRALS_DIR)
                         if abs_video.startswith(abs_virals):
@@ -217,22 +235,22 @@ def generate_project_gallery(project_path_name, is_full_path=False):
                             video_src = f"/virals/{url_path}?t={timestamp}"
                             video_tag = f"""
                             <video controls preload="metadata" playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;">
-                                <source src="{video_src}" type="video/mp4">
+                                <source src="{html.escape(video_src)}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>
                             """
-                            download_link = f'<a href="{video_src}" download="{os.path.basename(video_path)}" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="Download" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>'
-                            proj_name_api = os.path.basename(project_path_name)
+                            download_link = f'<a href="{html.escape(video_src)}" download="{html.escape(os.path.basename(video_path))}" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="Download" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>'
+                            proj_name_api = html.escape(os.path.basename(project_path_name), quote=True)
                             def make_export_btn(fmt, label, color_hover, svg_path, _proj=proj_name_api, _seg=i):
                                 src = f"/export_xml_api?project={_proj}&segment={_seg}&format={fmt}"
-                                return f'<a href="{src}" target="_blank" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="{label}" onmouseover="this.style.color=\'{color_hover}\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_path}</svg></a>'
+                                return f'<a href="{src}" target="_blank" style="color: #aaa; display: flex; align-items: center; justify-content: center; padding: 5px; border-radius: 50%; transition: color 0.2s;" title="{html.escape(label, quote=True)}" onmouseover="this.style.color=\'{color_hover}\'" onmouseout="this.style.color=\'#aaa\'"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_path}</svg></a>'
 
                             export_pr = make_export_btn("premiere", "Export Premiere XML (Split Screen – known bug)", "#d064ff", '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M9 15h6"></path><path d="M12 12v6"></path>')
                             export_link = f"{export_pr}"
                         else:
                             video_tag = f'<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; color: #666;"><span>⚠️</span><br>{i18n("External Video")}</div>'
                 except Exception as e:
-                    video_tag = f'<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; color: #666;"><span>⚠️</span><br>{i18n("Error: {}").format(str(e))}</div>'
+                    video_tag = f'<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; color: #666;"><span>⚠️</span><br>{html.escape(i18n("Error: {}").format(str(e)))}</div>'
             else:
                 video_tag = f'<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; color: #666;"><span>⚠️</span><br>{i18n("Not Found")}</div>'
             
@@ -252,13 +270,13 @@ def generate_project_gallery(project_path_name, is_full_path=False):
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px; padding: 0 4px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 28px; font-weight: 900; line-height: 1; color: {score_color}; font-family: sans-serif;">{score}</span>
+                        <span style="font-size: 28px; font-weight: 900; line-height: 1; color: {score_color}; font-family: sans-serif;">{html.escape(str(score))}</span>
                         <div style="display: flex; align-items: center; gap: 4px;">
                             {export_link}
                             {download_link}
                         </div>
                     </div>
-                    <h4 style="margin: 4px 0 0 0; color: #e5e5e5; font-size: 15px; font-weight: 600; line-height: 1.4; font-family: sans-serif; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center;" title="{title}">{title}</h4>
+                    <h4 style="margin: 4px 0 0 0; color: #e5e5e5; font-size: 15px; font-weight: 600; line-height: 1.4; font-family: sans-serif; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center;" title="{html.escape(str(title), quote=True)}">{html.escape(str(title))}</h4>
                 </div>
             </div>
             """
@@ -267,13 +285,13 @@ def generate_project_gallery(project_path_name, is_full_path=False):
         if not html_cards:
              return f'<div style="padding: 40px; text-align: center; color: #888; font-size: 1.2em;">{i18n("No viral segments found.")}</div>'
 
-        html = f"""
+        gallery_html = f"""
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px; width: 100%; padding: 10px 0;">
             {html_cards}
         </div>
         """
-        _GALLERY_CACHE[project_folder_path] = {"sig": folder_sig, "html": html, "ts": time.time()}
-        return html
+        _GALLERY_CACHE[project_folder_path] = {"sig": folder_sig, "html": gallery_html, "ts": time.time()}
+        return gallery_html
 
     except Exception as e:
-        return i18n("Error loading gallery: {}").format(e)
+        return html.escape(i18n("Error loading gallery: {}").format(e))

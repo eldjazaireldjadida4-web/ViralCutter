@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-"""ViralCutter version (single source of truth for auto-update)."""
-
-__version__ = "6.16.1"
+"""ViralCutter version (single source of truth)."""
+__version__ = "7.0.1-pro"
 VERSION = __version__

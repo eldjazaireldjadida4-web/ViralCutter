@@ -513,6 +513,17 @@ def run_viral_cutter(input_source, project_name, url, video_file, segments, vira
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env.setdefault("GRADIO_ANALYTICS_ENABLED", "False")
+        # SECURITY: the API key must never appear in argv/process listings
+        # (pipeline.py deliberately omits --api-key). Hand it to the child
+        # through its environment instead — but never clobber a key the user
+        # already exported explicitly.
+        if ai_backend == "gemini":
+            try:
+                _resolved_key = (settings_store.load_ui_settings().get("api_key") or "").strip()
+            except Exception:
+                _resolved_key = ""
+            if _resolved_key:
+                env.setdefault("VIRALCUTTER_GEMINI_KEY", _resolved_key)
         # mask the API key in the echoed command — never print secrets to
         # the visible log (v6.9 fix: keys leaked into screenshots/logs before)
         def _mask_cmd(cmd_list):
@@ -1617,6 +1628,54 @@ with gr.Blocks(**_blocks_kwargs) as demo:
     aspect_input, reframe_mode_input, force_new_segments_input
     ], outputs=[batch_df, batch_summary, logs_output, start_btn, stop_btn, results_html, progress_panel, tasks_panel, errors_panel])
 
+def _resolve_webui_host():
+    """Host to bind. Defaults to loopback; VIRALCUTTER_HOST overrides it.
+
+    Binding to 0.0.0.0 exposes the WebUI — and any file it can serve — to the
+    whole network. Only do that on a network you trust.
+    """
+    host = os.environ.get("VIRALCUTTER_HOST", "").strip() or "127.0.0.1"
+    loopback = host in ("127.0.0.1", "::1", "localhost")
+    if not loopback:
+        print("[webui] WARNING: binding to {} — the WebUI is reachable from the "
+              "network. Set VIRALCUTTER_HOST=127.0.0.1 to bind loopback only."
+              .format(host))
+    return host
+
+
+def _allowed_dirs():
+    """Static dirs Gradio may serve — VIRALS only by default.
+
+    The repo root holds api_config.json, crash logs and OAuth tokens; it must
+    NOT be served implicitly. Power users can add extra dirs with
+    VIRALCUTTER_EXTRA_STATIC_DIRS (os.pathsep-separated, e.g. "D:/media;C:/clips").
+    """
+    dirs = [os.path.abspath(VIRALS_DIR)]
+    extra = os.environ.get("VIRALCUTTER_EXTRA_STATIC_DIRS", "").strip()
+    if extra:
+        for d in extra.split(os.pathsep):
+            d = os.path.abspath(d.strip())
+            if d and d not in dirs:
+                if os.path.isdir(d):
+                    dirs.append(d)
+                else:
+                    print("[webui] WARNING: VIRALCUTTER_EXTRA_STATIC_DIRS entry "
+                          "does not exist, skipped: {}".format(d))
+    return dirs
+
+
+def _webui_auth():
+    """Optional HTTP basic auth from VIRALCUTTER_WEBUI_USER / VIRALCUTTER_WEBUI_PASSWORD.
+
+    Returns a (user, password) tuple or None when not configured.
+    """
+    user = os.environ.get("VIRALCUTTER_WEBUI_USER", "").strip()
+    password = os.environ.get("VIRALCUTTER_WEBUI_PASSWORD", "")
+    if user and password:
+        return (user, password)
+    return None
+
+
 def _launch(argv=None):
     import argparse
     parser = argparse.ArgumentParser()
@@ -1641,7 +1700,7 @@ def _launch(argv=None):
     if args.colab:
         print("Running in Colab mode. Generating public link with Static Mounts...")
         library.set_url_mode("fastapi")
-        allowed_dirs = [VIRALS_DIR, WORKING_DIR, os.getcwd(), "."]
+        allowed_dirs = _allowed_dirs()
         try:
             gr.set_static_paths(paths=allowed_dirs)
         except AttributeError:
@@ -1657,7 +1716,7 @@ def _launch(argv=None):
     else:
         is_windows = (os.name == 'nt')
         library.set_url_mode("fastapi")
-        allowed_dirs = [VIRALS_DIR, WORKING_DIR, os.getcwd(), "."]
+        allowed_dirs = _allowed_dirs()
         try:
             gr.set_static_paths(paths=allowed_dirs)
         except AttributeError:
@@ -1670,8 +1729,14 @@ def _launch(argv=None):
             @fastapi_app.get("/export_xml_api")
             def export_xml_api(project: str, segment: int, background_tasks: BackgroundTasks, format: str = "premiere"):
                 try:
-                    project_path = os.path.join(VIRALS_DIR, project)
-                    if not os.path.exists(project_path):
+                    # SECURITY: only serve projects inside VIRALS_DIR. Reject
+                    # anything that escapes it via "../" or absolute paths.
+                    project = os.path.basename((project or "").strip()) or ""
+                    virals_root = os.path.abspath(VIRALS_DIR)
+                    project_path = os.path.abspath(os.path.join(virals_root, project))
+                    if (not project
+                            or os.path.commonpath([project_path, virals_root]) != virals_root
+                            or not os.path.isdir(project_path)):
                         return {"error": "Project not found."}
                     # Run the exporter IN-PROCESS — the packaged exe has no
                     # scripts/export_xml.py on disk, so a subprocess is
@@ -1700,8 +1765,9 @@ def _launch(argv=None):
                 share=False,
                 allowed_paths=allowed_dirs,
                 inbrowser=True,
-                server_name="0.0.0.0",
+                server_name=_resolve_webui_host(),
                 server_port=7860,
+                auth=_webui_auth(),
                 prevent_thread_lock=True,
                 **_launch_theme_kwargs
             )
@@ -1710,6 +1776,31 @@ def _launch(argv=None):
         else:
             print("Running in Linux/Container environment (using Uvicorn for stability).")
             app = FastAPI()
+            _auth = _webui_auth()
+            if _auth:
+                import base64 as _b64
+
+                from fastapi import Request
+                from fastapi.responses import JSONResponse
+                _auth_user, _auth_pass = _auth
+
+                @app.middleware("http")
+                async def _basic_auth_middleware(request: Request, call_next):
+                    auth_header = request.headers.get("authorization", "")
+                    ok = False
+                    if auth_header.lower().startswith("basic "):
+                        try:
+                            decoded = _b64.b64decode(auth_header[6:]).decode("utf-8", "replace")
+                            u, _, pw = decoded.partition(":")
+                            ok = (u == _auth_user and pw == _auth_pass)
+                        except Exception:
+                            ok = False
+                    if not ok:
+                        return JSONResponse({"error": "unauthorized"}, status_code=401,
+                                            headers={"WWW-Authenticate": 'Basic realm="ViralCutter"'})
+                    return await call_next(request)
+
+                print("[webui] HTTP basic auth enabled (VIRALCUTTER_WEBUI_USER).")
             attach_extra_routes(app)
             if _GRADIO_MAJOR >= 6:
                 # mount_gradio_app resets theme/css unless passed explicitly, and
@@ -1722,7 +1813,7 @@ def _launch(argv=None):
             else:
                 app = gr.mount_gradio_app(app, demo.queue(), path="/", allowed_paths=allowed_dirs, ssr_mode=False)
             uvicorn.run(app,
-                host="0.0.0.0",
+                host=_resolve_webui_host(),
                 port=7860,
                 log_level="info",
             )

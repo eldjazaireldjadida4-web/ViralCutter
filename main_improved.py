@@ -665,7 +665,15 @@ def main():
     themes = ""
     ai_backend = "manual" # default
     api_key = None
-    
+
+    # Load API Config ONCE, unconditionally — it is also read later when
+    # saving process_config.json even on the resume path (viral_segments
+    # already exists), where it used to be undefined (NameError dodged only
+    # because ai_backend defaulted to "manual"). Env vars and the encrypted
+    # store take priority (Roadmap 4.4).
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_config.json')
+    api_config = secure_config.load_api_config()
+
     if not viral_segments:
         num_segments = args.segments
         if not num_segments:
@@ -702,10 +710,6 @@ def main():
                      if max_d: args.max_duration = int(max_d)
                  except ValueError:
                      print(i18n("Invalid number. Using previous values."))
-
-        # Load API Config (env vars and the encrypted store take priority — Roadmap 4.4)
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_config.json')
-        api_config = secure_config.load_api_config()
 
         # Seleção do Backend de IA
         ai_backend = args.ai_backend
@@ -1422,6 +1426,12 @@ def main():
         import traceback
         traceback.print_exc()
         cleanup_temp_files()
+        # Do NOT retry on input/config errors (bad --chunk-size, malformed
+        # JSON, wrong types): re-running the whole pipeline cannot fix them
+        # and would re-download/re-transcribe for nothing.
+        if isinstance(e, (ValueError, TypeError)):
+            main._retried = False
+            sys.exit(1)
         if not main._retried:
             main._retried = True
             print(i18n("Retrying after failure..."))

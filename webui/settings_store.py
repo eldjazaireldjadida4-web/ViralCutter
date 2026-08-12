@@ -157,6 +157,19 @@ def save_ui_settings(ai_backend=None, api_key=None, ai_model=None, chunk_size=No
         except (TypeError, ValueError):
             pass
 
+    # SECURITY: when a passphrase is configured, keep the API key OUT of the
+    # plaintext api_config.json and store it in the encrypted store instead.
+    passphrase = os.environ.get("VIRALCUTTER_CONFIG_PASSPHRASE", "").strip()
+    stored_key = config["gemini"].get("api_key", "") or ""
+    if stored_key and stored_key not in FAKE_KEYS and passphrase:
+        try:
+            from scripts.secure_config import set_key
+            set_key(stored_key, passphrase=passphrase, base_dir=base_dir)
+            config["gemini"]["api_key"] = ""  # plaintext file stays clean
+        except Exception as e:
+            print("[settings-store] WARNING: encrypted key storage failed "
+                  "({}); falling back to plaintext api_config.json.".format(e))
+
     try:
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:

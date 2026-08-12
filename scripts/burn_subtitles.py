@@ -26,6 +26,17 @@ def _fonts_dir():
     return fonts_dir if os.path.isdir(fonts_dir) else None
 
 
+def _ffmpeg_filter_value(path):
+    """Escape a path for use inside an ffmpeg filtergraph value.
+
+    The filtergraph parser treats `:` as an option separator and `'` as a
+    quote character — a raw one in a project/asset path silently breaks or
+    re-scopes the filter. Backslashes are converted to forward slashes
+    first (Windows paths).
+    """
+    return (path or "").replace("\\", "/").replace("'", "\\'").replace(":", "\\:")
+
+
 def _subtitles_filter(subtitle_path):
     """Build the ffmpeg `subtitles=` filter string.
 
@@ -34,11 +45,11 @@ def _subtitles_filter(subtitle_path):
     font is NOT installed system-wide (v6.9.1 — before, ffmpeg silently
     substituted a default font and the videos looked off-brand).
     """
-    subtitle_file_ffmpeg = subtitle_path.replace('\\', '/').replace(':', '\\:')
+    subtitle_file_ffmpeg = _ffmpeg_filter_value(subtitle_path)
     vf = "subtitles='{}'".format(subtitle_file_ffmpeg)
     fonts_dir = _fonts_dir()
     if fonts_dir:
-        fonts_dir_ffmpeg = fonts_dir.replace('\\', '/').replace(':', '\\:')
+        fonts_dir_ffmpeg = _ffmpeg_filter_value(fonts_dir)
         vf += ":fontsdir='{}'".format(fonts_dir_ffmpeg)
     return vf
 

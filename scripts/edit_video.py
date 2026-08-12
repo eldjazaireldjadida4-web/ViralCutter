@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 
 import cv2
 import numpy as np
@@ -153,8 +154,14 @@ def generate_short_fallback(input_file, output_file, index, project_folder, fina
     if "nvenc" in encoder_name or "amf" in encoder_name:
          ffmpeg_cmd.extend(["-b:v", "5M"])
     
-    process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
-
+    stderr_file = tempfile.TemporaryFile()
+    process = subprocess.Popen(
+        ffmpeg_cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=stderr_file,
+    )
+    pipe_broken = False
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -165,18 +172,33 @@ def generate_short_fallback(input_file, output_file, index, project_folder, fina
         else:
              result = resize_with_padding(frame)
         
-        try:
-            # Write raw bytes to ffmpeg stdin
-            process.stdin.write(result.tobytes())
-        except Exception as e:
-            print(f"Error writing frame to ffmpeg pipe: {e}")
-            pass
-        
-
+        if not pipe_broken:
+            try:
+                # Write raw bytes to ffmpeg stdin
+                process.stdin.write(result.tobytes())
+            except (BrokenPipeError, OSError) as e:
+                # ffmpeg died mid-stream (bad encoder args, codec not
+                # available, out of disk...). Stop feeding frames and let
+                # the return-code check below raise a clear error instead
+                # of silently producing a truncated "successful" clip.
+                print(f"ffmpeg pipe closed early: {e}")
+                pipe_broken = True
 
     cap.release()
-    process.stdin.close()
-    process.wait()
+    if process.stdin and not process.stdin.closed:
+        try:
+            process.stdin.close()
+        except OSError:
+            pass
+    returncode = process.wait()
+    stderr_file.seek(0)
+    stderr_tail = "".join(stderr_file.read().decode("utf-8", "replace").splitlines()[-25:])
+    stderr_file.close()
+    if returncode != 0 or pipe_broken:
+        raise RuntimeError(
+            "ffmpeg failed while encoding clip frames (exit code {}). "
+            "Command: {}\n--- stderr tail ---\n{}"
+            .format(returncode, " ".join(ffmpeg_cmd), stderr_tail))
     
     finalize_video(input_file, output_file, index, fps, project_folder, final_folder)
 
