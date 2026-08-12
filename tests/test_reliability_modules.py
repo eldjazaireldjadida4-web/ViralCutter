@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tests for reliability modules: checkpoint, secure_config, oom_guard, auto_updater."""
 
+import hashlib
 import json
 import os
 import sys
@@ -176,15 +177,32 @@ class TestAutoUpdater:
         assert info["latest_version"] == "v0.9.0"
 
     def test_update_available_when_remote_newer(self):
+        # Pick an asset name that matches this platform, mirroring the
+        # updater's platform matching (exe on Windows, bin/appimage on POSIX).
+        asset_name = "ViralCutter.exe" if os.name == "nt" else "ViralCutter-linux"
         info = auto_updater.check_for_update(
             current_version="0.8.0", timeout=1,
             urlopen=lambda t: json.dumps({
                 "tag_name": "v1.0.0",
-                "assets": [{"name": "ViralCutter.exe",
-                            "browser_download_url": "https://x/ViralCutter.exe"}],
+                "assets": [{"name": asset_name,
+                            "browser_download_url": "https://x/" + asset_name}],
             }).encode())
         assert info["update_available"] is True
-        assert info["download_url"] == "https://x/ViralCutter.exe"
+        assert info["download_url"] == "https://x/" + asset_name
+
+    def test_foreign_platform_asset_is_not_picked(self):
+        # SECURITY: never fall back to an asset for another platform.
+        # ".dmg" matches no platform pattern, so download_url must stay None
+        # on every OS.
+        info = auto_updater.check_for_update(
+            current_version="0.8.0", timeout=1,
+            urlopen=lambda t: json.dumps({
+                "tag_name": "v1.0.0",
+                "assets": [{"name": "ViralCutter.dmg",
+                            "browser_download_url": "https://x/ViralCutter.dmg"}],
+            }).encode())
+        assert info["update_available"] is True
+        assert info["download_url"] is None
 
     def test_offline_is_safe(self):
         info = auto_updater.check_for_update(timeout=1,
@@ -199,9 +217,43 @@ class TestAutoUpdater:
         assert auto_updater._parse_version("garbage") == (0, 0, 0)
 
     def test_download_update(self, tmp_path, monkeypatch):
+        chunk = b"BINARY"
+        payload = chunk * 2  # the FakeResp below serves `chunk` twice
+
         class FakeResp:
             def __init__(self):
                 self._left = 2
+
+            def read(self, n):
+                if self._left > 0:
+                    self._left -= 1
+                    return chunk
+                return b""
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(auto_updater.urllib.request, "urlopen",
+                            lambda *a, **k: FakeResp())
+        dest = tmp_path / "upd"
+        expected = hashlib.sha256(payload).hexdigest()
+        path = auto_updater.download_update("https://x/ViralCutter.exe",
+                                            dest_dir=str(dest),
+                                            expected_sha256=expected)
+        assert os.path.exists(path)
+        with open(path, "rb") as f:
+            assert f.read() == payload
+        info = auto_updater.update_info(dest_dir=str(dest))
+        assert info[1] == "ViralCutter.exe"
+
+    def test_download_update_refused_without_checksum(self, tmp_path, monkeypatch):
+        # SECURITY: fail closed — no checksum manifest, no install.
+        class FakeResp:
+            def __init__(self):
+                self._left = 1
 
             def read(self, n):
                 if self._left > 0:
@@ -218,13 +270,37 @@ class TestAutoUpdater:
         monkeypatch.setattr(auto_updater.urllib.request, "urlopen",
                             lambda *a, **k: FakeResp())
         dest = tmp_path / "upd"
-        path = auto_updater.download_update("https://x/ViralCutter.exe",
-                                            dest_dir=str(dest))
-        assert os.path.exists(path)
-        with open(path, "rb") as f:
-            assert f.read() == b"BINARYBINARY"
-        info = auto_updater.update_info(dest_dir=str(dest))
-        assert info[1] == "ViralCutter.exe"
+        with pytest.raises(RuntimeError, match="no checksum manifest"):
+            auto_updater.download_update("https://x/ViralCutter.exe",
+                                         dest_dir=str(dest))
+        # the partial download must not linger as a valid update
+        assert not os.path.exists(os.path.join(str(dest), "ViralCutter.exe"))
+
+    def test_download_update_checksum_mismatch(self, tmp_path, monkeypatch):
+        class FakeResp:
+            def __init__(self):
+                self._left = 1
+
+            def read(self, n):
+                if self._left > 0:
+                    self._left -= 1
+                    return b"BINARY"
+                return b""
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(auto_updater.urllib.request, "urlopen",
+                            lambda *a, **k: FakeResp())
+        dest = tmp_path / "upd"
+        with pytest.raises(RuntimeError, match="checksum mismatch"):
+            auto_updater.download_update("https://x/ViralCutter.exe",
+                                         dest_dir=str(dest),
+                                         expected_sha256="0" * 64)
+        assert not os.path.exists(os.path.join(str(dest), "ViralCutter.exe"))
 
 
 class TestAutoUpdaterTagsFallback:

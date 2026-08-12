@@ -1,7 +1,7 @@
 # ViralCutter
 [![CI](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml/badge.svg)](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-565%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-572%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
 
 **Alternativa open-source 100% gratuita, local e ilimitada ao Opus Clip**  
@@ -12,6 +12,13 @@ Transforme vídeos longos do YouTube em shorts virais otimizados para TikTok, In
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UZKzeqjIeEyvq9nPx7s_4mU6xlkZQn_R?usp=sharing)
 
 [English](README_en.md) • [Português](README.md) • [العربية](README_ar.md)
+> **Atribuição / Créditos** — Este projeto é um fork do
+> [ViralCutter](https://github.com/RafaelGodoyEbert/ViralCutter) de código
+> aberto, criado por [Rafael Godoy](https://github.com/RafaelGodoyEbert)
+> (GPL-3.0). Mantém a licença GPL-3.0 original e adiciona as correções,
+> camada de segurança, WebUI e empacotamento deste repositório sobre o
+> código original.
+
 
 ## Por que ViralCutter é um "Game Changer"?
 

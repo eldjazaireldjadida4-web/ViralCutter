@@ -1,7 +1,7 @@
 # ViralCutter
 [![CI](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml/badge.svg)](https://github.com/eldjazaireldjadida4-web/ViralCutter/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-565%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-572%20passed-brightgreen)](tests/)
 
 **البديل المفتوح المصدر المجاني 100% لـ Opus Clip — يعمل محلياً وبلا حدود**
 حوّل فيديوهات يوتيوب الطويلة إلى مقاطع قصيرة فيروسية جاهزة لـ TikTok وInstagram Reels وYouTube Shorts — بذكاء اصطناعي متقدم، وترجمات ديناميكية، وتتبع دقيق للوجه، وترجمة تلقائية. كل شيء يعمل على جهازك.
@@ -10,6 +10,12 @@
 [![Forks](https://img.shields.io/github/forks/eldjazaireldjadida4-web/ViralCutter?style=social)](https://github.com/eldjazaireldjadida4-web/ViralCutter/network/members)
 
 [English](README_en.md) • [Português](README.md) • **العربية**
+> **الإسناد / الاعتماد** — هذا المشروع فرع (fork) من مشروع
+> [ViralCutter](https://github.com/RafaelGodoyEbert/ViralCutter) مفتوح
+> المصدر للمطوّر [Rafael Godoy](https://github.com/RafaelGodoyEbert)
+> (رخصة GPL-3.0). يحتفظ برخصة GPL-3.0 الأصلية ويضيف فوق الكود الأصلي
+> الإصلاحات وطبقة الأمان والواجهة والتغليف الموجودة في هذا المستودع.
+
 
 ## لماذا ViralCutter "يغيّر قواعد اللعبة"؟
 

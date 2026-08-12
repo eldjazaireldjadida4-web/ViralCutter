@@ -618,6 +618,23 @@ def language_instruction(title_language):
     )
 
 
+def _safe_chunk_size(chunk_size_arg, default):
+    """Parse a --chunk-size CLI value defensively.
+
+    A malformed value (e.g. "abc") used to raise ValueError deep inside the
+    pipeline and trigger a full re-run; fall back to the configured default
+    with a warning instead.
+    """
+    if not chunk_size_arg:
+        return default
+    try:
+        value = int(chunk_size_arg)
+    except (TypeError, ValueError):
+        print(f"Aviso: chunk-size inválido '{chunk_size_arg}', usando {default}.")
+        return default
+    return value if value > 0 else default
+
+
 def create(num_segments, viral_mode, themes, tempo_minimo, tempo_maximo, ai_mode="manual", api_key=None, project_folder="tmp", chunk_size_arg=None, model_name_arg=None, title_language="auto"):
     quantidade_de_virals = num_segments
 
@@ -662,19 +679,19 @@ def create(num_segments, viral_mode, themes, tempo_minimo, tempo_maximo, ai_mode
     
     if ai_mode == "gemini":
         cfg_chunk = config["gemini"].get("chunk_size", 15000)
-        current_chunk_size = chunk_size_arg if chunk_size_arg and int(chunk_size_arg) > 0 else cfg_chunk
+        current_chunk_size = _safe_chunk_size(chunk_size_arg, cfg_chunk)
         cfg_model = config["gemini"].get("model", "gemini-2.5-flash-lite-preview-09-2025")
         model_name = model_name_arg if model_name_arg else cfg_model
         if not api_key: api_key = config["gemini"].get("api_key", "")
             
     elif ai_mode == "g4f":
         cfg_chunk = config["g4f"].get("chunk_size", 2000)
-        current_chunk_size = chunk_size_arg if chunk_size_arg and int(chunk_size_arg) > 0 else cfg_chunk
+        current_chunk_size = _safe_chunk_size(chunk_size_arg, cfg_chunk)
         cfg_model = config["g4f"].get("model", "gpt-4o-mini")
         model_name = model_name_arg if model_name_arg else cfg_model
 
     elif ai_mode == "local":
-        current_chunk_size = chunk_size_arg if chunk_size_arg and int(chunk_size_arg) > 0 else 3000
+        current_chunk_size = _safe_chunk_size(chunk_size_arg, 3000)
         model_name = model_name_arg if model_name_arg else ""
 
     system_prompt_template = ""

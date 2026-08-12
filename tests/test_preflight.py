@@ -122,7 +122,11 @@ def test_check_models_dir(tmp_path):
         preflight.APP_ROOT = old
 
 
-def test_check_pin_numpy_ok():
+def test_check_pin_numpy_ok(monkeypatch):
+    # Deterministic: with an installed numpy that satisfies the pin, the
+    # check must pass regardless of the ambient environment (the old test
+    # depended on the dev box having numpy<2, flaking on numpy 2.x boxes).
+    monkeypatch.setattr(preflight._pkg_meta, "version", lambda d: "1.26.4")
     assert preflight.check_pin("numpy", "numpy>=2.0") is None
 
 

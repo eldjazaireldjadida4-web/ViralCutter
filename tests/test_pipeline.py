@@ -63,7 +63,10 @@ def test_optional_args_included_only_when_set():
         face_model="insightface",
     )
     pairs, bare = _flags(cmd)
-    assert pairs["--api-key"] == "secret"
+    # SECURITY: the API key must never be placed in argv/process listings.
+    # It is passed to the child process via the VIRALCUTTER_GEMINI_KEY env
+    # variable instead (see webui/app.py run()).
+    assert "--api-key" not in pairs and "--api-key" not in bare
     assert pairs["--themes"] == "funny,news"
     assert pairs["--translate-target"] == "English"
     assert pairs["--chunk-size"] == "5000"

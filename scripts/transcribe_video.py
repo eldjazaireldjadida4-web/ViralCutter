@@ -90,8 +90,17 @@ def _save_transcription_cache(cache_path, input_file, model_name, srt_file, tsv_
 
 def apply_safe_globals_hack():
     """
-    Workaround for 'Weights only load failed' error in newer PyTorch versions.
-    We first try to add safe globals. If that's not enough/fails, we monkeypatch torch.load.
+    Keep WhisperX/pyannote model loading working WITHOUT permanently disabling
+    PyTorch's deserialization guard.
+
+    We register the legacy classes as safe globals and wrap torch.load so it
+    first tries the default safe path (weights_only=True) and only retries the
+    unsafe path (weights_only=False) when the safe one actually fails AND the
+    user has explicitly opted in via VIRALCUTTER_ALLOW_UNSAFE_LOAD=1.
+
+    A poisoned/corrupted model file can execute arbitrary code during
+    weights_only=False loading — the opt-in keeps that hole closed by default
+    while remaining a documented escape hatch for genuinely legacy models.
     """
     try:
         import omegaconf
@@ -100,24 +109,39 @@ def apply_safe_globals_hack():
                 omegaconf.listconfig.ListConfig,
                 omegaconf.dictconfig.DictConfig,
                 omegaconf.base.ContainerMetadata,
-                omegaconf.base.Node
+                omegaconf.base.Node,
             ])
-            print("Aplicado patch de segurança para globals do Omegaconf.")
-            
-        # Monkeypatch agressivo para garantir compatibilidade com Pyannote/WhisperX antigos
-        original_load = torch.load
-        
-        def safe_load(*args, **kwargs):
-            kwargs['weights_only'] = False
-            return original_load(*args, **kwargs)
-            
-        torch.load = safe_load
-        print("Aplicado monkeypatch em torch.load para forçar weights_only=False.")
-        
-    except ImportError:
-        pass
+            print("Registrados safe globals do Omegaconf.")
     except Exception as e:
-        print(f"Aviso ao tentar aplicar patch de globals: {e}")
+        print(f"Aviso ao registrar safe globals: {e}")
+
+    allow_unsafe = os.environ.get(
+        "VIRALCUTTER_ALLOW_UNSAFE_LOAD", "0"
+    ).strip().lower() in ("1", "true", "yes", "on")
+    try:
+        original_load = torch.load
+
+        def safe_load(*args, **kwargs):
+            # Respect an explicit weights_only decision made by the caller.
+            if kwargs.get("weights_only") is not None:
+                return original_load(*args, **kwargs)
+            try:
+                return original_load(*args, weights_only=True, **kwargs)
+            except Exception as safe_err:
+                if not allow_unsafe:
+                    raise RuntimeError(
+                        "torch.load failed under weights_only=True ({!r}). If you "
+                        "trust this model file and need legacy loading, set "
+                        "VIRALCUTTER_ALLOW_UNSAFE_LOAD=1.".format(safe_err)
+                    ) from safe_err
+                print("WARNING: weights_only=True failed ({!r}); retrying with "
+                      "weights_only=False (VIRALCUTTER_ALLOW_UNSAFE_LOAD=1)."
+                      .format(safe_err))
+                return original_load(*args, weights_only=False, **kwargs)
+
+        torch.load = safe_load
+    except Exception as e:
+        print(f"Aviso ao aplicar wrapper de torch.load: {e}")
 
     try:
         import torchaudio

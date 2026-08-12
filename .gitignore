@@ -11,6 +11,9 @@ env/
 .env
 .env.*
 api_config.local.json
+# The real config holds API keys — commit api_config.example.json instead.
+# The app re-creates api_config.json with defaults when it is missing.
+api_config.json
 
 # Builds
 dist/
